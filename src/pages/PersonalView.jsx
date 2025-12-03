@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../supabaseClient'
 import { useNavigate } from 'react-router-dom'
+import logo from '../assets/wm-logo.svg'
 
 function PersonalView() {
   const navigate = useNavigate()
@@ -187,13 +188,17 @@ function PersonalView() {
     <div style={{ display: "flex", height: "100vh", width: "100vw", fontFamily: "sans-serif", overflow: "hidden" }}>
       
       {/* SIDEBAR */}
-      <div style={{ width: "250px", flexShrink: 0, background: colors.green, color: "white", display: "flex", flexDirection: "column", padding: "30px 0" }}>
-        <div style={{ padding: "0 20px 40px" }}>
-          <h2 style={{ fontSize: "22px", margin: 0 }}>WeekendMatcha</h2>
+      <div style={{ width: "250px", flexShrink: 0, background: colors.green, color: "white", display: "flex", flexDirection: "column", padding: "30px 20px", boxSizing: "border-box" }}>
+        
+        {/* LOGO ADDED HERE */}
+        <div style={{ paddingBottom: "10px", textAlign: "center" }}>
+            <img src={logo} alt="WeekendMatcha Logo" style={{ width: "130px", height: "auto" }} />
         </div>
         
+        <h2 style={{fontSize: "18px", marginBottom: "40px", marginTop: -20, textAlign: "center"}}>WeekendMatcha</h2>
+        
         {isAdmin && (
-            <div onClick={() => navigate('/admin-menu')} style={{ margin: "0 20px 30px", padding: "12px", background: "rgba(255,255,255,0.2)", borderRadius: "8px", cursor: "pointer", fontWeight: "bold", textAlign: "center", border: "1px solid rgba(255,255,255,0.4)" }}>
+            <div onClick={() => navigate('/admin-menu')} style={{ margin: "0 0 30px", padding: "12px", background: "rgba(255,255,255,0.2)", borderRadius: "8px", cursor: "pointer", fontWeight: "bold", textAlign: "center", border: "1px solid rgba(255,255,255,0.4)" }}>
                 ⬅ Back to Admin Panel
             </div>
         )}

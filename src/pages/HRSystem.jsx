@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef } from 'react'
 import { supabase } from '../supabaseClient'
 import { useNavigate } from 'react-router-dom'
+import logo from '../assets/wm-logo.svg' // <-- Update the filename to yours!
 
 // --- HELPER: TIME PICKER ---
 const TimePicker = ({ label, value, onChange }) => {
@@ -367,11 +368,17 @@ function HRSystem() {
       
       {/* SIDEBAR */}
       <div style={{ width: "250px", flexShrink: 0, background: colors.green, padding: "30px 20px", color: "white", display: "flex", flexDirection: "column", boxSizing: "border-box" }}>
-        <h2 style={{fontSize: "22px", marginBottom: "20px", marginTop: 0}}>WeekendMatcha</h2>
+
+        {/* LOGO ADDED HERE */}
+        <div style={{ paddingBottom: "10px", textAlign: "center" }}>
+            <img src={logo} alt="WeekendMatcha Logo" style={{ width: "130px", height: "auto" }} />
+        </div>
+        <h2 style={{fontSize: "18px", marginBottom: "40px", marginTop: -20, textAlign: "center"}}>WeekendMatcha</h2>
+
         <div style={{ padding: "10px", fontSize: "16px", fontWeight: "bold", borderRadius: "8px", marginBottom: "10px", color: "white", cursor: "pointer", background: "rgba(255,255,255,0.2)" }} onClick={() => navigate('/personal-view')}>👤 My Personal View</div>
         <div style={{borderTop: "1px solid rgba(255,255,255,0.3)", margin: "10px 0"}}></div>
         <div style={{ padding: "10px", fontSize: "16px", fontWeight: "bold", borderRadius: "8px", marginBottom: "10px", color: "white", cursor: "pointer", opacity: 0.5}}>Inventory System</div>
-        <div style={{ padding: "10px", fontSize: "16px", fontWeight: "bold", borderRadius: "8px", marginBottom: "10px", color: "white", cursor: "pointer", opacity: 0.5}}>Sales System</div>
+        <div style={{ padding: "10px", fontSize: "16px", fontWeight: "bold", borderRadius: "8px", marginBottom: "10px", color: "white", cursor: "pointer", opacity: 0.5}} onClick={() => navigate('/sales-system')}>Sales System</div>
         <div style={{ padding: "10px", fontSize: "16px", fontWeight: "bold", borderRadius: "8px", marginBottom: "10px", color: "white", cursor: "pointer", background: "#5a6955"}}>Human Resource ➤</div>
         <div onClick={handleHardReset} style={{ marginTop: "20px", padding: "10px", background: "rgba(200, 0, 0, 0.5)", borderRadius: "5px", cursor: "pointer", fontWeight: "bold", textAlign: "center", fontSize: "12px", color: "#ffdada" }}>⚠️ RESET DATA</div>
         <div style={{ marginTop: "auto", cursor: "pointer", opacity: 0.8, display:"flex", alignItems:"center", gap:"10px", fontSize:"18px" }} onClick={() => navigate('/')}><span>↪</span> Log Out</div>
@@ -402,7 +409,7 @@ function HRSystem() {
         {/* ACTIONS */}
         <div style={{ display: "flex", gap: "10px", marginBottom: "15px" }}>
           <button style={{...btnStyle, background: colors.darkGreen}} onClick={prepareAdd}>ADD</button>
-          <button style={{...btnStyle, background: "#C19A6B"}} onClick={prepareUpdate}>UPDATE</button>
+          <button style={{...btnStyle, background: "#d3af37"}} onClick={prepareUpdate}>UPDATE</button>
           <button style={{...btnStyle, background: colors.red}} onClick={prepareArchive}>ARCHIVE</button>
           <button style={{...btnStyle, background: "#337AB7"}} onClick={openArchiveLogModal}>VIEW ARCHIVE LOG</button>
         </div>

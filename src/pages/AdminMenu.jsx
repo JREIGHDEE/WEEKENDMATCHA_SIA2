@@ -77,7 +77,9 @@ function AdminMenu() {
         
         <div style={{ borderTop: "1px solid rgba(255,255,255,0.3)", margin: "10px 0" }}></div>
 
-        <div style={{ ...itemStyle, opacity: 0.5 }}>Inventory System</div>
+        <div style={{ ...itemStyle, opacity: 0.5 }} onClick={() => navigate('/inventory-system')}>
+          Inventory System
+        </div>
         
         {/* Sales System Link */}
         <div style={{ ...itemStyle, opacity: 0.5 }} onClick={() => navigate('/sales-system')}>

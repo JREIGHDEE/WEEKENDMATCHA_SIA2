@@ -6,6 +6,7 @@ import HRSystem from './pages/HRSystem'
 import PersonalView from './pages/PersonalView' // <--- IMPORT THIS
 import SalesSystem from './pages/SalesSystem' 
 import SalesReports from './pages/SalesReports' // <--- IMPORT THIS
+import Inventory from './pages/Inventory' 
 
 function App() {
   return (
@@ -18,6 +19,7 @@ function App() {
         <Route path="/personal-view" element={<PersonalView />} /> {/* <--- ADD THIS */}
         <Route path="/sales-system" element={<SalesSystem />} /> {/* <--- Add this route! */}
         <Route path="/sales-reports" element={<SalesReports />} /> {/* <--- ADD THIS ROUTE */}
+        <Route path="/inventory-system" element={<Inventory />} />
       </Routes>
     </BrowserRouter>
   )

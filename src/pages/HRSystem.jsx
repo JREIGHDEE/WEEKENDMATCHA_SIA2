@@ -355,7 +355,7 @@ function HRSystem() {
   }
 
   // --- STYLES ---
-  const colors = { green: "#6B7C65", beige: "#E8DCC6", purple: "#7D4E99", darkGreen: "#4A5D4B", red: "#D9534F" }
+  const colors = { green: "#6B7C65", beige: "#E8DCC6", purple: "#7D4E99", darkGreen: "#4A5D4B", red: "#D9534F", blue: "#337AB7" }
   const btnStyle = { padding: "8px 16px", borderRadius: "5px", border: "none", cursor: "pointer", fontWeight: "bold", color: "white", boxShadow: "0 2px 4px rgba(0,0,0,0.2)" }
   const inputStyle = { width: "100%", padding: "10px", margin: "5px 0", borderRadius: "5px", border: "1px solid #ccc", boxSizing: "border-box" }
   const modalOverlay = { position: "fixed", top: 0, left: 0, width: "100%", height: "100%", background: "rgba(0,0,0,0.6)", display: "flex", justifyContent: "center", alignItems: "center", zIndex: 1000 }
@@ -525,7 +525,7 @@ function HRSystem() {
         {modals.archive && (
           <div style={modalOverlay}>
             <div style={modalContent}>
-              <h2 style={{ marginTop: 0 }}>Archive Employee</h2>
+              <h2 style={{ color: colors.red, marginTop: 0 }}>Archive Employee</h2>
               <textarea style={{ ...inputStyle, height: "100px", resize: "none" }} placeholder="Reason for Archiving (Required)" value={archiveReason} onChange={e => setArchiveReason(e.target.value)} />
               <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px", marginTop: "20px" }}>
                 <button onClick={() => setModals({...modals, archive: false})} style={{...btnStyle, background: "#ccc", color: "#333"}}>Cancel</button>
@@ -536,34 +536,36 @@ function HRSystem() {
         )}
 
         {modals.archiveLog && (
-          <div style={modalOverlay}>
-            <div style={{...modalContent, width: "800px", display: "flex", flexDirection: "column", height: "80vh"}}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "10px" }}>
-                <h2 style={{ margin: 0 }}>Archive Log</h2>
-                <button onClick={() => setModals({...modals, archiveLog: false})} style={{...btnStyle, background: "#ccc", color: "black", padding: "5px 10px"}}>Close</button>
-              </div>
-              <div style={{ flex: 1, overflowY: "auto", border: "1px solid #ccc" }}>
-                <table style={{ width: "100%", borderCollapse: "collapse" }}>
-                  <thead style={{ background: colors.green, color: "white", position: "sticky", top: 0 }}>
-                    <tr><th>LogID</th><th>Employee Name</th><th>Archived Date</th><th>Reason</th><th>Action</th></tr>
-                  </thead>
-                  <tbody>
-                    {paginate(archiveLogs, archivePage, archivePerPage).map(log => (
-                      <tr key={log.LogID} style={{ borderBottom: "1px solid #ddd", textAlign: "center", height: "40px" }}>
-                        <td>{log.LogID}</td>
-                        <td>{log.Employee?.User?.FirstName} {log.Employee?.User?.LastName}</td>
-                        <td>{log.ArchivedDate}</td>
-                        <td>{log.ReasonArchived}</td>
-                        <td><button onClick={() => executeRestore(log.LogID, log.EmployeeID)} style={{ padding: "5px 15px", background: "#337AB7", color: "white", border: "none", borderRadius: "15px", cursor: "pointer", fontWeight: "bold" }}>Restore</button></td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-               <PaginationControls total={archiveLogs.length} page={archivePage} setPage={setArchivePage} perPage={archivePerPage} />
-            </div>
-          </div>
-        )}
+                  <div style={modalOverlay}>
+                    <div style={{...modalContent, width: "800px", display: "flex", flexDirection: "column", height: "80vh"}}>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "10px" }}>
+                        {/* ✅ UPDATED: Added color: colors.blue */}
+                        <h2 style={{ margin: 0, color: colors.blue }}>Archive Log</h2>
+                        <button onClick={() => setModals({...modals, archiveLog: false})} style={{...btnStyle, background: "#ccc", color: "black", padding: "5px 10px"}}>Close</button>
+                      </div>
+                      <div style={{ flex: 1, overflowY: "auto", border: "1px solid #ccc" }}>
+                        <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                          {/* ✅ UPDATED: Changed background from colors.green to colors.blue */}
+                          <thead style={{ background: colors.blue, color: "white", position: "sticky", top: 0 }}>
+                            <tr><th>LogID</th><th>Employee Name</th><th>Archived Date</th><th>Reason</th><th>Action</th></tr>
+                          </thead>
+                          <tbody>
+                            {paginate(archiveLogs, archivePage, archivePerPage).map(log => (
+                              <tr key={log.LogID} style={{ borderBottom: "1px solid #ddd", textAlign: "center", height: "40px" }}>
+                                <td>{log.LogID}</td>
+                                <td>{log.Employee?.User?.FirstName} {log.Employee?.User?.LastName}</td>
+                                <td>{log.ArchivedDate}</td>
+                                <td>{log.ReasonArchived}</td>
+                                <td><button onClick={() => executeRestore(log.LogID, log.EmployeeID)} style={{ padding: "5px 15px", background: "#337AB7", color: "white", border: "none", borderRadius: "15px", cursor: "pointer", fontWeight: "bold" }}>Restore</button></td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                      <PaginationControls total={archiveLogs.length} page={archivePage} setPage={setArchivePage} perPage={archivePerPage} />
+                    </div>
+                  </div>
+                )}
         
         {modals.attendance && (
           <div style={modalOverlay}>

@@ -54,8 +54,11 @@ function LandingPage() {
           <span>PERSONAL</span>
         </div>
 
-        {/* POS - Disabled */}
-        <div style={{ ...cardStyle, opacity: 0.6, cursor: "not-allowed" }}>
+        {/* POS BUTTON - ENABLED */}
+        <div 
+          style={cardStyle} 
+          onClick={() => navigate('/login', { state: { type: 'pos' } })}
+        >
           <img src={posIcon} alt="POS System" style={iconStyle} />
           <span>POS SYSTEM</span>
         </div>

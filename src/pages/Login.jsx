@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../supabaseClient'
 import { useNavigate, useLocation } from 'react-router-dom'
+import logo from '../assets/wm-logo.svg'
 
 function Login() {
   const [email, setEmail] = useState('')
@@ -90,9 +91,16 @@ function Login() {
   }
 
   return (
-    <div style={{ height: "100vh", display: "flex", justifyContent: "center", alignItems: "center", background: "#4A5D4B", color: "white", flexDirection: "column" }}>
-      <h1 style={{fontSize: "3rem", marginBottom: "20px"}}>WM.</h1>
+<div style={{ height: "100vh", width: "100vw", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "flex-start", paddingTop: "140px", background: "#4A5D4B", color: "white" }}>
       
+      {/* 1. REPLACED 'WM.' TEXT WITH LOGO */}
+      <img 
+        src={logo} 
+        alt="WeekendMatcha Logo" 
+        style={{ width: "180px", marginBottom: "5px" }} 
+      />
+      
+      {/* 2. Login Box Starts Here */}
       <div style={{ background: "white", padding: "40px", borderRadius: "15px", width: "350px", color: "#333", boxShadow: "0 10px 25px rgba(0,0,0,0.3)" }}>
         
         {/* Dynamic Header */}

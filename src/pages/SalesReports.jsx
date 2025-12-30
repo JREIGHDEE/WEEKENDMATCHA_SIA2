@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { supabase } from '../supabaseClient' // <--- 1. Import Supabase
+import { supabase } from '../supabaseClient' 
 import logo from '../assets/wm-logo.svg'
 
 function SalesReports() {
@@ -9,10 +9,10 @@ function SalesReports() {
   // --- STATE ---
   const [showGenerateModal, setShowGenerateModal] = useState(false)
   const [showConfirmModal, setShowConfirmModal] = useState(false)
-  
-  // Real Data State
-  const [reportData, setReportData] = useState([]) // <--- Replaces Mock Data
+  const [reportHistory, setReportHistory] = useState([]) 
+  const [printData, setPrintData] = useState([]) 
   const [loading, setLoading] = useState(true)
+  const [searchTerm, setSearchTerm] = useState('')
 
   const [reportForm, setReportForm] = useState({
     dateFrom: '',
@@ -20,42 +20,23 @@ function SalesReports() {
     reportType: 'Daily Sales'
   })
 
-  // --- 2. FETCH DATA FROM SUPABASE ---
-  async function fetchReportData() {
+  // --- 1. FETCH REPORT HISTORY ---
+  async function fetchReportHistory() {
     setLoading(true)
     const { data, error } = await supabase
-      .from('FinancialRecord')
-      .select('*')
-      .order('TransactionDate', { ascending: false }) // Newest first
+      .from('Report')
+      .select(`*, Employee(User(FirstName, LastName))`)
+      .order('DateGenerated', { ascending: false })
 
-    if (error) {
-      console.error("Error fetching reports:", error)
-    } else {
-      // Format data for the table
-      const formatted = data.map(item => ({
-        id: `F${String(item.RecordID).padStart(3, '0')}`,
-        // Format: 10/11/25
-        date: new Date(item.TransactionDate).toLocaleDateString('en-US', { 
-            month: '2-digit', day: '2-digit', year: '2-digit' 
-        }),
-        fullDate: new Date(item.TransactionDate), // Keep object for filtering
-        type: item.RecordType,
-        desc: item.Description,
-        amount: item.Amount,
-        txnId: `TXN${1000 + item.RecordID}`, // Generate a pseudo TXN ID
-        status: item.Status
-      }))
-      setReportData(formatted)
-    }
+    if (!error) setReportHistory(data)
     setLoading(false)
   }
 
-  // Load data on page open
   useEffect(() => {
-    fetchReportData()
+    fetchReportHistory()
   }, [])
 
-  // --- ACTIONS ---
+  // --- 2. ACTIONS ---
   const handleGenerateClick = () => {
     if (!reportForm.dateFrom || !reportForm.dateTo) {
         alert("Please select both From and To dates.")
@@ -65,33 +46,45 @@ function SalesReports() {
     setShowConfirmModal(true)
   }
 
-  const handleConfirmSavePdf = () => {
+  const handleConfirmSavePdf = async () => {
+    setLoading(true)
     setShowConfirmModal(false)
 
-    // FILTER DATA BASED ON SELECTED DATES
-    const start = new Date(reportForm.dateFrom)
-    const end = new Date(reportForm.dateTo)
-    // Set end date to end of day to include records from that day
-    end.setHours(23, 59, 59)
+    try {
+        const { data: records, error: fetchErr } = await supabase
+            .from('FinancialRecord')
+            .select('*')
+            .gte('TransactionDate', reportForm.dateFrom)
+            .lte('TransactionDate', reportForm.dateTo + 'T23:59:59')
+            .neq('Status', 'Archived');
 
-    const filteredRecords = reportData.filter(item => 
-        item.fullDate >= start && item.fullDate <= end
-    )
+        if (fetchErr) throw fetchErr;
+        setPrintData(records); 
 
-    // Calculate Total for the report
-    const totalAmount = filteredRecords.reduce((sum, item) => sum + parseFloat(item.amount), 0)
+        const { data: { user } } = await supabase.auth.getUser()
+        const { data: emp } = await supabase.from('Employee').select('EmployeeID').eq('UserID', user.id).maybeSingle()
 
-    const fileName = `Report_${reportForm.reportType.replace(' ', '')}_${reportForm.dateFrom}.pdf`
-    
-    // Show Real Data in the Alert
-    alert(`✅ REPORT GENERATED SUCCESSFULLY!\n\n` +
-          `Type: ${reportForm.reportType}\n` +
-          `Range: ${reportForm.dateFrom} to ${reportForm.dateTo}\n` +
-          `Records Found: ${filteredRecords.length}\n` +
-          `Total Value: ₱${totalAmount.toLocaleString()}\n\n` +
-          `Simulating download of: "${fileName}"...`)
-          
-    setReportForm({ dateFrom: '', dateTo: '', reportType: 'Daily Sales' })
+        await supabase.from('Report').insert([{
+            EmployeeID: emp?.EmployeeID || 1,
+            ReportType: reportForm.reportType,
+            DateGenerated: new Date().toISOString(),
+            DateRangeFrom: reportForm.dateFrom,
+            DateRangeTo: reportForm.dateTo,
+            FilePath: 'Local Download'
+        }]);
+
+        setTimeout(() => {
+            window.print();
+            setPrintData([]); 
+            fetchReportHistory();
+        }, 800);
+        
+    } catch (err) {
+        alert("Error: " + err.message)
+    } finally {
+        setLoading(false)
+        setReportForm({ dateFrom: '', dateTo: '', reportType: 'Daily Sales' })
+    }
   }
 
   const closeModals = () => {
@@ -99,148 +92,163 @@ function SalesReports() {
     setShowConfirmModal(false)
   }
 
-  // --- STYLES ---
-  const colors = { green: "#6B7C65", beige: "#E8DCC6", darkGreen: "#4A5D4B", red: "#D9534F", blue: "#7D4E99", yellow: "#D4AF37" }
-  
-  // Layout Styles
-  const mainLayout = { display: "flex", height: "100vh", width: "100vw", overflow: "hidden", fontFamily: "sans-serif" }
-  const contentArea = { flex: 1, background: colors.beige, padding: "30px", overflowY: "auto" }
-  
-  const headerStyle = { fontSize: "32px", color: colors.darkGreen, fontWeight: "bold", margin: 0 }
-  const controlsBar = { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }
-  const searchInput = { padding: "10px 15px", borderRadius: "20px", border: "1px solid #ccc", width: "300px", background: "#f0f0f0" }
-  const btnBase = { padding: "10px 25px", borderRadius: "25px", border: "none", color: "white", fontWeight: "bold", cursor: "pointer", fontSize: "16px", boxShadow: "0 2px 5px rgba(0,0,0,0.2)" }
-  
-  // Modal Styles
-  const overlay = { position: "fixed", top: 0, left: 0, width: "100%", height: "100%", background: "rgba(0,0,0,0.5)", display: "flex", justifyContent: "center", alignItems: "center", zIndex: 100 }
-  const modalBox = { background: "white", padding: "30px", borderRadius: "20px", width: "600px", boxShadow: "0 10px 25px rgba(0,0,0,0.3)" }
-  const inputLabel = { display: "block", marginBottom: "8px", fontWeight: "bold", color: "#555", fontSize: "18px" }
-  const modalInput = { width: "100%", padding: "12px", borderRadius: "10px", border: "2px solid #5a6955", fontSize: "16px", boxSizing: "border-box" }
+  // --- STYLES (MATCHING SALES SYSTEM) ---
+  const colors = { green: "#6B7C65", beige: "#E8DCC6", purple: "#7D4E99", darkGreen: "#4A5D4B", red: "#D9534F", blue: "#337AB7", yellow: "#D4AF37" }
+  const btnStyle = { padding: "8px 16px", borderRadius: "5px", border: "none", cursor: "pointer", fontWeight: "bold", color: "white", boxShadow: "0 2px 4px rgba(0,0,0,0.2)" }
+  const inputStyle = { padding: "8px", borderRadius: "20px", border: "1px solid #ccc", width: "250px" }
+  const modalOverlay = { position: "fixed", top: 0, left: 0, width: "100%", height: "100%", background: "rgba(0,0,0,0.5)", display: "flex", justifyContent: "center", alignItems: "center", zIndex: 1000 }
+  const modalContent = { background: "white", padding: "30px", borderRadius: "15px", width: "500px", boxShadow: "0 10px 25px rgba(0,0,0,0.3)", position: "relative" }
+  const formInput = { width: "100%", padding: "10px", margin: "5px 0 15px", borderRadius: "5px", border: "1px solid #ccc" }
 
   return (
-    <div style={mainLayout}>
+    <div style={{ display: "flex", height: "100vh", width: "100vw", overflow: "hidden", fontFamily: "sans-serif" }}>
       
-      {/* SIDEBAR */}
-      <div style={{ width: "250px", flexShrink: 0, background: colors.green, padding: "30px 20px", color: "white", display: "flex", flexDirection: "column", boxSizing: "border-box" }}>
+      <style>
+        {`
+          @media screen { .print-only { display: none; } }
+          @media print {
+            .no-print { display: none !important; }
+            .print-only { display: block !important; }
+            body { background: white; }
+            .report-header { text-align: center; margin-bottom: 20px; border-bottom: 2px solid black; padding-bottom: 10px; }
+          }
+        `}
+      </style>
 
-        {/* LOGO ADDED HERE */}
+      {/* SIDEBAR - UNIFORM WITH SALES SYSTEM */}
+      <div className="no-print" style={{ width: "250px", flexShrink: 0, background: colors.green, padding: "30px 20px", color: "white", display: "flex", flexDirection: "column", boxSizing: "border-box" }}>
         <div style={{ paddingBottom: "10px", textAlign: "center" }}>
             <img src={logo} alt="WeekendMatcha Logo" style={{ width: "130px", height: "auto" }} />
         </div>
         <h2 style={{fontSize: "18px", marginBottom: "40px", marginTop: -20, textAlign: "center"}}>WeekendMatcha</h2>
-        
-        {/* Navigation */}
         <div style={{ padding: "10px", fontSize: "16px", fontWeight: "bold", borderRadius: "8px", marginBottom: "10px", color: "white", cursor: "pointer", background: "rgba(255,255,255,0.2)" }} onClick={() => navigate('/personal-view')}>👤 My Personal View</div>
         <div style={{borderTop: "1px solid rgba(255,255,255,0.3)", margin: "10px 0"}}></div>
         <div style={{ padding: "10px", fontSize: "16px", fontWeight: "bold", borderRadius: "8px", marginBottom: "10px", color: "white", cursor: "pointer", opacity: 0.5}} onClick={() => navigate('/inventory-system')}>Inventory System</div>
-        
         <div style={{ padding: "10px", fontSize: "16px", fontWeight: "bold", borderRadius: "8px", marginBottom: "10px", color: "white", cursor: "pointer", background: "#5a6955"}} onClick={() => navigate('/sales-system')}>Sales System ➤</div>
-        
         <div style={{ padding: "10px", fontSize: "16px", fontWeight: "bold", borderRadius: "8px", marginBottom: "10px", color: "white", cursor: "pointer", opacity: 0.5}} onClick={() => navigate('/hr-system')}>Human Resource</div>
         <div style={{ marginTop: "auto", cursor: "pointer", opacity: 0.8, display:"flex", alignItems:"center", gap:"10px", fontSize:"18px" }} onClick={() => navigate('/')}><span>↪</span> Log Out</div>
       </div>
 
-
-      {/* --- MAIN REPORT CONTENT --- */}
-      <div style={contentArea}>
+      {/* MAIN CONTENT AREA */}
+      <div className="no-print" style={{ flex: 1, background: colors.beige, padding: "30px", display: "flex", flexDirection: "column", overflowY: "auto", height: "100vh" }}>
         
-        {/* Header Section */}
-        <div style={{ borderBottom: "2px solid " + colors.darkGreen, paddingBottom: "15px", marginBottom: "30px" }}>
-            <h1 style={headerStyle}>Reports</h1>
+        {/* HEADER - UNIFORM PLACEMENT */}
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "15px" }}>
+          <h1 style={{ margin: 0, fontSize: "28px", color: colors.darkGreen }}>Report Generation History</h1>
+          <button style={{...btnStyle, background: colors.red, padding: "10px 35px"}} onClick={() => navigate('/sales-system')}>BACK</button>
         </div>
 
-        {/* Controls Bar */}
-        <div style={controlsBar}>
-          <input type="text" placeholder="🔍 Search by Customer ID" style={searchInput} />
-          <div style={{ display: "flex", gap: "15px" }}>
-              <button style={{...btnBase, background: colors.blue}} onClick={() => setShowGenerateModal(true)}>Generate Report</button>
-              <button style={{...btnBase, background: colors.red, padding: "10px 35px"}} onClick={() => navigate('/sales-system')}>Back</button>
-          </div>
+        {/* SEARCH BAR - UNIFORM PLACEMENT */}
+        <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "20px" }}>
+          <input 
+            placeholder="🔍 Search History..." 
+            style={inputStyle} 
+            value={searchTerm} 
+            onChange={(e) => setSearchTerm(e.target.value)} 
+          />
         </div>
 
-        {/* Report History Table (Now shows REAL Data) */}
-        <div style={{ background: colors.green, borderRadius: "15px 15px 0 0", padding: "15px", color: "white", fontWeight: "bold", display: "flex", justifyContent: "space-between" }}>
-          <span style={{flex: 1}}>Record ID</span>
-          <span style={{flex: 1}}>Date</span>
-          <span style={{flex: 1}}>Type</span>
-          <span style={{flex: 2}}>Description</span>
-          <span style={{flex: 1}}>Amount</span>
-          <span style={{flex: 1}}>Transaction ID</span>
-          <span style={{flex: 1, textAlign: "right"}}>Status</span>
+        {/* ACTIONS - UNIFORM BUTTON SHAPE */}
+        <div style={{ display: "flex", gap: "10px", marginBottom: "15px" }}>
+          <button style={{...btnStyle, background: colors.blue}} onClick={() => setShowGenerateModal(true)}>GENERATE REPORT</button>
         </div>
-        <div style={{ background: "white", borderRadius: "0 0 15px 15px", padding: "10px", height: "500px", overflowY: "auto", boxShadow: "0 4px 10px rgba(0,0,0,0.05)" }}>
-           
-           {/* LOADING STATE */}
-           {loading && <div style={{padding: "20px", textAlign: "center"}}>Loading Records...</div>}
 
-           {/* REAL DATA MAPPING */}
-           {!loading && reportData.map((item, index) => (
-              <div key={index} style={{ display: "flex", padding: "15px 5px", borderBottom: "1px solid #eee", color: "#333", fontSize: "14px", fontWeight: "500" }}>
-                  <span style={{flex: 1}}>{item.id}</span>
-                  <span style={{flex: 1}}>{item.date}</span>
-                  <span style={{flex: 1}}>{item.type}</span>
-                  <span style={{flex: 2}}>{item.desc}</span>
-                  <span style={{flex: 1}}>{parseFloat(item.amount).toLocaleString('en-PH', {style: 'currency', currency: 'PHP'})}</span>
-                  <span style={{flex: 1}}>{item.txnId}</span>
-                  <span style={{flex: 1, textAlign: "right"}}>{item.status}</span>
-              </div>
-           ))}
-
-           {/* EMPTY STATE */}
-           {!loading && reportData.length === 0 && (
-             <div style={{padding: "20px", textAlign: "center", color: "#777"}}>No transaction history found.</div>
-           )}
+        {/* HISTORY TABLE */}
+        <div style={{ background: "white", borderRadius: "15px", boxShadow: "0 4px 10px rgba(0,0,0,0.1)", display: "flex", flexDirection: "column", flex: "0 1 auto", maxHeight: "600px", minHeight: "500px", overflow: "hidden" }}>
+            <div style={{ flex: 1, overflowY: "auto" }}>
+                <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                  <thead style={{ position: "sticky", top: 0, background: colors.green, color: "white", zIndex: 1 }}>
+                    <tr>
+                      <th style={{ padding: "15px" }}>Report ID</th>
+                      <th>Generated By</th>
+                      <th>Type</th>
+                      <th>Date Generated</th>
+                      <th>Date Range</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {loading && <tr><td colSpan="5" style={{padding:"30px", textAlign:"center"}}>Loading History...</td></tr>}
+                    {!loading && reportHistory.length === 0 && <tr><td colSpan="5" style={{padding:"30px", textAlign:"center"}}>No history found.</td></tr>}
+                    {!loading && reportHistory.map((report) => (
+                      <tr key={report.ReportID} style={{ borderBottom: "1px solid #eee", textAlign: "center", height: "50px" }}>
+                        <td style={{ padding: "10px" }}>RPT-{String(report.ReportID).padStart(3, '0')}</td>
+                        <td>{report.Employee?.User?.FirstName} {report.Employee?.User?.LastName}</td>
+                        <td>{report.ReportType}</td>
+                        <td>{new Date(report.DateGenerated).toLocaleDateString()}</td>
+                        <td>{report.DateRangeFrom} to {report.DateRangeTo}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+            </div>
         </div>
       </div>
 
-      {/* --- MODAL 1: GENERATE REPORT FORM --- */}
-      {showGenerateModal && (
-        <div style={overlay}>
-          <div style={modalBox}>
-            <h2 style={{ color: colors.darkGreen, marginTop: 0, borderBottom: "2px solid " + colors.darkGreen, paddingBottom: "15px", marginBottom: "25px", fontSize: "28px" }}>Generate Report</h2>
-            
-            <div style={{ display: "flex", gap: "20px", marginBottom: "20px" }}>
-                <div style={{ flex: 1 }}>
-                    <label style={inputLabel}>From</label>
-                    <input type="date" style={modalInput} value={reportForm.dateFrom} onChange={(e) => setReportForm({...reportForm, dateFrom: e.target.value})} />
-                </div>
-                <div style={{ flex: 1 }}>
-                    <label style={inputLabel}>To</label>
-                    <input type="date" style={modalInput} value={reportForm.dateTo} onChange={(e) => setReportForm({...reportForm, dateTo: e.target.value})} />
-                </div>
-            </div>
-            
-            <div style={{ marginBottom: "40px" }}>
-                <label style={inputLabel}>Report Type</label>
-                <select style={modalInput} value={reportForm.reportType} onChange={(e) => setReportForm({...reportForm, reportType: e.target.value})}>
-                    <option value="Daily Sales">Daily Sales Report</option>
-                    <option value="Weekly Summary">Weekly Summary</option>
-                    <option value="Monthly Profit & Loss">Monthly Profit & Loss</option>
-                    <option value="Expense Report">Expense Report Only</option>
-                </select>
-            </div>
+      {/* --- PRINT SECTION --- */}
+      <div className="print-only" style={{ padding: "40px", fontFamily: "serif" }}>
+          <div className="report-header">
+              <h1 style={{margin: 0}}>WEEKEND MATCHA SALES REPORT</h1>
+              <p>{reportForm.reportType} | Range: {reportForm.dateFrom} to {reportForm.dateTo}</p>
+          </div>
+          <table style={{ width: "100%", borderCollapse: "collapse" }}>
+              <thead>
+                  <tr style={{ borderBottom: "2px solid black", textAlign: "left" }}>
+                      <th style={{padding: "10px"}}>Date</th>
+                      <th>Description</th>
+                      <th>Type</th>
+                      <th style={{textAlign: "right"}}>Amount</th>
+                  </tr>
+              </thead>
+              <tbody>
+                  {printData.map(item => (
+                      <tr key={item.RecordID} style={{ borderBottom: "1px solid #ddd" }}>
+                          <td style={{padding: "10px"}}>{new Date(item.TransactionDate).toLocaleDateString()}</td>
+                          <td>{item.Description}</td>
+                          <td>{item.RecordType}</td>
+                          <td style={{textAlign: "right"}}>₱{parseFloat(item.Amount).toLocaleString(undefined, {minimumFractionDigits: 2})}</td>
+                      </tr>
+                  ))}
+              </tbody>
+          </table>
+          <div style={{ marginTop: "30px", textAlign: "right", fontWeight: "bold", fontSize: "18px" }}>
+              Total Amount: ₱{printData.reduce((sum, item) => sum + parseFloat(item.Amount), 0).toLocaleString(undefined, {minimumFractionDigits: 2})}
+          </div>
+      </div>
 
-            <div style={{ display: "flex", justifyContent: "flex-end", gap: "20px" }}>
-                <button onClick={closeModals} style={{...btnBase, background: colors.yellow, color: "white", padding: "12px 30px", fontSize: "18px"}}>Cancel</button>
-                <button onClick={handleGenerateClick} style={{...btnBase, background: colors.green, padding: "12px 30px", fontSize: "18px"}}>Generate Report</button>
+      {/* MODALS */}
+      {showGenerateModal && (
+        <div style={modalOverlay}>
+          <div style={modalContent}>
+            <h2 style={{ color: colors.darkGreen, marginTop: 0 }}>Generate New Report</h2>
+            <div style={{ display: "flex", gap: "20px" }}>
+                <div style={{ flex: 1 }}><label style={{fontWeight: "bold"}}>From</label><input type="date" style={formInput} value={reportForm.dateFrom} onChange={(e) => setReportForm({...reportForm, dateFrom: e.target.value})} /></div>
+                <div style={{ flex: 1 }}><label style={{fontWeight: "bold"}}>To</label><input type="date" style={formInput} value={reportForm.dateTo} onChange={(e) => setReportForm({...reportForm, dateTo: e.target.value})} /></div>
+            </div>
+            <label style={{fontWeight: "bold"}}>Report Type</label>
+            <select style={formInput} value={reportForm.reportType} onChange={(e) => setReportForm({...reportForm, reportType: e.target.value})}>
+                <option value="Daily Sales">Daily Sales Report</option>
+                <option value="Monthly P&L">Monthly Profit & Loss</option>
+                <option value="Expenses">Expense Report</option>
+            </select>
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px" }}>
+                <button onClick={closeModals} style={{...btnStyle, background: colors.yellow, color: "black"}}>CANCEL</button>
+                <button onClick={handleGenerateClick} style={{...btnStyle, background: colors.green}}>GENERATE</button>
             </div>
           </div>
         </div>
       )}
 
-      {/* --- MODAL 2: CONFIRMATION POP-UP --- */}
       {showConfirmModal && (
-        <div style={{...overlay, zIndex: 101}}>
-            <div style={{...modalBox, width: "400px", textAlign: "center", padding: "40px", borderRadius: "25px" }}>
-                <h2 style={{ color: "#5a6955", fontSize: "24px", marginBottom: "40px", fontWeight: "normal" }}>Save to device as PDF?</h2>
-                <div style={{ display: "flex", justifyContent: "center", gap: "40px" }}>
-                    <button onClick={closeModals} style={{ border: "none", background: "none", color: "#D9534F", fontSize: "20px", fontWeight: "bold", cursor: "pointer" }}>Cancel</button>
-                    <button onClick={handleConfirmSavePdf} style={{ border: "none", background: "none", color: "#6B7C65", fontSize: "20px", fontWeight: "bold", cursor: "pointer" }}>Yes</button>
+        <div style={modalOverlay}>
+            <div style={{...modalContent, width: "400px", textAlign: "center" }}>
+                <h2 style={{ color: "#5a6955" }}>Save Report as PDF?</h2>
+                <div style={{ display: "flex", justifyContent: "center", gap: "20px", marginTop: "20px" }}>
+                    <button onClick={closeModals} style={{...btnStyle, background: "#ccc", color: "black"}}>CANCEL</button>
+                    <button onClick={handleConfirmSavePdf} style={{...btnStyle, background: colors.green}}>YES</button>
                 </div>
             </div>
         </div>
       )}
-
     </div>
   )
 }

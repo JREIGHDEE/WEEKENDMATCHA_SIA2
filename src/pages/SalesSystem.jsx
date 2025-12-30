@@ -8,7 +8,7 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 const PaginationControls = ({ total, page, setPage, perPage }) => {
   const totalPages = Math.max(1, Math.ceil(total / perPage))
   return (
-    <div style={{ display: "flex", justifyContent: "center", padding: "15px", gap: "15px", alignItems: "center", color: "#888", fontWeight: "bold", marginTop: "auto", borderTop: "1px solid #f0f0f0" }}>
+    <div style={{ display: "flex", justifyContent: "center", padding: "15px", gap: "15px", alignItems: "center", color: "#888", fontWeight: "bold", marginTop: "10px", borderTop: "1px solid #f0f0f0" }}>
       {Array.from({ length: totalPages }, (_, i) => i + 1).map(num => (
         <span key={num} onClick={() => setPage(num)} style={{ cursor: "pointer", color: page === num ? "#333" : "#ccc", transform: page === num ? "scale(1.2)" : "scale(1)", fontSize: "16px" }}>{num}</span>
       ))}
@@ -21,22 +21,18 @@ function SalesSystem() {
   const navigate = useNavigate()
 
   // --- STATE ---
-  const [transactions, setTransactions] = useState([]) // FinancialRecord (For Table List & Expenses)
-  const [orders, setOrders] = useState([]) // Order Table (For Sales Metrics)
+  const [transactions, setTransactions] = useState([]) 
+  const [orders, setOrders] = useState([]) 
   const [filteredTransactions, setFilteredTransactions] = useState([])
   const [selectedId, setSelectedId] = useState(null)
   const [loading, setLoading] = useState(true)
   
-  // Metrics (Top Cards)
+  // Metrics 
   const [metrics, setMetrics] = useState({ todaySales: 0, monthlySales: 0, totalProfit: 0, totalDiscounts: 0 })
-  
-  // Filtered Metrics (Sidebar)
   const [filteredMetrics, setFilteredMetrics] = useState({ totalSales: 0, totalProfit: 0, totalDiscounts: 0, totalOrders: 0 })
-  
-  // Graph Data
   const [chartData, setChartData] = useState([])
 
-  // Date Filters (Default: This Month)
+  // Date Filters 
   const [dateFrom, setDateFrom] = useState(new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0]) 
   const [dateTo, setDateTo] = useState(new Date().toISOString().split('T')[0])
 
@@ -49,8 +45,6 @@ function SalesSystem() {
   // Pagination
   const [currentPage, setCurrentPage] = useState(1)
   const itemsPerPage = 5
-  const [archivePage, setArchivePage] = useState(1)
-  const archivePerPage = 5
 
   // Modals
   const [modals, setModals] = useState({ add: false, update: false, archive: false, confirmation: false, archiveLog: false })
@@ -60,27 +54,32 @@ function SalesSystem() {
   const [confirmationAction, setConfirmationAction] = useState(null)
   const [confirmationMsg, setConfirmationMsg] = useState({ title: '', message: '' })
 
-  // --- 1. FETCH DATA (Transactions & Orders) ---
+  // --- 1. FETCH DATA (Transactions, Orders, AND Archive Logs) ---
   async function fetchData() {
     setLoading(true)
     
-    // A. Fetch Financial Records (For Table List & Expenses)
+    // A. Fetch Financial Records
     const { data: finData, error: finError } = await supabase
       .from('FinancialRecord')
       .select(`*, Employee (User (FirstName, LastName))`)
       .order('TransactionDate', { ascending: false })
 
-    // B. Fetch Orders (CRITICAL FOR SALES METRICS)
-    // We select TotalAmount specifically for sales calculations
+    // B. Fetch Orders
     const { data: orderData, error: orderError } = await supabase
       .from('Order')
       .select('*') 
       .eq('Status', 'COMPLETED')
 
+    // C. Fetch Archive Logs (Updated to match FinancialArchiveLog)
+    const { data: logData, error: logError } = await supabase
+      .from('FinancialArchiveLog')
+      .select(`*, User(FirstName, LastName)`)
+      .order('ArchivedDate', { ascending: false })
+
     if (finError || orderError) {
         console.error("Error fetching data:", finError || orderError)
     } else {
-      // Process Financial Records for Display
+      // Process Transactions
       const formattedData = finData.map(item => ({
         id: `F${String(item.RecordID).padStart(3, '0')}`,
         date: new Date(item.TransactionDate).toLocaleString('en-US', { 
@@ -96,60 +95,57 @@ function SalesSystem() {
       }))
       setTransactions(formattedData)
       setFilteredTransactions(formattedData)
-      
-      // Store Raw Orders for Calculations
       setOrders(orderData || [])
+
+      // Process Archive Logs
+      if (logData) {
+        const formattedLogs = logData.map(l => ({
+          logId: l.FLogID,
+          originalId: `F${String(l.RecordID).padStart(3, '0')}`,
+          reason: l.Reason,
+          archivedBy: l.User ? `${l.User.FirstName} ${l.User.LastName}` : `User: ${l.UserID}`,
+          dateArchived: new Date(l.ArchivedDate).toLocaleString()
+        }));
+        setArchiveLogs(formattedLogs);
+      }
     }
     setLoading(false)
   }
 
   useEffect(() => { fetchData() }, [])
 
-  // --- 2. CALCULATE METRICS (Run when data changes) ---
+  // --- 2. METRICS & GRAPHS ---
   useEffect(() => {
     calculateMetrics()
     calculateGraphAndSidebar()
   }, [transactions, orders])
 
-const calculateMetrics = () => {
+  const calculateMetrics = () => {
     const todayStr = new Date().toLocaleDateString('en-US') 
     const currentMonth = new Date().getMonth()
-    const currentYear = new Date().getFullYear() // <--- Get the current year (e.g., 2025)
+    const currentYear = new Date().getFullYear()
 
     let todaySalesSum = 0
     let monthlySalesSum = 0
-    let yearlyIncome = 0      // Changed from totalIncomeAllTime
-    let yearlyExpense = 0     // Changed from totalExpenseAllTime
-    let yearlyDiscounts = 0   // Changed from totalDiscountsSum
+    let yearlyIncome = 0
+    let yearlyExpense = 0
+    let yearlyDiscounts = 0
 
-    // A. Calculate Sales from ORDERS Table
     orders.forEach(order => {
         const oDate = new Date(order.OrderDateTime)
         const amount = parseFloat(order.TotalAmount) || 0
         const discount = parseFloat(order.DiscountAmount) || 0
 
-        // Only count if it belongs to THIS YEAR (Resets Jan 1st)
         if (oDate.getFullYear() === currentYear) {
             yearlyIncome += amount
             yearlyDiscounts += discount
-            
-            // Check if Today
-            if (oDate.toLocaleDateString('en-US') === todayStr) {
-                todaySalesSum += amount
-            }
-
-            // Check if This Month
-            if (oDate.getMonth() === currentMonth) {
-                monthlySalesSum += amount
-            }
+            if (oDate.toLocaleDateString('en-US') === todayStr) todaySalesSum += amount
+            if (oDate.getMonth() === currentMonth) monthlySalesSum += amount
         }
     })
 
-    // B. Calculate Expenses from FINANCIAL RECORD Table
     transactions.forEach(t => {
         const tDate = new Date(t.rawDate || t.date)
-        
-        // Only count expenses from THIS YEAR
         if (tDate.getFullYear() === currentYear) {
             if (t.type === 'Expense' && t.status === 'Completed') {
                 yearlyExpense += (parseFloat(t.amount) || 0)
@@ -160,20 +156,17 @@ const calculateMetrics = () => {
     setMetrics({
         todaySales: todaySalesSum,
         monthlySales: monthlySalesSum,
-        totalProfit: yearlyIncome - yearlyExpense, // Now represents YTD Profit
-        totalDiscounts: yearlyDiscounts // Now represents YTD Discounts
+        totalProfit: yearlyIncome - yearlyExpense,
+        totalDiscounts: yearlyDiscounts
     })
   }
 
-  // --- 3. FILTER LOGIC (Graph & Sidebar) ---
   const calculateGraphAndSidebar = () => {
-      // 1. Determine Range
       const start = new Date(dateFrom)
       start.setHours(0,0,0,0)
       const end = new Date(dateTo)
       end.setHours(23,59,59,999)
 
-      // 2. Generate Date Labels for Graph
       const dateArray = []
       let currentDate = new Date(start)
       while (currentDate <= end) {
@@ -181,38 +174,22 @@ const calculateMetrics = () => {
           currentDate.setDate(currentDate.getDate() + 1)
       }
 
-      // 3. Process Data for Sidebar & Graph
-      let fSales = 0
-      let fDiscounts = 0
-      let fOrdersCount = 0
-      
+      let fSales = 0, fDiscounts = 0, fOrdersCount = 0, fExpenses = 0
       const dailyMap = {} 
-      dateArray.forEach(d => {
-          const key = d.toLocaleDateString('en-US')
-          dailyMap[key] = 0
-      })
+      dateArray.forEach(d => dailyMap[d.toLocaleDateString('en-US')] = 0)
 
-      // A. Graph & Sales from ORDERS
       orders.forEach(o => {
           const oDate = new Date(o.OrderDateTime)
-          
           if (oDate >= start && oDate <= end) {
               const amount = parseFloat(o.TotalAmount) || 0
-              
               fSales += amount
               fDiscounts += (parseFloat(o.DiscountAmount) || 0)
               fOrdersCount += 1
-
-              // Add to graph map
               const key = oDate.toLocaleDateString('en-US')
-              if (dailyMap[key] !== undefined) {
-                  dailyMap[key] += amount
-              }
+              if (dailyMap[key] !== undefined) dailyMap[key] += amount
           }
       })
 
-      // B. Expenses from FINANCIAL RECORD (for Profit)
-      let fExpenses = 0
       transactions.forEach(t => {
           const tDate = new Date(t.rawDate)
           if (tDate >= start && tDate <= end && t.type === 'Expense' && t.status === 'Completed') {
@@ -220,22 +197,8 @@ const calculateMetrics = () => {
           }
       })
 
-      // 4. Update Sidebar
-      setFilteredMetrics({
-          totalSales: fSales,
-          totalProfit: fSales - fExpenses,
-          totalDiscounts: fDiscounts,
-          totalOrders: fOrdersCount
-      })
-
-      // 5. Update Graph Data
-      const finalGraphData = dateArray.map(d => {
-          const key = d.toLocaleDateString('en-US')
-          const label = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-          return { date: label, sales: dailyMap[key] || 0 }
-      })
-      
-      setChartData(finalGraphData)
+      setFilteredMetrics({ totalSales: fSales, totalProfit: fSales - fExpenses, totalDiscounts: fDiscounts, totalOrders: fOrdersCount })
+      setChartData(dateArray.map(d => ({ date: d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }), sales: dailyMap[d.toLocaleDateString('en-US')] || 0 })))
   }
 
   // --- SEARCH HANDLER ---
@@ -257,7 +220,7 @@ const calculateMetrics = () => {
   const paginate = (items, page, perPage) => items.slice((page - 1) * perPage, (page - 1) * perPage + perPage)
   const triggerConfirmation = (action, title, message) => { setConfirmationAction(() => action); setConfirmationMsg({ title, message }); setModals({ ...modals, confirmation: true }) }
   const confirmAction = () => { if (confirmationAction) confirmationAction(); setModals({ ...modals, confirmation: false }) }
-  const closeModal = () => { setModals({ add: false, update: false, archive: false, confirmation: false, archiveLog: false }); setConfirmationAction(null); setSelectedId(null) }
+  const closeModal = () => { setModals({ add: false, update: false, archive: false, confirmation: false, archiveLog: false }); setConfirmationAction(null); setSelectedId(null); setArchiveReason('') }
 
   // --- CRUD ACTIONS ---
   const prepareAddSale = async () => { 
@@ -267,24 +230,88 @@ const calculateMetrics = () => {
       setModals({ ...modals, add: true }) 
   }
   const handleAddConfirmation = (e) => { e.preventDefault(); triggerConfirmation(executeAddSale, "Add Record", "Confirm adding this record?") }
-  
   const executeAddSale = async () => {
       const { data: { user } } = await supabase.auth.getUser()
       const { data: empData } = await supabase.from('Employee').select('EmployeeID').eq('UserID', user.id).maybeSingle()
       const transactionDateTime = new Date(`${salesFormData.date} ${salesFormData.time}`).toISOString()
       
       const { error } = await supabase.from('FinancialRecord').insert([{ EmployeeID: empData?.EmployeeID || 1, TransactionDate: transactionDateTime, RecordType: salesFormData.type, Amount: parseFloat(salesFormData.amount), Description: salesFormData.description, Status: salesFormData.status }])
-      
       if (error) alert("Error: " + error.message); else { alert("Added!"); fetchData(); closeModal() }
   }
   
-  const prepareUpdateSale = () => { if(!selectedId) return alert("Select record"); const t = transactions.find(x=>x.id===selectedId); setSalesFormData({type: t.type, date: new Date(t.rawDate).toISOString().split('T')[0], time: '12:00', amount: t.amount, enteredBy: t.enteredBy, description: t.desc, status: t.status}); setModals({...modals, update:true}) }
+  const prepareUpdateSale = () => { 
+      if(!selectedId) return alert("Select record"); 
+      const t = transactions.find(x=>x.id===selectedId); 
+      setSalesFormData({
+          type: t.type, 
+          date: new Date(t.rawDate).toISOString().split('T')[0],
+          time: new Date(t.rawDate).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }),
+          amount: t.amount, 
+          enteredBy: t.enteredBy, 
+          description: t.desc, 
+          status: t.status
+      }); 
+      setModals({...modals, update:true}) 
+  }
   const handleUpdateConfirmation = (e) => { e.preventDefault(); triggerConfirmation(executeUpdateSale, "Update Record", "Confirm update?") }
-  const executeUpdateSale = async () => { const t = transactions.find(x=>x.id===selectedId); const dbId = parseInt(t.id.replace('F','')); await supabase.from('FinancialRecord').update({ Amount: parseFloat(salesFormData.amount), Description: salesFormData.description, Status: salesFormData.status }).eq('RecordID', dbId); fetchData(); closeModal() }
+  
+  const executeUpdateSale = async () => { 
+      const t = transactions.find(x=>x.id===selectedId); 
+      const dbId = parseInt(t.id.replace('F','')); 
+      const newDateTime = new Date(`${salesFormData.date} ${salesFormData.time}`).toISOString()
+
+      const { error } = await supabase.from('FinancialRecord')
+          .update({ 
+              Amount: parseFloat(salesFormData.amount), 
+              Description: salesFormData.description, 
+              RecordType: salesFormData.type,
+              TransactionDate: newDateTime,
+              Status: salesFormData.status 
+          })
+          .eq('RecordID', dbId); 
+      
+      if (error) alert("Error updating: " + error.message);
+      else { 
+          alert("Record Updated!"); 
+          fetchData(); 
+          closeModal(); 
+      }
+  }
+
   const prepareArchiveSale = () => { if(!selectedId) return alert("Select record"); setModals({...modals, archive:true}) }
   const handleArchiveConfirmation = () => triggerConfirmation(executeArchiveSale, "Archive", "Confirm archive?")
-  const executeArchiveSale = async () => { const t = transactions.find(x=>x.id===selectedId); const dbId = parseInt(t.id.replace('F','')); await supabase.from('FinancialRecord').update({Status: 'Archived'}).eq('RecordID', dbId); fetchData(); closeModal() }
+  
+const executeArchiveSale = async () => { 
+      const t = transactions.find(x => x.id === selectedId); 
+      const dbId = parseInt(t.id.replace('F','')); 
 
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return alert("User not found.");
+
+      // STEP 1: Insert into Log
+      const { error: logError } = await supabase.from('FinancialArchiveLog').insert([{
+          RecordID: dbId,
+          UserID: user.id,
+          ArchivedDate: new Date().toISOString(), 
+          Reason: archiveReason
+      }]);
+
+      if (logError) return alert("Error logging archive: " + logError.message);
+
+      // STEP 2: Update Status to 'Archived'
+      const { error: updateError } = await supabase
+          .from('FinancialRecord')
+          .update({ Status: 'Archived' })
+          .eq('RecordID', dbId); 
+      
+      if (updateError) {
+          alert("Update Error: " + updateError.message);
+      } else { 
+          alert("Record Archived!"); 
+          fetchData(); // This will refresh the table and the row WILL disappear
+          closeModal(); 
+      }
+  };
   // --- STYLES ---
   const colors = { green: "#6B7C65", beige: "#E8DCC6", purple: "#7D4E99", darkGreen: "#4A5D4B", red: "#D9534F", blue: "#337AB7", yellow: "#D4AF37" }
   const btnStyle = { padding: "8px 16px", borderRadius: "5px", border: "none", cursor: "pointer", fontWeight: "bold", color: "white", boxShadow: "0 2px 4px rgba(0,0,0,0.2)" }
@@ -314,7 +341,7 @@ const calculateMetrics = () => {
       </div>
 
       {/* MAIN CONTENT */}
-      <div style={{ flex: 1, background: colors.beige, padding: "30px", display: "flex", flexDirection: "column", overflow: "hidden" }}>
+      <div style={{ flex: 1, background: colors.beige, padding: "30px", display: "flex", flexDirection: "column", overflowY: "auto", height: "100vh" }}>
         
         {/* HEADER */}
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "15px" }}>
@@ -330,12 +357,12 @@ const calculateMetrics = () => {
         {/* ACTIONS */}
         <div style={{ display: "flex", gap: "10px", marginBottom: "15px" }}>
           <button style={{...btnStyle, background: colors.darkGreen}} onClick={prepareAddSale}>ADD</button>
-          <button style={{...btnStyle, background: colors.yellow, color: "black"}} onClick={prepareUpdateSale}>UPDATE</button>
+          <button style={{...btnStyle, background: colors.yellow, color: "white"}} onClick={prepareUpdateSale}>UPDATE</button>
           <button style={{...btnStyle, background: colors.red}} onClick={prepareArchiveSale}>ARCHIVE</button>
           <button style={{...btnStyle, background: colors.blue}} onClick={() => setModals({...modals, archiveLog: true})}>VIEW ARCHIVE LOG</button>
         </div>
 
-        {/* METRICS PANEL (OVERALL) */}
+        {/* METRICS PANEL */}
         <div style={{ background: colors.green, borderRadius: "15px", padding: "20px", display: "flex", justifyContent: "space-between", marginBottom: "20px", boxShadow: "0 4px 10px rgba(0,0,0,0.1)" }}>
             <div style={cardStyle}><div style={{fontSize: "14px", opacity: 0.9}}>Today's Total Sales</div><div style={{fontSize: "24px", fontWeight: "bold"}}>₱ {metrics.todaySales.toLocaleString(undefined, {minimumFractionDigits: 2})}</div></div>
             <div style={cardStyle}><div style={{fontSize: "14px", opacity: 0.9}}>Monthly Sales</div><div style={{fontSize: "24px", fontWeight: "bold"}}>₱ {metrics.monthlySales.toLocaleString(undefined, {minimumFractionDigits: 2})}</div></div>
@@ -343,11 +370,10 @@ const calculateMetrics = () => {
             <div style={cardStyle}><div style={{fontSize: "14px", opacity: 0.9}}>Total Profit</div><div style={{fontSize: "24px", fontWeight: "bold"}}>₱ {metrics.totalProfit.toLocaleString(undefined, {minimumFractionDigits: 2})}</div></div>
         </div>
 
-        {/* GRAPH SECTION (FILTERABLE) */}
+        {/* GRAPH SECTION */}
         <div style={{ background: "white", borderRadius: "15px", padding: "20px", marginBottom: "20px", boxShadow: "0 4px 10px rgba(0,0,0,0.1)" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
                 <h3 style={{ margin: 0, color: colors.darkGreen }}>Sales Per Day Overview</h3>
-                {/* DATE FILTER UI */}
                 <div style={{ display: "flex", alignItems: "center", background: "#f0f0f0", padding: "5px 10px", borderRadius: "8px" }}>
                     <span style={{ fontSize: "12px", marginRight: "5px", fontWeight: "bold" }}>From:</span>
                     <input type="date" style={inputStyle} value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} />
@@ -358,7 +384,6 @@ const calculateMetrics = () => {
             </div>
             
             <div style={{ display: "flex", gap: "20px", height: "300px" }}>
-                {/* THE GRAPH (USING RECHARTS) */}
                 <div style={{ flex: 3, height: "100%", minWidth: 0 }}>
                     <ResponsiveContainer width="100%" height="100%">
                         <BarChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
@@ -370,7 +395,6 @@ const calculateMetrics = () => {
                         </BarChart>
                     </ResponsiveContainer>
                 </div>
-                {/* FILTERED METRICS SIDEBAR */}
                 <div style={{ flex: 1, border: "1px solid #ccc", padding: "15px", borderRadius: "5px", display: "flex", flexDirection: "column", justifyContent: "center" }}>
                     <div style={{ marginBottom: "10px" }}><div style={{ fontSize: "10px", fontWeight: "bold" }}>Filtered Total Sales</div><div style={{ fontWeight: "bold" }}>₱ {filteredMetrics.totalSales.toLocaleString()}</div></div>
                     <div style={{ marginBottom: "10px" }}><div style={{ fontSize: "10px", fontWeight: "bold" }}>Filtered Discounts</div><div style={{ fontWeight: "bold" }}>₱ {filteredMetrics.totalDiscounts}</div></div>
@@ -381,30 +405,30 @@ const calculateMetrics = () => {
         </div>
 
         {/* TABLE */}
-        <div style={{ background: "white", borderRadius: "15px", boxShadow: "0 4px 10px rgba(0,0,0,0.1)", overflow: "hidden", display: "flex", flexDirection: "column" }}>
-            <table style={{ width: "100%", borderCollapse: "collapse" }}>
-              <thead style={{ position: "sticky", top: 0, background: colors.green, color: "white", zIndex: 1 }}>
-                <tr><th style={{ padding: "15px" }}>Select</th><th>Record ID</th><th>Date</th><th>Description</th><th>Amount</th><th>Type</th><th>Status</th></tr>
-              </thead>
-              <tbody>
-                {transactions.length === 0 && <tr><td colSpan="7" style={{padding:"30px", textAlign:"center"}}>No records found.</td></tr>}
-                {paginate(filteredTransactions.filter(t => t.status !== 'Archived'), currentPage, itemsPerPage).map(t => (
-                  <tr key={t.id} style={{ borderBottom: "1px solid #eee", textAlign: "center", height: "50px" }}>
-                    <td><input type="radio" name="saleSelect" checked={selectedId === t.id} onChange={() => setSelectedId(t.id)} style={{ transform: "scale(1.5)", cursor: "pointer" }} /></td>
-                    <td>{t.id}</td><td>{t.date}</td><td style={{ fontWeight: "bold" }}>{t.desc}</td><td style={{ fontWeight: "bold" }}>₱{parseFloat(t.amount).toLocaleString(undefined, {minimumFractionDigits: 2})}</td>
-                    <td style={{ color: t.type === 'Income' ? colors.green : colors.red, fontWeight: "bold" }}>{t.type}</td>
-                    <td>{t.status}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+        <div style={{ background: "white", borderRadius: "15px", boxShadow: "0 4px 10px rgba(0,0,0,0.1)", display: "flex", flexDirection: "column", flex: "0 1 auto", maxHeight: "500px", minHeight: "500px", marginBottom: "40px", overflow: "hidden" }}>
+            <div style={{ flex: 1, overflowY: "auto" }}>
+                <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                  <thead style={{ position: "sticky", top: 0, background: colors.green, color: "white", zIndex: 1 }}>
+                    <tr><th style={{ padding: "15px" }}>Select</th><th>Record ID</th><th>Date</th><th>Description</th><th>Amount</th><th>Type</th><th>Status</th></tr>
+                  </thead>
+                  <tbody>
+                    {transactions.length === 0 && <tr><td colSpan="7" style={{padding:"30px", textAlign:"center"}}>No records found.</td></tr>}
+                    {paginate(filteredTransactions.filter(t => t.status !== 'Archived'), currentPage, itemsPerPage).map(t => (
+                      <tr key={t.id} style={{ borderBottom: "1px solid #eee", textAlign: "center", height: "50px" }}>
+                        <td><input type="radio" name="saleSelect" checked={selectedId === t.id} onChange={() => setSelectedId(t.id)} style={{ transform: "scale(1.5)", cursor: "pointer" }} /></td>
+                        <td>{t.id}</td><td>{t.date}</td><td style={{ fontWeight: "bold" }}>{t.desc}</td><td style={{ fontWeight: "bold" }}>₱{parseFloat(t.amount).toLocaleString(undefined, {minimumFractionDigits: 2})}</td>
+                        <td style={{ color: t.type === 'Income' ? colors.green : colors.red, fontWeight: "bold" }}>{t.type}</td>
+                        <td>{t.status}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+            </div>
             <PaginationControls total={filteredTransactions.filter(t => t.status !== 'Archived').length} page={currentPage} setPage={setCurrentPage} perPage={itemsPerPage} />
         </div>
-
       </div>
 
-      {/* --- MODALS (ADD, UPDATE, ARCHIVE, CONFIRM) --- */}
-      {/* Kept minimal for brevity, but functional structure is here */}
+      {/* --- MODALS --- */}
       {modals.confirmation && (
         <div style={confirmOverlay}><div style={confirmContent}><h2 style={{color:colors.darkGreen}}>{confirmationMsg.title}</h2><p>{confirmationMsg.message}</p><div style={{display:"flex", justifyContent:"center", gap:"10px", marginTop:"20px"}}><button onClick={closeModal} style={{...btnStyle, background:"#ccc", color:"#333"}}>Cancel</button><button onClick={confirmAction} style={{...btnStyle, background:colors.green}}>Confirm</button></div></div></div>
       )}
@@ -426,7 +450,6 @@ const calculateMetrics = () => {
       {modals.archive && (
         <div style={modalOverlay}><div style={modalContent}><h2 style={{color:colors.red}}>Archive Record</h2><textarea style={{...formInput, height:"100px"}} placeholder="Reason..." value={archiveReason} onChange={e=>setArchiveReason(e.target.value)} /><div style={{display:"flex", justifyContent:"flex-end", gap:"10px"}}><button onClick={closeModal} style={{...btnStyle, background:"#ccc", color:"#333"}}>Cancel</button><button onClick={handleArchiveConfirmation} style={{...btnStyle, background:colors.red}}>Confirm</button></div></div></div>
       )}
-      {/* Archive Log Modal */}
       {modals.archiveLog && (
         <div style={modalOverlay}><div style={{...modalContent, width:"800px"}}><h2 style={{color:colors.blue}}>Archive Log</h2><div style={{height:"400px", overflow:"auto"}}><table style={{width:"100%"}}><thead style={{background:colors.blue, color:"white"}}><tr><th>ID</th><th>Reason</th><th>By</th><th>Date</th></tr></thead><tbody>{archiveLogs.map(l=><tr key={l.logId}><td style={{textAlign:"center", padding:"10px"}}>{l.originalId}</td><td style={{textAlign:"center"}}>{l.reason}</td><td style={{textAlign:"center"}}>{l.archivedBy}</td><td style={{textAlign:"center"}}>{l.dateArchived}</td></tr>)}</tbody></table></div><button onClick={closeModal} style={{...btnStyle, background:"#ccc", color:"#333", marginTop:"20px"}}>Close</button></div></div>
       )}

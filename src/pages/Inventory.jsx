@@ -24,8 +24,9 @@ function InventorySystem() {
   const [filteredInventory, setFilteredInventory] = useState([])
   const [archiveLogs, setArchiveLogs] = useState([]) 
   const [selectedId, setSelectedId] = useState(null)
-  const [loading, setLoading] = useState(true)
+const [loading, setLoading] = useState(true)
   const [expiringCount, setExpiringCount] = useState(0)
+  const [lowStockCount, setLowStockCount] = useState(0) // <-- ADDED THIS
 
   // Pagination
   const [currentPage, setCurrentPage] = useState(1)
@@ -51,7 +52,7 @@ function InventorySystem() {
   const [formData, setFormData] = useState(initialFormState)
   const [archiveReason, setArchiveReason] = useState('')
 
-  // --- 1. FETCH INVENTORY ---
+// --- 1. FETCH INVENTORY ---
   async function fetchInventory() {
     setLoading(true)
     const { data, error } = await supabase
@@ -64,9 +65,13 @@ function InventorySystem() {
     } else {
         const safeData = data || []
         setInventory(safeData)
-        setFilteredInventory(safeData) // Initialize filtered list
+        setFilteredInventory(safeData) 
 
-        // Expiry Count
+        // Low Stock Logic
+        const lowCount = safeData.filter(item => item.Quantity <= item.ReorderThreshold).length;
+        setLowStockCount(lowCount);
+
+        // Expiry Count Logic
         const today = new Date()
         const count = safeData.filter(item => {
             if (!item.Expiry) return false
@@ -78,9 +83,9 @@ function InventorySystem() {
         setExpiringCount(count)
     }
     setLoading(false)
-  }
+  } // <-- THIS WAS MISSING
 
-  // --- 2. FETCH ARCHIVE LOGS ---
+// --- 2. FETCH ARCHIVE LOGS ---
   async function fetchArchiveLogs() {
     const { data, error } = await supabase
         .from('InventoryArchive')
@@ -91,9 +96,29 @@ function InventorySystem() {
     else setArchiveLogs(data || [])
   }
 
+// --- REAL-TIME & INITIAL FETCH ---
   useEffect(() => {
-    fetchInventory()
-  }, [])
+    // 1. Initial load of data
+    fetchInventory();
+
+    // 2. Set up real-time listener
+    const subscription = supabase
+        .channel('inventory-changes')
+        .on('postgres_changes', { 
+            event: '*', 
+            table: 'Inventory', 
+            schema: 'public' 
+        }, () => {
+            console.log("Inventory change detected! Refreshing...");
+            fetchInventory(); // This refreshes your table and alert banners automatically
+        })
+        .subscribe();
+
+    // 3. Clean up subscription when user leaves page
+    return () => {
+        supabase.removeChannel(subscription);
+    };
+  }, []); // Empty dependency array means this runs once on mount
 
   // --- 3. NEW SEARCH & FILTER LOGIC ---
   
@@ -317,16 +342,29 @@ function InventorySystem() {
           <h1 style={{ margin: 0, fontSize: "28px", color: colors.darkGreen }}>Inventory Management</h1>
         </div>
 
-        {/* ALERT BANNER */}
-        {expiringCount > 0 && (
-            <div style={{ background: colors.orange, color: "white", padding: "15px", borderRadius: "10px", marginBottom: "20px", display: "flex", alignItems: "center", gap: "15px", boxShadow: "0 4px 10px rgba(0,0,0,0.1)" }}>
-                <span style={{ fontSize: "24px" }}>⚠️</span>
-                <div>
-                    <div style={{ fontWeight: "bold", fontSize: "16px" }}>Action Required: {expiringCount} Item(s) Expiring Soon!</div>
-                    <div style={{ fontSize: "13px", opacity: 0.9 }}>Check the table below.</div>
-                </div>
+{/* ALERT BANNERS */}
+<div style={{ display: "flex", gap: "20px", marginBottom: "20px" }}>
+    {/* Existing Expiry Banner */}
+    {expiringCount > 0 && (
+        <div style={{ flex: 1, background: colors.orange, color: "white", padding: "15px", borderRadius: "10px", display: "flex", alignItems: "center", gap: "15px" }}>
+            <span style={{ fontSize: "24px" }}>⚠️</span>
+            <div>
+                <div style={{ fontWeight: "bold" }}>{expiringCount} Item(s) Expiring Soon!</div>
             </div>
-        )}
+        </div>
+    )}
+
+    {/* NEW: Low Stock Banner */}
+    {lowStockCount > 0 && (
+        <div style={{ flex: 1, background: colors.red, color: "white", padding: "15px", borderRadius: "10px", display: "flex", alignItems: "center", gap: "15px" }}>
+            <span style={{ fontSize: "24px" }}>📉</span>
+            <div>
+                <div style={{ fontWeight: "bold" }}>{lowStockCount} Item(s) Below Threshold!</div>
+                <div style={{ fontSize: "12px" }}>Items need reordering soon.</div>
+            </div>
+        </div>
+    )}
+</div>
 
         {/* SEARCH & FILTER BAR (UPDATED) */}
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "20px" }}>

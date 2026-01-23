@@ -11,6 +11,7 @@ function POSSystem() {
   const [currentUser, setCurrentUser] = useState(null)
   const [menu, setMenu] = useState([]) 
   const [loadingMenu, setLoadingMenu] = useState(true)
+  const [selectedIngAmount, setSelectedIngAmount] = useState('') // New state for amount
 
   // --- INVENTORY STATE (New) ---
   const [inventory, setInventory] = useState([])
@@ -224,86 +225,180 @@ async function fetchInventory() {
 
   // --- PAYMENT HANDLERS (Unchanged mostly) ---
   const handleOpenPayment = () => { if (cart.length > 0) { setCustomerName(''); setCashReceived(''); setIsDiscounted(false); setShowPaymentModal(true) } }
+// --- RECEIPT HANDLERS ---
+  const handlePrintReceipt = () => { 
+    setReceiptPrinted(true); 
+    alert("Printing Receipt..."); 
+  };
 
-  const handleConfirmPayment = async () => {
-    if (!customerName.trim()) { alert("⚠️ Customer Name is required!"); return }
-    if (getChange() < 0) return 
-    setLoading(true)
-
-    const orderData = {
-        EmployeeID: currentUser?.EmployeeID || 1, 
-        CustomerName: customerName,
-        OrderDateTime: new Date().toISOString(),
-        Status: 'IN PROGRESS',
-        TotalAmount: getFinalTotal(),
-        AmountGiven: parseFloat(cashReceived),
-        ChangeGiven: getChange(),
-        DiscountAmount: getDiscountAmount()
+const handleCloseReceipt = () => {
+    if (!receiptPrinted) { 
+        if(!confirm("Receipt has not been printed. Close anyway?")) return; 
     }
 
-    const { data: insertedOrder, error: orderError } = await supabase.from('Order').insert([orderData]).select() 
-    if (orderError) { alert("Transaction Failed: " + orderError.message); setLoading(false); return }
+    // --- MOVE IT HERE ---
+    setCart([]); 
+    setCustomerName(''); 
+    setCashReceived('');
+    // -------------------
 
-    const newOrderID = insertedOrder[0].OrderID
-    setCurrentOrderId(newOrderID)
+    setShowReceiptModal(false);
+}
 
-    const itemsData = cart.map(item => ({
-        OrderID: newOrderID,
-        ProductID: item.id, 
-        Quantity: item.qty,
-        PriceAtTimeOfOrder: item.price
-    }))
-
-    await supabase.from('OrderItem').insert(itemsData)
-    
-    // Simple Income Record
-    await supabase.from('FinancialRecord').insert([{
-        EmployeeID: currentUser?.EmployeeID || 1,
-        TransactionDate: new Date().toISOString(),
-        RecordType: 'Income',
-        Amount: getFinalTotal(),
-        Description: `POS Order #${newOrderID} - ${customerName}`,
-        Status: 'Completed'
-    }])
-    
-    const newLocalOrder = {
-        id: newOrderID,
-        customer: customerName,
-        items: [...cart], 
-        status: "IN PROGRESS",
-        total: getFinalTotal(),
-        employeeId: currentUser?.EmployeeID || "EMP", 
-        date: new Date().toLocaleString('en-US', { hour: '2-digit', minute: '2-digit', year: 'numeric', month: '2-digit', day: '2-digit' }),
+const handleConfirmPayment = async () => {
+    // 1. Basic Validation
+    if (!customerName.trim()) { 
+        alert("⚠️ Customer Name is required!"); 
+        return; 
     }
-    setOrders(prev => [newLocalOrder, ...prev])
+    if (getChange() < 0) {
+        alert("⚠️ Insufficient Cash!");
+        return;
+    }
 
-    setLoading(false)
-    setShowPaymentModal(false)
-    setReceiptPrinted(false) 
-    setShowReceiptModal(true) 
-  }
+    setLoading(true);
 
-  const handlePrintReceipt = () => { setReceiptPrinted(true); alert("🖨️ Printing Receipt...") }
-  const handleCloseReceipt = () => {
-    if (!receiptPrinted) { if(!confirm("Receipt has not been printed. Close anyway?")) return; }
-    setCart([])
-    setShowReceiptModal(false)
-  }
+    try {
+        // 2. Prepare Order Data
+        const orderData = {
+            EmployeeID: currentUser?.EmployeeID || 1, 
+            CustomerName: customerName,
+            OrderDateTime: new Date().toISOString(),
+            Status: 'IN PROGRESS',
+            TotalAmount: getFinalTotal(),
+            AmountGiven: parseFloat(cashReceived),
+            ChangeGiven: getChange(),
+            DiscountAmount: getDiscountAmount()
+        };
 
-  const handleStatusClick = (order) => { setSelectedOrder(order); setShowStatusModal(true) }
-  const updateStatus = (status) => {
-    if (status === 'COMPLETED') { setShowStatusModal(false); setShowCompleteConfirm(true) } 
-    else { setOrders(orders.map(o => o.id === selectedOrder.id ? { ...o, status: status } : o)); setShowStatusModal(false) }
-  }
+        // 3. Insert into 'Order' table
+        const { data: insertedOrder, error: orderError } = await supabase
+            .from('Order')
+            .insert([orderData])
+            .select();
+
+        // CHECK: Did the order actually save?
+        if (orderError) throw orderError;
+        if (!insertedOrder || insertedOrder.length === 0) {
+            throw new Error("No data returned from Order insert.");
+        }
+
+        const newOrderID = insertedOrder[0].OrderID;
+        setCurrentOrderId(newOrderID);
+
+        // 4. Insert Order Items
+        const itemsData = cart.map(item => ({
+            OrderID: newOrderID,
+            ProductID: item.id, 
+            Quantity: item.qty,
+            PriceAtTimeOfOrder: item.price
+        }));
+
+        const { error: itemsError } = await supabase.from('OrderItem').insert(itemsData);
+        if (itemsError) throw itemsError;
+
+        // 5. Financial Record
+        await supabase.from('FinancialRecord').insert([{
+            EmployeeID: currentUser?.EmployeeID || 1,
+            TransactionDate: new Date().toISOString(),
+            RecordType: 'Income',
+            Amount: getFinalTotal(),
+            Description: `POS Order #${newOrderID} - ${customerName}`,
+            Status: 'Completed'
+        }]);
+
+        // 6. --- INVENTORY DEDUCTION LOGIC ---
+        // We use the 'cart' already in memory because it has the recipe attached
+        for (const cartItem of cart) {
+            if (cartItem.recipe && Array.isArray(cartItem.recipe)) {
+                for (const ingredient of cartItem.recipe) {
+                    // Total to subtract = (Amount per 1 drink) * (Quantity of drinks ordered)
+                    const totalDeduction = ingredient.amount * cartItem.qty;
+
+                    if (totalDeduction > 0) {
+                        // Get current quantity and threshold
+                        const { data: currentItem, error: fetchErr } = await supabase
+                            .from('Inventory')
+                            .select('Quantity, ReorderThreshold, ItemName')
+                            .eq('InventoryID', ingredient.id)
+                            .maybeSingle();
+
+                        if (currentItem) {
+                            const newQty = currentItem.Quantity - totalDeduction;
+
+                            // Update Database
+                            await supabase
+                                .from('Inventory')
+                                .update({ Quantity: newQty })
+                                .eq('InventoryID', ingredient.id);
+
+                            // 7. --- THRESHOLD NOTIFICATION ---
+                            if (newQty <= currentItem.ReorderThreshold) {
+                                alert(`⚠️ LOW STOCK: ${currentItem.ItemName} is now ${newQty}. (Limit: ${currentItem.ReorderThreshold})`);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // 8. Update Local UI State
+        const newLocalOrder = {
+            id: newOrderID,
+            customer: customerName,
+            items: [...cart], 
+            status: "IN PROGRESS",
+            total: getFinalTotal(),
+            employeeId: currentUser?.EmployeeID || "EMP", 
+            date: new Date().toLocaleString(),
+        };
+        
+        setOrders(prev => [newLocalOrder, ...prev]);
+       // setCart([]); // Clear Cart
+        setShowPaymentModal(false);
+        setReceiptPrinted(false);
+        setShowReceiptModal(true); // Show Receipt
+
+    } catch (err) {
+        console.error("Payment Process Error:", err);
+        alert("Transaction Failed: " + err.message);
+    } finally {
+        setLoading(false);
+    }
+};
+
+// --- ORDER STATUS HANDLERS ---
+  const handleStatusClick = (order) => { 
+    setSelectedOrder(order); 
+    setShowStatusModal(true); 
+  };
+
+  const updateStatus = async (status) => {
+    if (status === 'COMPLETED') { 
+        setShowStatusModal(false); 
+        setShowCompleteConfirm(true); 
+    } else { 
+        // Update Supabase
+        await supabase.from('Order').update({ Status: status }).eq('OrderID', selectedOrder.id);
+        
+        // Update Local State
+        setOrders(orders.map(o => o.id === selectedOrder.id ? { ...o, status: status } : o)); 
+        setShowStatusModal(false); 
+    }
+  };
+
   const confirmCompletion = async () => {
-      const orderToMove = orders.find(o => o.id === selectedOrder.id)
+      const orderToMove = orders.find(o => o.id === selectedOrder.id);
       if (orderToMove) {
-          await supabase.from('Order').update({ Status: 'COMPLETED' }).eq('OrderID', selectedOrder.id)
-          setOrders(prev => prev.filter(o => o.id !== selectedOrder.id))
-          fetchRecentTransactions()
+          // 1. Update Supabase
+          await supabase.from('Order').update({ Status: 'COMPLETED' }).eq('OrderID', selectedOrder.id);
+          
+          // 2. Remove from Current Orders and refresh the recent list
+          setOrders(prev => prev.filter(o => o.id !== selectedOrder.id));
+          fetchRecentTransactions();
       }
-      setShowCompleteConfirm(false)
-  }
+      setShowCompleteConfirm(false);
+  };
 
   // --- MANAGE MENU: ADMIN CHECK ---
   const handleAdminLoginSubmit = async () => {
@@ -322,19 +417,22 @@ async function fetchInventory() {
       if(file) { setNewItemFile(file); setPreviewUrl(URL.createObjectURL(file)) } 
   }
 
-  const handleAddIngredientToRecipe = () => {
-    // Remove !selectedIngAmount from the check
-    if(!selectedIngId) return 
+const handleAddIngredientToRecipe = () => {
+    if(!selectedIngId || !selectedIngAmount) return 
     
     const ing = inventory.find(i => i.InventoryID === parseInt(selectedIngId))
     if(ing) {
-        // We set amount to 0 or remove it entirely since you're using Inventory Qty
-        const newIng = { id: ing.InventoryID, name: ing.ItemName, unit: ing.Unit }
+        const newIng = { 
+            id: ing.InventoryID, 
+            name: ing.ItemName, 
+            unit: ing.UnitMeasurement, // Fixed key based on your JSX
+            amount: parseFloat(selectedIngAmount) // The "ml/pc" value
+        }
         setNewItemRecipe([...newItemRecipe, newIng])
         setSelectedIngId('')
-        setSelectedIngAmount('') // Clear this state even if the input is gone
+        setSelectedIngAmount('')
     }
-    }
+}
 
   const removeIngredientFromRecipe = (idx) => {
       const updated = [...newItemRecipe]
@@ -754,40 +852,49 @@ async function fetchInventory() {
                             <button onClick={() => fileInputRef.current.click()} style={{width: "100%", padding: "8px", border: "1px solid #333", background: "#f0f0f0", borderRadius: "5px", cursor: "pointer", fontSize: "12px", fontWeight: "bold"}}>Upload Image</button>
                         </div>
 
-                        {/* Recipe Builder - Cleaned Version */}
-                        <div style={{border: "1px solid #eee", padding: "10px", borderRadius: "8px", background: "#fafafa"}}>
-                            <label style={{fontWeight: "bold", fontSize: "13px", color: "#555", display: "block", marginBottom: "5px"}}>Recipe Ingredients</label>
-                            <div style={{ display: "flex", gap: "5px" }}>
-                                <select 
-                                    style={{ flex: 1, padding: "8px", border: selectedIngId && inventory.find(i => i.InventoryID === parseInt(selectedIngId))?.isExpired ? "2px solid red" : "1px solid #ccc", borderRadius: "5px" }} 
-                                    value={selectedIngId} 
-                                    onChange={e => setSelectedIngId(e.target.value)}
-                                >
-                                    <option value="">Select Ingredient</option>
-                                    {inventory.map(ing => (
-                                        <option 
-                                            key={ing.InventoryID} 
-                                            value={ing.InventoryID} 
-                                            disabled={ing.isExpired}
-                                        >
-                                            {/* Parentheses removed here */}
-                                            {ing.ItemName} {ing.isExpired ? "⚠️ EXPIRED" : ""}
-                                        </option>
-                                    ))}
-                                </select>
-                                <button onClick={handleAddIngredientToRecipe} style={{ padding: "8px 15px", background: "#5a6955", color: "white", border: "none", borderRadius: "5px", cursor: "pointer", fontWeight: "bold" }}>+</button>
-                            </div>
+{/* Recipe Builder - Cleaned Version */}
+<div style={{border: "1px solid #eee", padding: "10px", borderRadius: "8px", background: "#fafafa"}}>
+    <label style={{fontWeight: "bold", fontSize: "13px", color: "#555", display: "block", marginBottom: "5px"}}>Recipe Ingredients</label>
+    <div style={{ display: "flex", gap: "5px" }}>
+        {/* THE SELECT DROPDOWN */}
+        <select 
+            style={{ flex: 1, padding: "8px", border: selectedIngId && inventory.find(i => i.InventoryID === parseInt(selectedIngId))?.isExpired ? "2px solid red" : "1px solid #ccc", borderRadius: "5px" }} 
+            value={selectedIngId} 
+            onChange={e => setSelectedIngId(e.target.value)}
+        >
+            <option value="">Select Ingredient</option>
+            {inventory.map(ing => (
+                <option key={ing.InventoryID} value={ing.InventoryID} disabled={ing.isExpired}>
+                    {ing.ItemName} {ing.isExpired ? "⚠️ EXPIRED" : ""}
+                </option>
+            ))}
+        </select>
 
-                            {/* List of added ingredients - Only shows Item Name */}
-                            <div style={{marginTop: "10px", maxHeight: "100px", overflowY: "auto"}}>
-                                {newItemRecipe.map((r, idx) => (
-                                    <div key={idx} style={{display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "13px", borderBottom: "1px solid #eee", padding: "8px 0"}}>
-                                        <span style={{color: "#333"}}>{r.name}</span> 
-                                        <button onClick={() => removeIngredientFromRecipe(idx)} style={{color: "#FF6B6B", border: "none", background: "none", cursor: "pointer", fontWeight: "bold", fontSize: "14px"}}>✕</button>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
+        {/* --- ADD THIS: NEW QUANTITY INPUT --- */}
+        <input 
+            type="number" 
+            placeholder="Qty" 
+            style={{ width: "70px", padding: "8px", borderRadius: "5px", border: "1px solid #ccc", outline: "none" }}
+            value={selectedIngAmount} // This uses the state we'll create next
+            onChange={(e) => setSelectedIngAmount(e.target.value)}
+        />
+
+        {/* THE PLUS BUTTON */}
+        <button onClick={handleAddIngredientToRecipe} style={{ padding: "8px 15px", background: "#5a6955", color: "white", border: "none", borderRadius: "5px", cursor: "pointer", fontWeight: "bold" }}>+</button>
+    </div>
+
+    {/* List of added ingredients (Updated to show amount) */}
+    <div style={{marginTop: "10px", maxHeight: "100px", overflowY: "auto"}}>
+        {newItemRecipe.map((r, idx) => (
+            <div key={idx} style={{display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "13px", borderBottom: "1px solid #eee", padding: "8px 0"}}>
+                <span style={{color: "#333"}}>
+                    {r.name} <strong>({r.amount} {r.unit})</strong>
+                </span> 
+                <button onClick={() => removeIngredientFromRecipe(idx)} style={{color: "#FF6B6B", border: "none", background: "none", cursor: "pointer", fontWeight: "bold", fontSize: "14px"}}>✕</button>
+            </div>
+        ))}
+    </div>
+</div>
 
                         <div style={{display: "flex", gap: "10px", marginTop: "10px"}}>
                             {isEditing && <button onClick={resetForm} style={{flex:1, padding: "12px", background: "#999", color: "white", border: "none", borderRadius: "8px", fontWeight: "bold", cursor: "pointer"}}>CANCEL EDIT</button>}

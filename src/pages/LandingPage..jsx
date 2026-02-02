@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import logo from '../assets/wm-logo.svg'
 import adminIcon from '../assets/admin-sys.svg'
 import posIcon from '../assets/pos.svg'
-import cafeIcon from '../assets/cafe-photo.png'
+import personalIcon from '../assets/personal.svg'
 
 function LandingPage() {
   const navigate = useNavigate()
@@ -45,6 +45,15 @@ function LandingPage() {
           <span>ADMIN SYSTEMS</span>
         </div>
 
+        {/* PERSONAL VIEW BUTTON */}
+        <div 
+          style={cardStyle} 
+          onClick={() => navigate('/personal-view')}
+        >
+          <img src={personalIcon} alt="Personal View" style={iconStyle} />
+          <span>PERSONAL VIEW</span>
+        </div>
+
         {/* POS BUTTON - ENABLED */}
         <div 
           style={cardStyle} 
@@ -52,15 +61,6 @@ function LandingPage() {
         >
           <img src={posIcon} alt="POS System" style={iconStyle} />
           <span>POS SYSTEM</span>
-        </div>
-
-        {/* PERSONAL VIEW BUTTON */}
-        <div 
-          style={cardStyle} 
-          onClick={() => navigate('/personal-view')}
-        >
-          <img src={cafeIcon} alt="Personal View" style={iconStyle} />
-          <span>PERSONAL VIEW</span>
         </div>
 
       </div>

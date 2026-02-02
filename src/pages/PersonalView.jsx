@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { supabase } from '../supabaseClient'
 import { useNavigate } from 'react-router-dom'
 import logo from '../assets/wm-logo.svg'
+import { Notification } from '../components/Notification'
 
 function PersonalView() {
   const navigate = useNavigate()
@@ -13,6 +14,7 @@ function PersonalView() {
   const [todayRecord, setTodayRecord] = useState(null) 
   const [loading, setLoading] = useState(true)
   const [isAdmin, setIsAdmin] = useState(false) 
+  const [notification, setNotification] = useState({ message: '', type: 'success' })
 
   // Pagination
   const [currentPage, setCurrentPage] = useState(1)
@@ -42,15 +44,18 @@ function PersonalView() {
       .eq('UserID', user.id)
       .maybeSingle()
 
-    if (empError) { alert("Error fetching profile."); return }
+    if (empError) {
+      setNotification({ message: "Error fetching profile.", type: 'error' })
+      return
+    }
     
     if (!empData) {
         if(userData && ADMIN_ROLES.includes(userData.RoleName)) {
-            alert("⚠️ NOTICE: You are an Admin, but you don't have an Employee Record yet.\n\nPlease go to HR System -> Add Employee and create a profile for yourself.")
-            navigate('/admin-menu')
+            setNotification({ message: "You are an Admin, but you don't have an Employee Record yet. Please go to HR System -> Add Employee and create a profile for yourself.", type: 'warning' })
+            setTimeout(() => navigate('/admin-menu'), 3000)
             return
         } else {
-            alert("Profile not found.")
+            setNotification({ message: "Profile not found.", type: 'error' })
             return
         }
     }
@@ -99,9 +104,10 @@ function PersonalView() {
       TimeIn: now
     }])
 
-    if (error) alert(error.message)
-    else {
-      alert("Timed In Successfully!")
+    if (error) {
+      setNotification({ message: error.message, type: 'error' })
+    } else {
+      setNotification({ message: "Timed In Successfully!", type: 'success' })
       fetchAttendance(employee.EmployeeID)
     }
   }
@@ -112,7 +118,10 @@ function PersonalView() {
     
     // 1. Update Time Out
     const { error } = await supabase.from('Attendance').update({ TimeOut: now }).eq('AttendanceID', todayRecord.AttendanceID)
-    if (error) { alert(error.message); return }
+    if (error) {
+      setNotification({ message: error.message, type: 'error' })
+      return
+    }
 
     // 2. CALCULATE & UPDATE NEXT SHIFT
     let nextDateMsg = ""
@@ -126,7 +135,7 @@ function PersonalView() {
         }
     }
 
-    alert("Timed Out Successfully!" + nextDateMsg)
+    setNotification({ message: "Timed Out Successfully!" + nextDateMsg, type: 'success' })
     fetchAttendance(employee.EmployeeID)
   }
 
@@ -197,12 +206,6 @@ function PersonalView() {
         
         <h2 style={{fontSize: "18px", marginBottom: "40px", marginTop: -20, textAlign: "center"}}>WeekendMatcha</h2>
         
-        {isAdmin && (
-            <div onClick={() => navigate('/admin-menu')} style={{ margin: "0 0 30px", padding: "12px", background: "rgba(255,255,255,0.2)", borderRadius: "8px", cursor: "pointer", fontWeight: "bold", textAlign: "center", border: "1px solid rgba(255,255,255,0.4)" }}>
-                ⬅ Back to Admin Panel
-            </div>
-        )}
-
         <div style={sidebarItem('Profile')} onClick={() => setActiveTab('Profile')}>My Profile</div>
         <div style={sidebarItem('Attendance')} onClick={() => setActiveTab('Attendance')}>Attendance Log</div>
 
@@ -224,8 +227,8 @@ function PersonalView() {
                 {employee?.User?.FirstName?.charAt(0)}
               </div>
               <div>
-                <h1 style={{ margin: 0, color: "#4A5D4B" }}>{employee?.User?.FirstName} {employee?.User?.LastName}</h1>
-                <p style={{ margin: "5px 0 0", color: "#888" }}>{employee?.User?.RoleName}</p>
+                <h1 style={{ margin: 0, color: "#4A5D4B", fontSize: "24px" }}>{employee?.User?.FirstName?.charAt(0).toUpperCase() + employee?.User?.FirstName?.slice(1)} {employee?.User?.LastName?.charAt(0).toUpperCase() + employee?.User?.LastName?.slice(1)}</h1>
+                <p style={{ margin: "5px 0 0", color: "#888", fontSize: "14px" }}>{employee?.User?.RoleName}</p>
               </div>
             </div>
 
@@ -244,7 +247,7 @@ function PersonalView() {
                 <h2 style={{ color: "#5a6955", marginTop: 0, borderBottom: "1px solid #eee", paddingBottom: "10px" }}>Contact Information</h2>
                 <div style={{ marginBottom: "20px" }}><label style={{display:"block", color:"#999", fontSize:"12px"}}>Contact Number</label><div style={{fontWeight:"bold", fontSize:"18px"}}>{employee?.User?.ContactNumber}</div></div>
                 <div style={{ marginBottom: "20px" }}><label style={{display:"block", color:"#999", fontSize:"12px"}}>Email</label><div style={{fontWeight:"bold", fontSize:"18px"}}>{employee?.User?.Email}</div></div>
-                <div style={{ marginBottom: "20px" }}><label style={{display:"block", color:"#999", fontSize:"12px"}}>Address</label><div style={{fontWeight:"bold", fontSize:"18px"}}>{employee?.User?.Address}</div></div>
+                <div style={{ marginBottom: "20px" }}><label style={{display:"block", color:"#999", fontSize:"12px"}}>Address</label><div style={{fontWeight:"bold", fontSize:"15px", lineHeight: "1.6", color: "#333"}}>{employee?.User?.Address || "Not provided"}</div></div>
                 <div><label style={{display:"block", color:"#999", fontSize:"12px"}}>Date of Birth</label><div style={{fontWeight:"bold", fontSize:"18px"}}>{employee?.DateOfBirth}</div></div>
               </div>
             </div>
@@ -317,6 +320,12 @@ function PersonalView() {
         )}
 
       </div>
+
+      <Notification 
+        message={notification.message} 
+        type={notification.type} 
+        onClose={() => setNotification({ message: '', type: 'success' })} 
+      />
     </div>
   )
 }

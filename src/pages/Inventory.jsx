@@ -2,6 +2,7 @@ import { useEffect, useState, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../supabaseClient'
 import logo from '../assets/wm-logo.svg'
+import { Notification } from '../components/Notification'
 
 // --- HELPER: PAGINATION ---
 const PaginationControls = ({ total, page, setPage, perPage }) => {
@@ -38,6 +39,9 @@ const [loading, setLoading] = useState(true)
   const [filterCategory, setFilterCategory] = useState('All') // Default 'All'
   const [showFilterMenu, setShowFilterMenu] = useState(false)
   const searchContainerRef = useRef(null)
+
+  // Notification State
+  const [notification, setNotification] = useState({ message: '', type: 'success' })
 
   // Modals
   const [modals, setModals] = useState({
@@ -181,7 +185,7 @@ const [loading, setLoading] = useState(true)
   const handleAddSubmit = (e) => {
     e.preventDefault()
     if(!formData.ItemName || !formData.Quantity || !formData.UnitPrice || !formData.Expiry) {
-        alert("Please fill in all required fields.")
+        setNotification({ message: "Please fill in all required fields.", type: 'error' })
         return
     }
     setModals({ ...modals, add: false, confirmAdd: true })
@@ -200,9 +204,9 @@ const [loading, setLoading] = useState(true)
         StockIn: currentDateTime 
     }])
 
-    if (error) alert("Database Error: " + error.message)
+    if (error) setNotification({ message: "Database Error: " + error.message, type: 'error' })
     else {
-        alert("Item Added Successfully!")
+        setNotification({ message: "Item Added Successfully!", type: 'success' })
         closeModal()
         setTimeout(() => fetchInventory(), 500) 
     }
@@ -210,7 +214,10 @@ const [loading, setLoading] = useState(true)
 
   // --- UPDATE ITEM ---
   const prepareUpdate = () => {
-    if (!selectedId) return alert("Please select an item to update.")
+    if (!selectedId) {
+      setNotification({ message: "Please select an item to update.", type: 'error' })
+      return
+    }
     const item = inventory.find(i => i.InventoryID === selectedId)
     setFormData(item)
     setModals({ ...modals, update: true })
@@ -228,9 +235,9 @@ const [loading, setLoading] = useState(true)
         Expiry: formData.Expiry
     }).eq('InventoryID', selectedId)
 
-    if (error) alert("Error: " + error.message)
+    if (error) setNotification({ message: "Error: " + error.message, type: 'error' })
     else {
-        alert("Item Updated Successfully!")
+        setNotification({ message: "Item Updated Successfully!", type: 'success' })
         fetchInventory()
         closeModal()
     }
@@ -238,10 +245,16 @@ const [loading, setLoading] = useState(true)
 
   // --- 4. FIXED ARCHIVE LOGIC ---
   const executeArchive = async () => {
-    if (!archiveReason) return alert("Please provide a reason.")
+    if (!archiveReason) {
+      setNotification({ message: "Please provide a reason.", type: 'error' })
+      return
+    }
     
     const itemToArchive = inventory.find(i => i.InventoryID === selectedId)
-    if (!itemToArchive) return alert("Item not found.")
+    if (!itemToArchive) {
+      setNotification({ message: "Item not found.", type: 'error' })
+      return
+    }
 
     // A. Get Current Employee ID (With Fallback)
     const { data: { user } } = await supabase.auth.getUser()
@@ -281,7 +294,7 @@ const [loading, setLoading] = useState(true)
     if (deleteError) {
         alert("Error deleting item: " + deleteError.message)
     } else {
-        alert("Item Archived Successfully.")
+        setNotification({ message: "Item Archived Successfully.", type: 'success' })
         fetchInventory()
         closeModal()
     }
@@ -327,8 +340,6 @@ const [loading, setLoading] = useState(true)
         </div>
         <h2 style={{fontSize: "18px", marginBottom: "40px", marginTop: -20, textAlign: "center"}}>WeekendMatcha</h2>
         
-        <div style={{ padding: "10px", fontSize: "16px", fontWeight: "bold", borderRadius: "8px", marginBottom: "10px", color: "white", cursor: "pointer", background: "rgba(255,255,255,0.2)" }} onClick={() => navigate('/personal-view')}>👤 My Personal View</div>
-        <div style={{borderTop: "1px solid rgba(255,255,255,0.3)", margin: "10px 0"}}></div>
         <div style={{ padding: "10px", fontSize: "16px", fontWeight: "bold", borderRadius: "8px", marginBottom: "10px", color: "white", cursor: "pointer", background: "#5a6955"}}>Inventory System ➤</div>
         <div style={{ padding: "10px", fontSize: "16px", fontWeight: "bold", borderRadius: "8px", marginBottom: "10px", color: "white", cursor: "pointer", opacity: 0.5}} onClick={() => navigate('/sales-system')}>Sales System</div>
         <div style={{ padding: "10px", fontSize: "16px", fontWeight: "bold", borderRadius: "8px", marginBottom: "10px", color: "white", cursor: "pointer", opacity: 0.5}} onClick={() => navigate('/hr-system')}>Human Resource</div>
@@ -402,7 +413,7 @@ const [loading, setLoading] = useState(true)
             <div style={{ display: "flex", gap: "10px" }}>
                 <button style={{...btnStyle, background: colors.darkGreen}} onClick={() => setModals({...modals, add: true})}>ADD</button>
                 <button style={{...btnStyle, background: colors.yellow}} onClick={prepareUpdate}>UPDATE</button>
-                <button style={{...btnStyle, background: colors.red}} onClick={() => selectedId ? setModals({...modals, archive: true}) : alert("Select an item.")}>ARCHIVE</button>
+                <button style={{...btnStyle, background: colors.red}} onClick={() => selectedId ? setModals({...modals, archive: true}) : setNotification({ message: "Select an item.", type: 'error' })}>ARCHIVE</button>
                 <button style={{...btnStyle, background: colors.blue}} onClick={openArchiveLog}>ARCHIVE LOGS</button>
             </div>
         </div>
@@ -608,6 +619,11 @@ const [loading, setLoading] = useState(true)
         </div>
       )}
 
+      <Notification 
+        message={notification.message} 
+        type={notification.type} 
+        onClose={() => setNotification({ message: '', type: 'success' })} 
+      />
     </div>
   )
 }

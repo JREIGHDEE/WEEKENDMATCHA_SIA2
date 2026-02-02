@@ -2,6 +2,7 @@ import { useEffect, useState, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../supabaseClient'
 import logo from '../assets/wm-logo.svg'
+import { Notification } from '../components/Notification'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
 
 // --- HELPER: PAGINATION ---
@@ -45,6 +46,9 @@ function SalesSystem() {
   // Pagination
   const [currentPage, setCurrentPage] = useState(1)
   const itemsPerPage = 5
+
+  // Notification
+  const [notification, setNotification] = useState({ message: '', type: 'success' })
 
   // Modals
   const [modals, setModals] = useState({ add: false, update: false, archive: false, confirmation: false, archiveLog: false })
@@ -236,11 +240,15 @@ function SalesSystem() {
       const transactionDateTime = new Date(`${salesFormData.date} ${salesFormData.time}`).toISOString()
       
       const { error } = await supabase.from('FinancialRecord').insert([{ EmployeeID: empData?.EmployeeID || 1, TransactionDate: transactionDateTime, RecordType: salesFormData.type, Amount: parseFloat(salesFormData.amount), Description: salesFormData.description, Status: salesFormData.status }])
-      if (error) alert("Error: " + error.message); else { alert("Added!"); fetchData(); closeModal() }
+      if (error) setNotification({ message: "Error: " + error.message, type: 'error' });
+      else { setNotification({ message: "Added!", type: 'success' }); fetchData(); closeModal() }
   }
   
   const prepareUpdateSale = () => { 
-      if(!selectedId) return alert("Select record"); 
+      if(!selectedId) {
+        setNotification({ message: "Select record", type: 'error' })
+        return
+      } 
       const t = transactions.find(x=>x.id===selectedId); 
       setSalesFormData({
           type: t.type, 
@@ -270,15 +278,21 @@ function SalesSystem() {
           })
           .eq('RecordID', dbId); 
       
-      if (error) alert("Error updating: " + error.message);
+      if (error) setNotification({ message: "Error updating: " + error.message, type: 'error' });
       else { 
-          alert("Record Updated!"); 
+          setNotification({ message: "Record Updated!", type: 'success' }); 
           fetchData(); 
           closeModal(); 
       }
   }
 
-  const prepareArchiveSale = () => { if(!selectedId) return alert("Select record"); setModals({...modals, archive:true}) }
+  const prepareArchiveSale = () => {
+    if(!selectedId) {
+      setNotification({ message: "Select record", type: 'error' })
+      return
+    }
+    setModals({...modals, archive:true})
+  }
   const handleArchiveConfirmation = () => triggerConfirmation(executeArchiveSale, "Archive", "Confirm archive?")
   
 const executeArchiveSale = async () => { 
@@ -286,7 +300,10 @@ const executeArchiveSale = async () => {
       const dbId = parseInt(t.id.replace('F','')); 
 
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return alert("User not found.");
+      if (!user) {
+        setNotification({ message: "User not found.", type: 'error' })
+        return
+      }
 
       // STEP 1: Insert into Log
       const { error: logError } = await supabase.from('FinancialArchiveLog').insert([{
@@ -296,7 +313,10 @@ const executeArchiveSale = async () => {
           Reason: archiveReason
       }]);
 
-      if (logError) return alert("Error logging archive: " + logError.message);
+      if (logError) {
+        setNotification({ message: "Error logging archive: " + logError.message, type: 'error' })
+        return
+      }
 
       // STEP 2: Update Status to 'Archived'
       const { error: updateError } = await supabase
@@ -305,9 +325,9 @@ const executeArchiveSale = async () => {
           .eq('RecordID', dbId); 
       
       if (updateError) {
-          alert("Update Error: " + updateError.message);
+          setNotification({ message: "Update Error: " + updateError.message, type: 'error' });
       } else { 
-          alert("Record Archived!"); 
+          setNotification({ message: "Record Archived!", type: 'success' }); 
           fetchData(); // This will refresh the table and the row WILL disappear
           closeModal(); 
       }
@@ -332,8 +352,6 @@ const executeArchiveSale = async () => {
             <img src={logo} alt="WeekendMatcha Logo" style={{ width: "130px", height: "auto" }} />
         </div>
         <h2 style={{fontSize: "18px", marginBottom: "40px", marginTop: -20, textAlign: "center"}}>WeekendMatcha</h2>
-        <div style={{ padding: "10px", fontSize: "16px", fontWeight: "bold", borderRadius: "8px", marginBottom: "10px", color: "white", cursor: "pointer", background: "rgba(255,255,255,0.2)" }} onClick={() => navigate('/personal-view')}>👤 My Personal View</div>
-        <div style={{borderTop: "1px solid rgba(255,255,255,0.3)", margin: "10px 0"}}></div>
         <div style={{ padding: "10px", fontSize: "16px", fontWeight: "bold", borderRadius: "8px", marginBottom: "10px", color: "white", cursor: "pointer", opacity: 0.5}} onClick={() => navigate('/inventory-system')}>Inventory System</div>
         <div style={{ padding: "10px", fontSize: "16px", fontWeight: "bold", borderRadius: "8px", marginBottom: "10px", color: "white", cursor: "pointer", background: "#5a6955"}}>Sales System ➤</div>
         <div style={{ padding: "10px", fontSize: "16px", fontWeight: "bold", borderRadius: "8px", marginBottom: "10px", color: "white", cursor: "pointer", opacity: 0.5}} onClick={() => navigate('/hr-system')}>Human Resource</div>
@@ -454,6 +472,11 @@ const executeArchiveSale = async () => {
         <div style={modalOverlay}><div style={{...modalContent, width:"800px"}}><h2 style={{color:colors.blue}}>Archive Log</h2><div style={{height:"400px", overflow:"auto"}}><table style={{width:"100%"}}><thead style={{background:colors.blue, color:"white"}}><tr><th>ID</th><th>Reason</th><th>By</th><th>Date</th></tr></thead><tbody>{archiveLogs.map(l=><tr key={l.logId}><td style={{textAlign:"center", padding:"10px"}}>{l.originalId}</td><td style={{textAlign:"center"}}>{l.reason}</td><td style={{textAlign:"center"}}>{l.archivedBy}</td><td style={{textAlign:"center"}}>{l.dateArchived}</td></tr>)}</tbody></table></div><button onClick={closeModal} style={{...btnStyle, background:"#ccc", color:"#333", marginTop:"20px"}}>Close</button></div></div>
       )}
 
+      <Notification 
+        message={notification.message} 
+        type={notification.type} 
+        onClose={() => setNotification({ message: '', type: 'success' })} 
+      />
     </div>
   )
 }

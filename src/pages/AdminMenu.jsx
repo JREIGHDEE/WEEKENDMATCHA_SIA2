@@ -71,12 +71,6 @@ function AdminMenu() {
         <h2 style={{fontSize: "18px", marginBottom: "40px", marginTop: -20, textAlign: "center"}}>WeekendMatcha</h2>
         
         {/* --- NAVIGATION LINKS --- */}
-        <div style={{ ...itemStyle, background: "rgba(255,255,255,0.2)" }} onClick={() => navigate('/personal-view')}>
-          👤 My Personal View
-        </div>
-        
-        <div style={{ borderTop: "1px solid rgba(255,255,255,0.3)", margin: "10px 0" }}></div>
-
         <div style={{ ...itemStyle, opacity: 0.5 }} onClick={() => navigate('/inventory-system')}>
           Inventory System
         </div>

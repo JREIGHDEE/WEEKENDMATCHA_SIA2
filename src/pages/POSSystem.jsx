@@ -2,6 +2,7 @@ import { useEffect, useState, useRef } from 'react'
 import { supabase } from '../supabaseClient'
 import { useNavigate } from 'react-router-dom'
 import logo from '../assets/wm-logo.svg' 
+import { Notification } from '../components/Notification' 
 
 function POSSystem() {
   const navigate = useNavigate()
@@ -67,6 +68,9 @@ function POSSystem() {
   // Recipe Builder
   const [newItemRecipe, setNewItemRecipe] = useState([]) // Stores [{id, name, amount, unit}]
   const [selectedIngId, setSelectedIngId] = useState('')
+
+  // Notification State
+  const [notification, setNotification] = useState({ message: '', type: 'success' })
 
   // Pagination
   const [orderPage, setOrderPage] = useState(1); const ordersPerPage = 6
@@ -228,7 +232,7 @@ async function fetchInventory() {
 // --- RECEIPT HANDLERS ---
   const handlePrintReceipt = () => { 
     setReceiptPrinted(true); 
-    alert("Printing Receipt..."); 
+    setNotification({ message: "Printing Receipt...", type: 'info' }); 
   };
 
 const handleCloseReceipt = () => {
@@ -248,11 +252,11 @@ const handleCloseReceipt = () => {
 const handleConfirmPayment = async () => {
     // 1. Basic Validation
     if (!customerName.trim()) { 
-        alert("⚠️ Customer Name is required!"); 
+        setNotification({ message: "Customer Name is required!", type: 'error' }); 
         return; 
     }
     if (getChange() < 0) {
-        alert("⚠️ Insufficient Cash!");
+        setNotification({ message: "Insufficient Cash!", type: 'error' });
         return;
     }
 
@@ -334,7 +338,7 @@ const handleConfirmPayment = async () => {
 
                             // 7. --- THRESHOLD NOTIFICATION ---
                             if (newQty <= currentItem.ReorderThreshold) {
-                                alert(`⚠️ LOW STOCK: ${currentItem.ItemName} is now ${newQty}. (Limit: ${currentItem.ReorderThreshold})`);
+                                setNotification({ message: `LOW STOCK: ${currentItem.ItemName} is now ${newQty}. (Limit: ${currentItem.ReorderThreshold})`, type: 'warning' });
                             }
                         }
                     }
@@ -361,7 +365,7 @@ const handleConfirmPayment = async () => {
 
     } catch (err) {
         console.error("Payment Process Error:", err);
-        alert("Transaction Failed: " + err.message);
+        setNotification({ message: "Transaction Failed: " + err.message, type: 'error' });
     } finally {
         setLoading(false);
     }
@@ -402,13 +406,21 @@ const handleConfirmPayment = async () => {
 
   // --- MANAGE MENU: ADMIN CHECK ---
   const handleAdminLoginSubmit = async () => {
-    if (!adminUser || !adminPass) return alert("Enter credentials")
+    if (!adminUser || !adminPass) {
+      setNotification({ message: "Enter credentials", type: 'error' })
+      return
+    }
     const { data: authData, error } = await supabase.auth.signInWithPassword({ email: adminUser, password: adminPass })
-    if (error) { alert("Login Failed"); return }
+    if (error) {
+      setNotification({ message: "Login Failed", type: 'error' })
+      return
+    }
     const { data } = await supabase.from('User').select('RoleName').eq('UserID', authData.user.id).maybeSingle()
     if (data && ['HR Admin', 'Inventory Admin', 'Sales Admin'].includes(data.RoleName)) {
         setAdminUser(''); setAdminPass(''); setShowAdminLogin(false); setShowManageMenu(true)
-    } else alert("Access Denied")
+    } else {
+      setNotification({ message: "Access Denied", type: 'error' })
+    }
   }
 
   // --- MANAGE MENU: IMAGE & RECIPE HANDLERS ---
@@ -442,7 +454,10 @@ const handleAddIngredientToRecipe = () => {
 
   // --- MANAGE MENU: SAVE (ADD OR UPDATE) ---
   const handleSaveItem = async () => {
-      if (!newItemName || !newItemPrice) return alert("Name and Price are required.")
+      if (!newItemName || !newItemPrice) {
+        setNotification({ message: "Name and Price are required.", type: 'error' })
+        return
+      }
       setLoading(true)
       
       let publicUrl = previewUrl // Default to current preview
@@ -475,14 +490,14 @@ const handleAddIngredientToRecipe = () => {
               // Insert New
                const { error } = await supabase.from('Product').insert([productData])
                if(error) throw error
-               alert("Item Added Successfully!")
+               setNotification({ message: "Item Added Successfully!", type: 'success' })
           }
           
           resetForm()
           fetchMenu() 
 
       } catch (error) {
-          alert("Error saving item: " + error.message)
+          setNotification({ message: "Error saving item: " + error.message, type: 'error' })
       } finally {
           setLoading(false)
       }
@@ -510,7 +525,7 @@ const handleAddIngredientToRecipe = () => {
       if (!window.confirm("Delete this item?")) return
       setLoading(true)
       await supabase.from('Product').delete().eq('ProductID', id)
-      alert("Deleted")
+      setNotification({ message: "Deleted", type: 'success' })
       fetchMenu()
       setLoading(false)
   }
@@ -965,6 +980,11 @@ const handleAddIngredientToRecipe = () => {
         </div>
       )}
 
+      <Notification 
+        message={notification.message} 
+        type={notification.type} 
+        onClose={() => setNotification({ message: '', type: 'success' })} 
+      />
     </div>
   )
 }

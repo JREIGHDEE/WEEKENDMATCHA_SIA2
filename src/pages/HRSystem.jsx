@@ -1,45 +1,9 @@
 import { useEffect, useState, useRef } from 'react'
 import { supabase } from '../supabaseClient'
 import { useNavigate } from 'react-router-dom'
-import logo from '../assets/wm-logo.svg' // <-- Update the filename to yours!
-
-// --- HELPER: TIME PICKER ---
-const TimePicker = ({ label, value, onChange }) => {
-  const [time, setTime] = useState(value || "12:00 AM")
-  useEffect(() => { setTime(value || "12:00 AM") }, [value])
-
-  const [hour, rest] = time.split(':')
-  const [minute, ampm] = rest ? rest.split(' ') : ["00", "AM"]
-
-  const updateTime = (h, m, ap) => {
-    const newTime = `${h}:${m} ${ap}`
-    setTime(newTime)
-    onChange(newTime)
-  }
-
-  const inputStyle = { padding: "5px", borderRadius: "5px", border: "1px solid #ccc", marginRight: "5px" }
-
-  return (
-    <div style={{ display: "flex", flexDirection: "column", marginRight: "10px" }}>
-      <span style={{ fontSize: "12px", fontWeight: "bold", color: "#555", marginBottom: "5px" }}>{label}</span>
-      <div style={{ display: "flex", alignItems: "center" }}>
-        <select style={inputStyle} value={hour} onChange={(e) => updateTime(e.target.value, minute, ampm)}>
-          {Array.from({ length: 12 }, (_, i) => i + 1).map(h => (
-            <option key={h} value={h < 10 ? `0${h}` : `${h}`}>{h}</option>
-          ))}
-        </select>
-        :
-        <select style={inputStyle} value={minute} onChange={(e) => updateTime(hour, e.target.value, ampm)}>
-          {["00", "15", "30", "45"].map(m => <option key={m} value={m}>{m}</option>)}
-        </select>
-        <select style={inputStyle} value={ampm} onChange={(e) => updateTime(hour, minute, e.target.value)}>
-          <option value="AM">AM</option>
-          <option value="PM">PM</option>
-        </select>
-      </div>
-    </div>
-  )
-}
+import logo from '../assets/wm-logo.svg' 
+import { Notification } from '../components/Notification'
+import EmployeeForm from '../components/EmployeeForm'
 
 function HRSystem() {
   const navigate = useNavigate()
@@ -89,7 +53,7 @@ function HRSystem() {
   const [archiveLogs, setArchiveLogs] = useState([])
   const [attendanceLogs, setAttendanceLogs] = useState([])
   const [attendanceSearchDate, setAttendanceSearchDate] = useState('')
-  const [successMessage, setSuccessMessage] = useState('')
+  const [notification, setNotification] = useState({ message: '', type: 'success' })
   const [confirmationAction, setConfirmationAction] = useState(null)
 
   // --- 1. INITIAL LOAD ---
@@ -151,22 +115,16 @@ function HRSystem() {
     }
   }
 
-  // --- NEW HELPER: FETCH ROLE ID ---
+  // --- HELPERS ---
   const fetchRoleId = async (roleName) => {
-    console.log("Searching for Role:", roleName)
     const { data, error } = await supabase
         .from('UserRole')
         .select('UserRoleID')
         .eq('RoleName', roleName)
-        .maybeSingle() // Use maybeSingle to avoid crashes
+        .maybeSingle()
     
     if (error) console.error("Error fetching role:", error)
-    
-    if (!data) {
-        console.warn(`Role '${roleName}' not found in UserRole table. Defaulting to 1.`)
-        return 1
-    }
-    console.log("Found Role ID:", data.UserRoleID)
+    if (!data) return 1
     return data.UserRoleID
   }
 
@@ -188,7 +146,7 @@ function HRSystem() {
     )
   }
 
-  // --- 2. ADD EMPLOYEE ---
+  // --- ADD EMPLOYEE ---
   const prepareAdd = () => {
     setFormData({
       firstName: '', lastName: '', address: '', contact: '', dob: '',
@@ -200,24 +158,15 @@ function HRSystem() {
     setModals({...modals, add: true})
   }
 
-  const handleAddConfirmation = (e) => {
-    e.preventDefault()
-    triggerConfirmation(() => executeAddEmployee())
-  }
-
   const executeAddEmployee = async () => {
-    // 1. Get Correct Role ID
     const correctRoleId = await fetchRoleId(formData.role)
-
-    // 2. Create Auth User
     const { data: authData, error: authError } = await supabase.auth.signUp({
       email: formData.email, password: formData.password,
       options: { data: { full_name: `${formData.firstName} ${formData.lastName}`, role: formData.role } }
     })
     
-    if (authError) { alert("Auth Error: " + authError.message); return }
+    if (authError) { setNotification({ message: "Auth Error: " + authError.message, type: 'error' }); return }
 
-    // 3. Create/Update Public User (Using UPSERT to prevent conflicts)
     const { data: userData, error: userError } = await supabase
       .from('User')
       .upsert([{ 
@@ -225,13 +174,12 @@ function HRSystem() {
         FirstName: formData.firstName, LastName: formData.lastName, Address: formData.address, 
         ContactNumber: formData.contact, RoleName: formData.role, 
         Email: formData.email, Password: formData.password, 
-        UserRoleID: correctRoleId // Saving the correct ID
-      }], { onConflict: 'UserID' }) // If UserID exists, update it instead of failing
+        UserRoleID: correctRoleId
+      }], { onConflict: 'UserID' })
       .select()
 
-    if (userError) return alert("Database User Error: " + userError.message)
+    if (userError) { setNotification({ message: "Database User Error: " + userError.message, type: 'error' }); return }
 
-    // 4. Create Employee
     const fullShift = `${formData.shiftStart} - ${formData.shiftEnd}`
     const { error: empError } = await supabase.from('Employee').insert([{
         UserID: userData[0].UserID, DateHired: formData.dateHired, ShiftSchedule: fullShift,
@@ -239,15 +187,13 @@ function HRSystem() {
         SchedulePattern: formData.schedulePattern 
     }])
 
-    if (empError) alert("Employee Error: " + empError.message)
-    else {
-      showSuccess("Account Created & Employee Added!")
-    }
+    if (empError) setNotification({ message: "Employee Error: " + empError.message, type: 'error' })
+    else showSuccess("Account Created & Employee Added!")
   }
 
-  // --- 3. UPDATE EMPLOYEE ---
+  // --- UPDATE EMPLOYEE ---
   const prepareUpdate = () => {
-    if (!selectedEmpId) return alert("Select an employee first")
+    if (!selectedEmpId) { setNotification({ message: 'Select an employee first', type: 'warning' }); return }
     const emp = employees.find(e => e.EmployeeID === selectedEmpId)
     const [start, end] = emp.ShiftSchedule ? emp.ShiftSchedule.split(' - ') : ["08:00 AM", "05:00 PM"]
 
@@ -262,16 +208,9 @@ function HRSystem() {
     setModals({...modals, update: true})
   }
 
-  const handleUpdateConfirmation = (e) => {
-    e.preventDefault()
-    triggerConfirmation(() => executeUpdateEmployee())
-  }
-
   const executeUpdateEmployee = async () => {
     const emp = employees.find(e => e.EmployeeID === selectedEmpId)
     const fullShift = `${formData.shiftStart} - ${formData.shiftEnd}`
-    
-    // Fetch ID again in case role changed
     const correctRoleId = await fetchRoleId(formData.role)
 
     await supabase.from('User').update({
@@ -289,11 +228,14 @@ function HRSystem() {
     showSuccess("Employee Updated Successfully!")
   }
 
-  // --- 4. ARCHIVE & LOGS ---
-  const prepareArchive = () => { if (!selectedEmpId) return alert("Select an employee first"); setArchiveReason(''); setModals({...modals, archive: true}) }
+  // --- ARCHIVE & LOGS ---
+  const prepareArchive = () => {
+    if (!selectedEmpId) { setNotification({ message: 'Select an employee first', type: 'warning' }); return }
+    setArchiveReason(''); setModals({...modals, archive: true})
+  }
   
   const executeArchive = async () => {
-    if (!archiveReason) return alert("Reason is required");
+    if (!archiveReason) { setNotification({ message: 'Reason is required', type: 'warning' }); return }
     await supabase.from('Employee').update({ EmployeeStatus: 'Inactive' }).eq('EmployeeID', selectedEmpId);
     const emp = employees.find(e => e.EmployeeID === selectedEmpId);
     await supabase.from('ArchiveLog').insert([{ EmployeeID: selectedEmpId, UserID: emp.UserID, ArchivedDate: new Date().toISOString().split('T')[0], ReasonArchived: archiveReason }]);
@@ -306,35 +248,17 @@ function HRSystem() {
   }
 
   const executeRestore = async (logID, empID) => {
-    if(!empID) return alert("Error: Could not find Employee ID.");
     const { error: updateError } = await supabase.from('Employee').update({ EmployeeStatus: 'Active' }).eq('EmployeeID', empID);
-    if (updateError) { alert("Error restoring: " + updateError.message); return }
-    const { error: deleteError } = await supabase.from('ArchiveLog').delete().eq('LogID', logID);
-    if (deleteError) { alert("Error deleting log: " + deleteError.message); return }
-    alert("Employee Restored!"); setArchiveLogs(prev => prev.filter(log => log.LogID !== logID)); fetchEmployees() 
+    if (updateError) { setNotification({ message: 'Error restoring: ' + updateError.message, type: 'error' }); return }
+    await supabase.from('ArchiveLog').delete().eq('LogID', logID);
+    setNotification({ message: 'Employee Restored!', type: 'success' }); fetchEmployees(); setModals({...modals, archiveLog: false})
   }
 
-  // --- 5. ATTENDANCE ---
+  // --- ATTENDANCE ---
   const openAttendanceModal = async () => {
-    if (!selectedEmpId) { alert("⚠️ Please select an employee from the list first to view their attendance."); return }
+    if (!selectedEmpId) { setNotification({ message: 'Please select an employee first.', type: 'warning' }); return }
     const { data } = await supabase.from('Attendance').select('*').eq('EmployeeID', selectedEmpId).order('Date', { ascending: false });
-    setAttendanceLogs(data || []); setAttendancePage(1); setAttendanceSearchDate(''); setModals({...modals, attendance: true})
-  }
-  const filterAttendance = () => {
-    if(!attendanceSearchDate) return openAttendanceModal();
-    const filtered = attendanceLogs.filter(log => log.Date === attendanceSearchDate);
-    setAttendanceLogs(filtered); setAttendancePage(1)
-  }
-
-  // --- 6. DEBUG RESET ---
-  const handleHardReset = async () => {
-    if (!window.confirm("⚠️ DANGER: This will delete ALL Attendance Records, Archive Logs, and Employee Data.\n\nThis is for testing purposes only. Are you sure?")) return;
-    await supabase.from('Attendance').delete().neq('AttendanceID', 0);
-    await supabase.from('ArchiveLog').delete().neq('LogID', 0);
-    const { error } = await supabase.from('Employee').delete().neq('EmployeeID', 0);
-    await supabase.from('User').delete().neq('RoleName', 'Super Admin'); 
-    if (error) alert("Error resetting: " + error.message)
-    else { alert("♻️ System Reset Complete."); fetchEmployees(); }
+    setAttendanceLogs(data || []); setAttendancePage(1); setModals({...modals, attendance: true})
   }
 
   // --- HELPERS ---
@@ -343,16 +267,11 @@ function HRSystem() {
   
   const showSuccess = (msg) => { 
     fetchEmployees()
-    setSuccessMessage(msg)
-    setModals(prev => ({
-        ...prev, 
-        add: false, 
-        update: false, 
-        archive: false, 
-        confirmation: false, 
-        success: true 
-    })) 
+    setNotification({ message: msg, type: 'success' })
+    setModals(prev => ({ ...prev, add: false, update: false, archive: false, confirmation: false })) 
   }
+
+  const showError = (msg) => setNotification({ message: msg, type: 'error' })
 
   // --- STYLES ---
   const colors = { green: "#6B7C65", beige: "#E8DCC6", purple: "#7D4E99", darkGreen: "#4A5D4B", red: "#D9534F", blue: "#337AB7" }
@@ -368,30 +287,24 @@ function HRSystem() {
       
       {/* SIDEBAR */}
       <div style={{ width: "250px", flexShrink: 0, background: colors.green, padding: "30px 20px", color: "white", display: "flex", flexDirection: "column", boxSizing: "border-box" }}>
-
-        {/* LOGO ADDED HERE */}
         <div style={{ paddingBottom: "10px", textAlign: "center" }}>
             <img src={logo} alt="WeekendMatcha Logo" style={{ width: "130px", height: "auto" }} />
         </div>
         <h2 style={{fontSize: "18px", marginBottom: "40px", marginTop: -20, textAlign: "center"}}>WeekendMatcha</h2>
-
-        <div style={{ padding: "10px", fontSize: "16px", fontWeight: "bold", borderRadius: "8px", marginBottom: "10px", color: "white", cursor: "pointer", background: "rgba(255,255,255,0.2)" }} onClick={() => navigate('/personal-view')}>👤 My Personal View</div>
-        <div style={{borderTop: "1px solid rgba(255,255,255,0.3)", margin: "10px 0"}}></div>
         <div style={{ padding: "10px", fontSize: "16px", fontWeight: "bold", borderRadius: "8px", marginBottom: "10px", color: "white", cursor: "pointer", opacity: 0.5}} onClick={() => navigate('/inventory-system')}>Inventory System</div>
         <div style={{ padding: "10px", fontSize: "16px", fontWeight: "bold", borderRadius: "8px", marginBottom: "10px", color: "white", cursor: "pointer", opacity: 0.5}} onClick={() => navigate('/sales-system')}>Sales System</div>
         <div style={{ padding: "10px", fontSize: "16px", fontWeight: "bold", borderRadius: "8px", marginBottom: "10px", color: "white", cursor: "pointer", background: "#5a6955"}}>Human Resource ➤</div>
-        <div onClick={handleHardReset} style={{ marginTop: "20px", padding: "10px", background: "rgba(200, 0, 0, 0.5)", borderRadius: "5px", cursor: "pointer", fontWeight: "bold", textAlign: "center", fontSize: "12px", color: "#ffdada" }}>⚠️ RESET DATA</div>
         <div style={{ marginTop: "auto", cursor: "pointer", opacity: 0.8, display:"flex", alignItems:"center", gap:"10px", fontSize:"18px" }} onClick={() => navigate('/')}><span>↪</span> Log Out</div>
       </div>
 
       {/* MAIN CONTENT */}
       <div style={{ flex: 1, background: colors.beige, padding: "30px", display: "flex", flexDirection: "column", overflow: "hidden" }}>
         
-        {/* HEADER & FILTER */}
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "15px" }}>
           <h1 style={{ margin: 0, fontSize: "28px", color: colors.darkGreen }}>Employee Management</h1>
           <button style={{...btnStyle, background: colors.purple}} onClick={openAttendanceModal}>VIEW ATTENDANCE LOG</button>
         </div>
+
         <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "20px", position: "relative" }} ref={searchContainerRef}>
           <input placeholder={`🔍 Search by ${filterCategory}...`} style={{ padding: "8px", borderRadius: "20px", border: "1px solid #ccc", width: "250px", cursor: "pointer" }} value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} onFocus={() => setShowFilterMenu(true)} />
           {showFilterMenu && (
@@ -406,7 +319,6 @@ function HRSystem() {
           )}
         </div>
 
-        {/* ACTIONS */}
         <div style={{ display: "flex", gap: "10px", marginBottom: "15px" }}>
           <button style={{...btnStyle, background: colors.darkGreen}} onClick={prepareAdd}>ADD</button>
           <button style={{...btnStyle, background: "#d3af37"}} onClick={prepareUpdate}>UPDATE</button>
@@ -414,7 +326,6 @@ function HRSystem() {
           <button style={{...btnStyle, background: "#337AB7"}} onClick={openArchiveLogModal}>VIEW ARCHIVE LOG</button>
         </div>
 
-        {/* TABLE */}
         <div style={{ background: "white", borderRadius: "15px", flex: 1, boxShadow: "0 4px 10px rgba(0,0,0,0.1)", overflow: "hidden", display: "flex", flexDirection: "column" }}>
           <div style={{ overflowY: "auto", flex: 1 }}>
             <table style={{ width: "100%", borderCollapse: "collapse" }}>
@@ -453,72 +364,23 @@ function HRSystem() {
           </div>
         )}
 
-        {modals.success && (
-          <div style={confirmOverlay}>
-            <div style={{...modalContent, width: "300px", textAlign: "center"}}>
-              <h1 style={{ fontSize: "50px", margin: "0" }}>✅</h1><h3>Success!</h3><p>{successMessage}</p>
-              <button onClick={() => setModals({...modals, success: false})} style={{...btnStyle, background: colors.green, marginTop: "20px"}}>Okay</button>
-            </div>
-          </div>
-        )}
-
         {(modals.add || modals.update) && (
           <div style={modalOverlay}>
-            <div style={modalContent}>
-              <h2 style={{ marginTop: 0 }}>{modals.add ? "Add Employee" : "Update Employee"}</h2>
-              <form onSubmit={modals.add ? handleAddConfirmation : handleUpdateConfirmation}>
-                <h4 style={{ margin: "10px 0", borderBottom: "1px solid #eee" }}>Personal Information</h4>
-                <div style={{ display: "flex", gap: "10px" }}>
-                  <input style={inputStyle} placeholder="First Name" value={formData.firstName} onChange={e => setFormData({...formData, firstName: e.target.value})} required />
-                  <input style={inputStyle} placeholder="Last Name" value={formData.lastName} onChange={e => setFormData({...formData, lastName: e.target.value})} required />
-                </div>
-                <input style={inputStyle} placeholder="Address" value={formData.address} onChange={e => setFormData({...formData, address: e.target.value})} />
-                <div style={{ display: "flex", gap: "10px" }}>
-                  <input style={inputStyle} placeholder="Contact" value={formData.contact} onChange={e => setFormData({...formData, contact: e.target.value})} />
-                  <input type="date" style={inputStyle} value={formData.dob} onChange={e => setFormData({...formData, dob: e.target.value})} />
-                </div>
-                <h4 style={{ margin: "15px 0 10px", borderBottom: "1px solid #eee" }}>Account Details</h4>
-                <input style={inputStyle} placeholder="Email (For Login)" type="email" value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} required />
-                <input style={inputStyle} placeholder="Password" type="text" value={formData.password} onChange={e => setFormData({...formData, password: e.target.value})} required />
-                <h4 style={{ margin: "15px 0 10px", borderBottom: "1px solid #eee" }}>Job Details</h4>
-                <div style={{ display: "flex", gap: "10px" }}>
-                   <div style={{flex: 1}}>
-                     <label style={{fontSize:"12px", fontWeight:"bold"}}>Role</label>
-                     <select style={inputStyle} value={formData.role} onChange={e => setFormData({...formData, role: e.target.value})}>
-                       {ALL_ROLES.map(r => <option key={r} value={r}>{r}</option>)}
-                     </select>
-                   </div>
-                   <div style={{flex: 1}}>
-                     <label style={{fontSize:"12px", fontWeight:"bold"}}>Status</label>
-                     <select style={inputStyle} value={formData.status} onChange={e => setFormData({...formData, status: e.target.value})}>
-                       <option value="Active">Active</option> <option value="On Leave">On Leave</option> <option value="Inactive">Inactive</option>
-                     </select>
-                   </div>
-                </div>
-                <input type="date" style={inputStyle} value={formData.dateHired} onChange={e => setFormData({...formData, dateHired: e.target.value})} />
-                <label style={{ fontSize: "12px", fontWeight: "bold", marginTop: "10px", display: "block" }}>Recurring Schedule Day</label>
-                <select style={inputStyle} value={formData.schedulePattern} onChange={e => setFormData({...formData, schedulePattern: e.target.value})}>
-                    <option value="Monday">Every Monday</option>
-                    <option value="Tuesday">Every Tuesday</option>
-                    <option value="Wednesday">Every Wednesday</option>
-                    <option value="Thursday">Every Thursday</option>
-                    <option value="Friday">Every Friday</option>
-                    <option value="Saturday">Every Saturday</option>
-                    <option value="Sunday">Every Sunday</option>
-                </select>
-
-                <label style={{ fontSize: "12px", fontWeight: "bold", marginTop: "10px", display: "block" }}>Shift Time (Flexible)</label>
-                <div style={{ display: "flex", alignItems: "center", background: "#f9f9f9", padding: "10px", borderRadius: "5px", border: "1px solid #eee" }}>
-                  <TimePicker label="Start Time" value={formData.shiftStart} onChange={(val) => setFormData({...formData, shiftStart: val})} />
-                  <span style={{ margin: "0 10px", fontWeight: "bold" }}>TO</span>
-                  <TimePicker label="End Time" value={formData.shiftEnd} onChange={(val) => setFormData({...formData, shiftEnd: val})} />
-                </div>
-                <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px", marginTop: "25px" }}>
-                  <button type="button" onClick={() => setModals({...modals, add: false, update: false})} style={{...btnStyle, background: "#ccc", color: "#333"}}>Cancel</button>
-                  <button type="submit" style={{...btnStyle, background: colors.green}}>Confirm</button>
-                </div>
-              </form>
-            </div>
+            <EmployeeForm
+                formData={formData}
+                setFormData={setFormData}
+                ALL_ROLES={ALL_ROLES}
+                modals={modals}
+                setModals={setModals}
+                triggerConfirmation={triggerConfirmation}
+                executeAddEmployee={executeAddEmployee}
+                executeUpdateEmployee={executeUpdateEmployee}
+                setNotification={setNotification}
+                showError={showError}
+                inputStyle={inputStyle}
+                btnStyle={btnStyle}
+                colors={colors}
+            />
           </div>
         )}
 
@@ -536,36 +398,34 @@ function HRSystem() {
         )}
 
         {modals.archiveLog && (
-                  <div style={modalOverlay}>
-                    <div style={{...modalContent, width: "800px", display: "flex", flexDirection: "column", height: "80vh"}}>
-                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "10px" }}>
-                        {/* ✅ UPDATED: Added color: colors.blue */}
-                        <h2 style={{ margin: 0, color: colors.blue }}>Archive Log</h2>
-                        <button onClick={() => setModals({...modals, archiveLog: false})} style={{...btnStyle, background: "#ccc", color: "black", padding: "5px 10px"}}>Close</button>
-                      </div>
-                      <div style={{ flex: 1, overflowY: "auto", border: "1px solid #ccc" }}>
-                        <table style={{ width: "100%", borderCollapse: "collapse" }}>
-                          {/* ✅ UPDATED: Changed background from colors.green to colors.blue */}
-                          <thead style={{ background: colors.blue, color: "white", position: "sticky", top: 0 }}>
-                            <tr><th>LogID</th><th>Employee Name</th><th>Archived Date</th><th>Reason</th><th>Action</th></tr>
-                          </thead>
-                          <tbody>
-                            {paginate(archiveLogs, archivePage, archivePerPage).map(log => (
-                              <tr key={log.LogID} style={{ borderBottom: "1px solid #ddd", textAlign: "center", height: "40px" }}>
-                                <td>{log.LogID}</td>
-                                <td>{log.Employee?.User?.FirstName} {log.Employee?.User?.LastName}</td>
-                                <td>{log.ArchivedDate}</td>
-                                <td>{log.ReasonArchived}</td>
-                                <td><button onClick={() => executeRestore(log.LogID, log.EmployeeID)} style={{ padding: "5px 15px", background: "#337AB7", color: "white", border: "none", borderRadius: "15px", cursor: "pointer", fontWeight: "bold" }}>Restore</button></td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                      <PaginationControls total={archiveLogs.length} page={archivePage} setPage={setArchivePage} perPage={archivePerPage} />
-                    </div>
-                  </div>
-                )}
+          <div style={modalOverlay}>
+            <div style={{...modalContent, width: "800px", display: "flex", flexDirection: "column", height: "80vh"}}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "10px" }}>
+                <h2 style={{ margin: 0, color: colors.blue }}>Archive Log</h2>
+                <button onClick={() => setModals({...modals, archiveLog: false})} style={{...btnStyle, background: "#ccc", color: "black", padding: "5px 10px"}}>Close</button>
+              </div>
+              <div style={{ flex: 1, overflowY: "auto", border: "1px solid #ccc" }}>
+                <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                  <thead style={{ background: colors.blue, color: "white", position: "sticky", top: 0 }}>
+                    <tr><th>LogID</th><th>Employee Name</th><th>Archived Date</th><th>Reason</th><th>Action</th></tr>
+                  </thead>
+                  <tbody>
+                    {paginate(archiveLogs, archivePage, archivePerPage).map(log => (
+                      <tr key={log.LogID} style={{ borderBottom: "1px solid #ddd", textAlign: "center", height: "40px" }}>
+                        <td>{log.LogID}</td>
+                        <td>{log.Employee?.User?.FirstName} {log.Employee?.User?.LastName}</td>
+                        <td>{log.ArchivedDate}</td>
+                        <td>{log.ReasonArchived}</td>
+                        <td><button onClick={() => executeRestore(log.LogID, log.EmployeeID)} style={{ padding: "5px 15px", background: "#337AB7", color: "white", border: "none", borderRadius: "15px", cursor: "pointer", fontWeight: "bold" }}>Restore</button></td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <PaginationControls total={archiveLogs.length} page={archivePage} setPage={setArchivePage} perPage={archivePerPage} />
+            </div>
+          </div>
+        )}
         
         {modals.attendance && (
           <div style={modalOverlay}>
@@ -588,7 +448,6 @@ function HRSystem() {
                               <td>{l.TimeOut ? ((new Date(l.TimeOut) - new Date(l.TimeIn)) / 36e5).toFixed(2) : '-'}</td>
                           </tr>
                       ))}
-                      {attendanceLogs.length === 0 && <tr><td colSpan="4" style={{padding:"20px", textAlign:"center"}}>No records found.</td></tr>}
                     </tbody>
                   </table>
               </div>
@@ -598,6 +457,12 @@ function HRSystem() {
         )}
 
       </div>
+
+      <Notification 
+        message={notification.message} 
+        type={notification.type} 
+        onClose={() => setNotification({ message: '', type: 'success' })} 
+      />
     </div>
   )
 }

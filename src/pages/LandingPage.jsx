@@ -2,7 +2,6 @@ import { useNavigate } from 'react-router-dom'
 // Import the images from your assets folder
 import logo from '../assets/wm-logo.svg'
 import adminIcon from '../assets/admin-sys.svg'
-import personalIcon from '../assets/personal.svg'
 import posIcon from '../assets/pos.svg'
 
 function LandingPage() {
@@ -43,15 +42,6 @@ function LandingPage() {
           {/* 2. REPLACED EMOJI WITH SVG */}
           <img src={adminIcon} alt="Admin System" style={iconStyle} />
           <span>ADMIN SYSTEMS</span>
-        </div>
-
-        {/* PERSONAL BUTTON - OPEN MODE */}
-        <div 
-          style={cardStyle} 
-          onClick={() => navigate('/login', { state: { type: 'personal' } })} 
-        >
-          <img src={personalIcon} alt="Personal View" style={iconStyle} />
-          <span>PERSONAL</span>
         </div>
 
         {/* POS BUTTON - ENABLED */}

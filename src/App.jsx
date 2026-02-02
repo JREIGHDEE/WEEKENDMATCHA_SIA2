@@ -1,5 +1,5 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
-import LandingPage from './pages/LandingPage_TEMP'
+import LandingPage from './pages/LandingPage..jsx'
 import Login from './pages/Login'
 import AdminMenu from './pages/AdminMenu'
 import HRSystem from './pages/HRSystem'

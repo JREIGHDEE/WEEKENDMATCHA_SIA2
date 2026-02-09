@@ -48,7 +48,7 @@ function LandingPage() {
         {/* PERSONAL VIEW BUTTON */}
         <div 
           style={cardStyle} 
-          onClick={() => navigate('/personal-view')}
+          onClick={() => navigate('/login', { state: { type: 'personal' } })}
         >
           <img src={personalIcon} alt="Personal View" style={iconStyle} />
           <span>PERSONAL VIEW</span>

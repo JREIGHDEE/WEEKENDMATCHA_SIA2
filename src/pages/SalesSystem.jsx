@@ -378,6 +378,7 @@ const executeArchiveSale = async () => {
           <button style={{...btnStyle, background: colors.yellow, color: "white"}} onClick={prepareUpdateSale}>UPDATE</button>
           <button style={{...btnStyle, background: colors.red}} onClick={prepareArchiveSale}>ARCHIVE</button>
           <button style={{...btnStyle, background: colors.blue}} onClick={() => setModals({...modals, archiveLog: true})}>VIEW ARCHIVE LOG</button>
+          <button style={{...btnStyle, background: "#FF9800", marginLeft: "auto"}} onClick={() => { fetchData(); setNotification({ message: 'Data refreshed', type: 'success' }) }}>REFRESH</button>
         </div>
 
         {/* METRICS PANEL */}
@@ -454,8 +455,8 @@ const executeArchiveSale = async () => {
         <div style={modalOverlay}><div style={modalContent}><h2 style={{color:colors.darkGreen, marginTop:0}}>{modals.add ? "Add Record" : "Update Record"}</h2>
         <form onSubmit={modals.add ? handleAddConfirmation : handleUpdateConfirmation}>
             <div style={{display:"flex", gap:"10px"}}>
-                <div style={{flex:1}}><label>Type</label><select style={formInput} value={salesFormData.type} onChange={e=>setSalesFormData({...salesFormData, type:e.target.value})}><option>Income</option><option>Expense</option></select></div>
-                <div style={{flex:1}}><label>Date</label><input type="date" style={formInput} value={salesFormData.date} onChange={e=>setSalesFormData({...salesFormData, date:e.target.value})} required/></div>
+                <div style={{flex:1}}><label>Type</label><select style={{...formInput, opacity: !modals.add ? 0.6 : 1, cursor: !modals.add ? 'not-allowed' : 'auto'}} disabled={!modals.add} value={salesFormData.type} onChange={e=>setSalesFormData({...salesFormData, type:e.target.value})}><option>Income</option><option>Expense</option></select></div>
+                <div style={{flex:1}}><label>Date</label><input type="date" style={{...formInput, opacity: !modals.add ? 0.6 : 1, cursor: !modals.add ? 'not-allowed' : 'auto'}} disabled={!modals.add} value={salesFormData.date} onChange={e=>setSalesFormData({...salesFormData, date:e.target.value})} required/></div>
             </div>
             <div style={{display:"flex", gap:"10px"}}>
                 <div style={{flex:1}}><label>Amount</label><input type="number" step="0.01" style={formInput} value={salesFormData.amount} onChange={e=>setSalesFormData({...salesFormData, amount:e.target.value})} required/></div>
@@ -469,7 +470,12 @@ const executeArchiveSale = async () => {
         <div style={modalOverlay}><div style={modalContent}><h2 style={{color:colors.red}}>Archive Record</h2><textarea style={{...formInput, height:"100px"}} placeholder="Reason..." value={archiveReason} onChange={e=>setArchiveReason(e.target.value)} /><div style={{display:"flex", justifyContent:"flex-end", gap:"10px"}}><button onClick={closeModal} style={{...btnStyle, background:"#ccc", color:"#333"}}>Cancel</button><button onClick={handleArchiveConfirmation} style={{...btnStyle, background:colors.red}}>Confirm</button></div></div></div>
       )}
       {modals.archiveLog && (
-        <div style={modalOverlay}><div style={{...modalContent, width:"800px"}}><h2 style={{color:colors.blue}}>Archive Log</h2><div style={{height:"400px", overflow:"auto"}}><table style={{width:"100%"}}><thead style={{background:colors.blue, color:"white"}}><tr><th>ID</th><th>Reason</th><th>By</th><th>Date</th></tr></thead><tbody>{archiveLogs.map(l=><tr key={l.logId}><td style={{textAlign:"center", padding:"10px"}}>{l.originalId}</td><td style={{textAlign:"center"}}>{l.reason}</td><td style={{textAlign:"center"}}>{l.archivedBy}</td><td style={{textAlign:"center"}}>{l.dateArchived}</td></tr>)}</tbody></table></div><button onClick={closeModal} style={{...btnStyle, background:"#ccc", color:"#333", marginTop:"20px"}}>Close</button></div></div>
+        <div style={modalOverlay}><div style={{...modalContent, width:"900px"}}><h2 style={{color:colors.blue}}>Archive Log</h2><div style={{height:"400px", overflow:"auto"}}><table style={{width:"100%"}}><thead style={{background:colors.blue, color:"white"}}><tr><th>ID</th><th>Reason</th><th>By</th><th>Date Archived</th><th>Auto-Delete Date</th></tr></thead><tbody>{archiveLogs.map(l => {
+          const archivedDate = new Date(l.dateArchived)
+          const deleteDate = new Date(archivedDate.getTime() + 90 * 24 * 60 * 60 * 1000)
+          return (
+          <tr key={l.logId}><td style={{textAlign:"center", padding:"10px"}}>{l.originalId}</td><td style={{textAlign:"center"}}>{l.reason}</td><td style={{textAlign:"center"}}>{l.archivedBy}</td><td style={{textAlign:"center"}}>{l.dateArchived}</td><td style={{textAlign:"center", color: new Date() > deleteDate ? "#d32f2f" : "#f57c00", fontWeight:"bold"}}>{deleteDate.toISOString().split('T')[0]}</td></tr>
+        )})} </tbody></table></div><button onClick={closeModal} style={{...btnStyle, background:"#ccc", color:"#333", marginTop:"20px"}}>Close</button></div></div>
       )}
 
       <Notification 

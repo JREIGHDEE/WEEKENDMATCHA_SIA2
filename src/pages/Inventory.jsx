@@ -415,6 +415,7 @@ const [loading, setLoading] = useState(true)
                 <button style={{...btnStyle, background: colors.yellow}} onClick={prepareUpdate}>UPDATE</button>
                 <button style={{...btnStyle, background: colors.red}} onClick={() => selectedId ? setModals({...modals, archive: true}) : setNotification({ message: "Select an item.", type: 'error' })}>ARCHIVE</button>
                 <button style={{...btnStyle, background: colors.blue}} onClick={openArchiveLog}>ARCHIVE LOGS</button>
+                <button style={{...btnStyle, background: "#FF9800", marginLeft: "auto"}} onClick={() => { fetchInventory(); setNotification({ message: 'Data refreshed', type: 'success' }) }}>REFRESH</button>
             </div>
         </div>
 
@@ -492,19 +493,23 @@ const [loading, setLoading] = useState(true)
                                 <th style={{padding:"10px"}}>Archived By</th>
                                 <th>Details & Reason</th>
                                 <th>Date Archived</th>
+                                <th>Auto-Delete Date</th>
                             </tr>
                         </thead>
                         <tbody>
                             {archiveLogs.length === 0 ? (
-                                <tr><td colSpan="3" style={{padding:"20px", color:"#999"}}>No archived items found.</td></tr>
+                                <tr><td colSpan="4" style={{padding:"20px", color:"#999"}}>No archived items found.</td></tr>
                             ) : (
                                 paginate(archiveLogs, archivePage, 6).map(log => {
                                     const empName = log.Employee?.User?.FirstName ? `${log.Employee.User.FirstName} ${log.Employee.User.LastName}` : "Unknown User"
+                                    const archivedDate = new Date(log.ArchivedDate)
+                                    const deleteDate = new Date(archivedDate.getTime() + 90 * 24 * 60 * 60 * 1000)
                                     return (
                                         <tr key={log.InvArchiveID} style={{ borderBottom: "1px solid #eee", height: "40px" }}>
                                             <td style={{fontWeight:"bold"}}>{empName}</td>
                                             <td style={{textAlign:"left", paddingLeft:"20px"}}>{log.Reason}</td>
                                             <td>{new Date(log.ArchivedDate).toLocaleDateString()}</td>
+                                            <td style={{ color: new Date() > deleteDate ? "#d32f2f" : "#f57c00", fontWeight: "bold" }}>{deleteDate.toISOString().split('T')[0]}</td>
                                         </tr>
                                     )
                                 })
@@ -527,7 +532,7 @@ const [loading, setLoading] = useState(true)
                 <h2 style={{ color: colors.darkGreen, marginTop: 0 }}>{modals.add ? "Add New Item" : "Update Item"}</h2>
                 <form onSubmit={modals.add ? handleAddSubmit : executeUpdate}>
                     <label style={labelStyle}>Item Name</label>
-                    <input name="ItemName" style={inputStyle} value={formData.ItemName} onChange={handleInputChange} required />
+                    <input name="ItemName" style={{...inputStyle, opacity: !modals.add ? 0.6 : 1, cursor: !modals.add ? 'not-allowed' : 'auto'}} disabled={!modals.add} value={formData.ItemName} onChange={handleInputChange} required />
                     <div style={{display:"flex", gap:"15px"}}>
                         <div style={{flex:1}}>
                             <label style={labelStyle}>Category</label>
@@ -540,7 +545,7 @@ const [loading, setLoading] = useState(true)
                         </div>
                         <div style={{flex:1}}>
                             <label style={labelStyle}>Unit of Measurement</label>
-                            <select name="UnitMeasurement" style={inputStyle} value={formData.UnitMeasurement} onChange={handleInputChange}>
+                            <select name="UnitMeasurement" style={{...inputStyle, opacity: !modals.add ? 0.6 : 1, cursor: !modals.add ? 'not-allowed' : 'auto'}} disabled={!modals.add} value={formData.UnitMeasurement} onChange={handleInputChange}>
                                 <option value="grams">grams (g)</option>
                                 <option value="kg">kilograms (kg)</option>
                                 <option value="ml">milliliters (ml)</option>
@@ -564,10 +569,12 @@ const [loading, setLoading] = useState(true)
                              <label style={labelStyle}>Low Alert Threshold</label>
                              <input type="number" name="ReorderThreshold" style={inputStyle} value={formData.ReorderThreshold} onChange={handleInputChange} required />
                         </div>
-                        <div style={{flex:1}}>
-                             <label style={labelStyle}>Expiry Date</label>
-                             <input type="date" name="Expiry" style={inputStyle} value={formData.Expiry} onChange={handleInputChange} required />
-                        </div>
+                        {modals.add && (
+                          <div style={{flex:1}}>
+                               <label style={labelStyle}>Expiry Date</label>
+                               <input type="date" name="Expiry" style={inputStyle} value={formData.Expiry} onChange={handleInputChange} required />
+                          </div>
+                        )}
                     </div>
                     <div style={{display:"flex", justifyContent:"flex-end", gap:"10px"}}>
                         <button type="button" onClick={closeModal} style={{...btnStyle, background: "#ccc", color: "#333"}}>Cancel</button>

@@ -160,17 +160,36 @@ export default function EmployeeForm({
         <form onSubmit={modals.add ? handleAddConfirmation : handleUpdateConfirmation}>
           <h4 style={{ margin: "10px 0", borderBottom: "1px solid #eee" }}>Personal Information</h4>
           <div style={{ display: "flex", gap: "10px" }}>
-            <input style={{...inputStyle, borderColor: getFieldBorderColor('firstName'), borderWidth: '2px'}} placeholder="Reigh" value={formData.firstName} onChange={e => setFormData({...formData, firstName: e.target.value})} />
-            <input style={{...inputStyle, borderColor: getFieldBorderColor('lastName'), borderWidth: '2px'}} placeholder="Denolan" value={formData.lastName} onChange={e => setFormData({...formData, lastName: e.target.value})} />
+            <div style={{flex: 1}}>
+              <label style={{fontSize:"12px", fontWeight:"bold"}}>First Name</label>
+              <input disabled={!modals.add} style={{...inputStyle, borderColor: getFieldBorderColor('firstName'), borderWidth: '2px', opacity: !modals.add ? 0.6 : 1, cursor: !modals.add ? 'not-allowed' : 'auto'}} placeholder="Reigh" value={formData.firstName} onChange={e => !modals.add || setFormData({...formData, firstName: e.target.value})} />
+            </div>
+            <div style={{flex: 1}}>
+              <label style={{fontSize:"12px", fontWeight:"bold"}}>Last Name</label>
+              <input disabled={!modals.add} style={{...inputStyle, borderColor: getFieldBorderColor('lastName'), borderWidth: '2px', opacity: !modals.add ? 0.6 : 1, cursor: !modals.add ? 'not-allowed' : 'auto'}} placeholder="Denolan" value={formData.lastName} onChange={e => !modals.add || setFormData({...formData, lastName: e.target.value})} />
+            </div>
           </div>
+          <label style={{fontSize:"12px", fontWeight:"bold"}}>Address</label>
           <input style={{...inputStyle, borderColor: getFieldBorderColor('address'), borderWidth: '2px'}} placeholder="123 Main Street, New York, NY 10001" value={formData.address} onChange={e => setFormData({...formData, address: e.target.value})} />
           <div style={{ display: "flex", gap: "10px" }}>
-            <input style={{...inputStyle, borderColor: getFieldBorderColor('contact'), borderWidth: '2px'}} placeholder="+1-555-123-4567" value={formData.contact} onChange={e => setFormData({...formData, contact: e.target.value})} />
-            <input type="date" style={{...inputStyle, borderColor: getFieldBorderColor('dob'), borderWidth: '2px'}} value={formData.dob} onChange={e => setFormData({...formData, dob: e.target.value})} />
+            <div style={{flex: 1}}>
+              <label style={{fontSize:"12px", fontWeight:"bold"}}>Contact Number</label>
+              <input style={{...inputStyle, borderColor: getFieldBorderColor('contact'), borderWidth: '2px'}} placeholder="+1-555-123-4567" value={formData.contact} onChange={e => setFormData({...formData, contact: e.target.value})} />
+            </div>
+            <div style={{flex: 1}}>
+              <label style={{fontSize:"12px", fontWeight:"bold"}}>Date of Birth</label>
+              <input type="date" disabled={!modals.add} style={{...inputStyle, borderColor: getFieldBorderColor('dob'), borderWidth: '2px', opacity: !modals.add ? 0.6 : 1, cursor: !modals.add ? 'not-allowed' : 'auto'}} value={formData.dob} onChange={e => !modals.add || setFormData({...formData, dob: e.target.value})} />
+            </div>
           </div>
-          <h4 style={{ margin: "15px 0 10px", borderBottom: "1px solid #eee" }}>Account Details</h4>
-          <input style={{...inputStyle, borderColor: getFieldBorderColor('email'), borderWidth: '2px'}} placeholder="reigh.denolan@test.com" type="email" value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} />
-          <input style={{...inputStyle, borderColor: getFieldBorderColor('password'), borderWidth: '2px'}} placeholder="SecurePass123" type="text" value={formData.password} onChange={e => setFormData({...formData, password: e.target.value})} />
+          {modals.add && (
+            <>
+              <h4 style={{ margin: "15px 0 10px", borderBottom: "1px solid #eee" }}>Account Details</h4>
+              <label style={{fontSize:"12px", fontWeight:"bold"}}>Email</label>
+              <input style={{...inputStyle, borderColor: getFieldBorderColor('email'), borderWidth: '2px'}} placeholder="reigh.denolan@test.com" type="email" value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} />
+              <label style={{fontSize:"12px", fontWeight:"bold"}}>Password</label>
+              <input style={{...inputStyle, borderColor: getFieldBorderColor('password'), borderWidth: '2px'}} placeholder="SecurePass123" type="text" value={formData.password} onChange={e => setFormData({...formData, password: e.target.value})} />
+            </>
+          )}
           <h4 style={{ margin: "15px 0 10px", borderBottom: "1px solid #eee" }}>Job Details</h4>
           <div style={{ display: "flex", gap: "10px" }}>
             <div style={{flex: 1}}>
@@ -186,7 +205,12 @@ export default function EmployeeForm({
               </select>
             </div>
           </div>
-          <input type="date" style={{...inputStyle, borderColor: getFieldBorderColor('dateHired'), borderWidth: '2px'}} value={formData.dateHired} onChange={e => setFormData({...formData, dateHired: e.target.value})} />
+          {modals.add && (
+            <>
+              <label style={{fontSize:"12px", fontWeight:"bold"}}>Date Hired</label>
+              <input type="date" style={{...inputStyle, borderColor: getFieldBorderColor('dateHired'), borderWidth: '2px'}} value={formData.dateHired} onChange={e => setFormData({...formData, dateHired: e.target.value})} />
+            </>
+          )}
           <label style={{ fontSize: "12px", fontWeight: "bold", marginTop: "10px", display: "block" }}>Recurring Schedule Day</label>
           <select style={inputStyle} value={formData.schedulePattern} onChange={e => setFormData({...formData, schedulePattern: e.target.value})}>
               <option value="Monday">Every Monday</option>

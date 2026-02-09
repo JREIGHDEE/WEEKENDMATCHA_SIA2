@@ -632,7 +632,8 @@ const handleAddIngredientToRecipe = () => {
         {/* --- VIEW: CURRENT ORDERS (Unchanged logic, just layout) --- */}
         {activeTab === 'CurrentOrders' && (
             <div style={{ flex: 1, background: colors.white, borderRadius: "20px", padding: "0", display: "flex", flexDirection: "column", boxShadow: "0 4px 10px rgba(0,0,0,0.05)", overflow: "hidden" }}>
-                <div style={{ padding: "20px", display: "flex", justifyContent: "flex-end" }}>
+                <div style={{ padding: "20px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <button onClick={() => { fetchRecentTransactions(); setNotification({ message: 'Data refreshed', type: 'success' }) }} style={{ background: "#FF9800", color: "white", border: "none", padding: "10px 20px", borderRadius: "20px", fontWeight: "bold", fontSize: "12px", cursor: "pointer" }}>REFRESH</button>
                     <button onClick={() => { setRecentPage(1); setShowRecentModal(true) }} style={{ background: "#3b5998", color: "white", border: "none", padding: "10px 20px", borderRadius: "20px", fontWeight: "bold", fontSize: "12px", cursor: "pointer" }}>VIEW RECENT TRANSACTIONS</button>
                 </div>
                 <div style={{ flex: 1, overflowY: "auto", padding: "0 20px" }}>
@@ -849,7 +850,7 @@ const handleAddIngredientToRecipe = () => {
                         <h3 style={{margin: "0 0 5px", color: "#333", fontSize: "16px"}}>{isEditing ? "Update Item Details" : "Add New Item"}</h3>
                         <div>
                             <label style={{fontWeight: "bold", fontSize: "13px", color: "#555"}}>Category</label>
-                            <select style={{...inputStyle, padding: "8px", fontWeight: "normal"}} value={newItemCategory} onChange={e => setNewItemCategory(e.target.value)}>
+                            <select style={{...inputStyle, padding: "8px", fontWeight: "normal", opacity: isEditing ? 0.6 : 1, cursor: isEditing ? 'not-allowed' : 'auto'}} disabled={isEditing} value={newItemCategory} onChange={e => setNewItemCategory(e.target.value)}>
                                 <option value="Flavor">Flavor (Opens Options)</option>
                                 <option value="Powder">Powder (Direct Add)</option>
                                 <option value="Add-on">Add-on</option>

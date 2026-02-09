@@ -149,6 +149,7 @@ function SalesReports() {
         {/* ACTIONS - UNIFORM BUTTON SHAPE */}
         <div style={{ display: "flex", gap: "10px", marginBottom: "15px" }}>
           <button style={{...btnStyle, background: colors.blue}} onClick={() => setShowGenerateModal(true)}>GENERATE REPORT</button>
+          <button style={{...btnStyle, background: "#FF9800", marginLeft: "auto"}} onClick={() => { fetchReportHistory(); setNotification({ message: 'Data refreshed', type: 'success' }) }}>REFRESH</button>
         </div>
 
         {/* HISTORY TABLE */}

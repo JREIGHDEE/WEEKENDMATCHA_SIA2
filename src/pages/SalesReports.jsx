@@ -34,3 +34,5 @@ function SalesReports() {
     </div>
   );
 }
+
+export default SalesReports;

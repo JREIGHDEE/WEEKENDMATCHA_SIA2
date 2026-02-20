@@ -415,7 +415,7 @@ const [loading, setLoading] = useState(true)
                 <button style={{...btnStyle, background: colors.yellow}} onClick={prepareUpdate}>UPDATE</button>
                 <button style={{...btnStyle, background: colors.red}} onClick={() => selectedId ? setModals({...modals, archive: true}) : setNotification({ message: "Select an item.", type: 'error' })}>ARCHIVE</button>
                 <button style={{...btnStyle, background: colors.blue}} onClick={openArchiveLog}>ARCHIVE LOGS</button>
-                <button style={{...btnStyle, background: "#FF9800", marginLeft: "auto"}} onClick={() => { fetchInventory(); setNotification({ message: 'Data refreshed', type: 'success' }) }}>REFRESH</button>
+                {/* <button style={{...btnStyle, background: "#FF9800", marginLeft: "auto"}} onClick={() => { fetchInventory(); setNotification({ message: 'Data refreshed', type: 'success' }) }}>REFRESH</button> */}
             </div>
         </div>
 

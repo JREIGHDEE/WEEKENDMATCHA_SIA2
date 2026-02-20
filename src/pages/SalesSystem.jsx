@@ -79,19 +79,30 @@ function SalesSystem() {
         console.error("Error fetching data:", finError || orderError)
     } else {
       // Process Transactions
+// Inside fetchData -> formattedData mapping
+
       const formattedData = finData.map(item => ({
         id: `F${String(item.RecordID).padStart(3, '0')}`,
+        // Original Transaction Date Format
         date: new Date(item.TransactionDate).toLocaleString('en-US', { 
             month: 'short', day: '2-digit', year: 'numeric', 
-            hour: 'numeric', minute: 'numeric', hour12: true 
+            hour: '2-digit', minute: '2-digit', hour12: true 
         }).toUpperCase(), 
+
+        // Logic for Date Updated: Show format if exists, else show "---"
+        dateUpdated: item.DateUpdated ? new Date(item.DateUpdated).toLocaleString('en-US', { 
+            month: 'short', day: '2-digit', year: 'numeric', 
+            hour: '2-digit', minute: '2-digit', hour12: true 
+        }).toUpperCase() : '---',
+
         rawDate: item.TransactionDate,
         desc: item.Description,
         amount: item.Amount,
         type: item.RecordType,
         status: item.Status,
-        enteredBy: item.Employee?.User?.FirstName || 'System'
+        enteredBy: item.AdminHandled || item.Employee?.User?.FirstName || 'System' // Displays the handler
       }))
+
       setTransactions(formattedData)
       setFilteredTransactions(formattedData)
       setOrders(orderData || [])
@@ -229,12 +240,26 @@ function SalesSystem() {
   const closeModal = () => { setModals({ add: false, update: false, archive: false, confirmation: false, archiveLog: false }); setConfirmationAction(null); setSelectedId(null); setArchiveReason('') }
 
   // --- CRUD ACTIONS ---
-  const prepareAddSale = async () => { 
-      const { data: { user } } = await supabase.auth.getUser()
-      const { data: empData } = await supabase.from('Employee').select('User(FirstName)').eq('UserID', user.id).maybeSingle()
-      setSalesFormData({ type: 'Income', date: new Date().toISOString().split('T')[0], time: '12:00', amount: '', enteredBy: empData?.User?.FirstName || 'Admin', description: '', status: 'Completed' })
-      setModals({ ...modals, add: true }) 
-  }
+const prepareAddSale = async () => { 
+    const { data: { user } } = await supabase.auth.getUser()
+    const { data: empData } = await supabase.from('Employee').select('User(FirstName)').eq('UserID', user.id).maybeSingle()
+    
+    // Create a local date object
+    const now = new Date();
+    
+    setSalesFormData({ 
+        type: 'Income', 
+        // Captures YYYY-MM-DD
+        date: now.toISOString().split('T')[0], 
+        // Captures HH:MM in 24-hour format
+        time: now.toTimeString().slice(0, 5), 
+        amount: '', 
+        enteredBy: empData?.User?.FirstName || 'Admin', 
+        description: '', 
+        status: 'Completed' 
+    })
+    setModals({ ...modals, add: true }) 
+}
   const handleAddConfirmation = (e) => { e.preventDefault(); triggerConfirmation(executeAddSale, "Add Record", "Confirm adding this record?") }
   const executeAddSale = async () => {
       const { data: { user } } = await supabase.auth.getUser()
@@ -265,28 +290,32 @@ function SalesSystem() {
   }
   const handleUpdateConfirmation = (e) => { e.preventDefault(); triggerConfirmation(executeUpdateSale, "Update Record", "Confirm update?") }
   
-  const executeUpdateSale = async () => { 
-      const t = transactions.find(x=>x.id===selectedId); 
-      const dbId = parseInt(t.id.replace('F','')); 
-      const newDateTime = new Date(`${salesFormData.date} ${salesFormData.time}`).toISOString()
+const executeUpdateSale = async () => { 
+    const t = transactions.find(x => x.id === selectedId); 
+    const dbId = parseInt(t.id.replace('F','')); 
+    const newDateTime = new Date(`${salesFormData.date} ${salesFormData.time}`).toISOString();
 
-      const { error } = await supabase.from('FinancialRecord')
-          .update({ 
-              Amount: parseFloat(salesFormData.amount), 
-              Description: salesFormData.description, 
-              RecordType: salesFormData.type,
-              TransactionDate: newDateTime,
-              Status: salesFormData.status 
-          })
-          .eq('RecordID', dbId); 
-      
-      if (error) setNotification({ message: "Error updating: " + error.message, type: 'error' });
-      else { 
-          setNotification({ message: "Record Updated!", type: 'success' }); 
-          fetchData(); 
-          closeModal(); 
-      }
-  }
+    const { error } = await supabase.from('FinancialRecord')
+        .update({ 
+            Amount: parseFloat(salesFormData.amount), 
+            Description: salesFormData.description, 
+            RecordType: salesFormData.type,
+            TransactionDate: newDateTime,
+            // New: Update the "Admin" name to whoever is currently logged in
+            AdminHandled: salesFormData.enteredBy,
+            // New: Update the timestamp
+            DateUpdated: new Date().toISOString()
+        })
+        .eq('RecordID', dbId); 
+    
+    if (error) {
+        setNotification({ message: "Error updating: " + error.message, type: 'error' });
+    } else { 
+        setNotification({ message: "Record Updated!", type: 'success' }); 
+        fetchData(); 
+        closeModal(); 
+    }
+}
 
   const prepareArchiveSale = () => {
     if(!selectedId) {
@@ -375,7 +404,7 @@ const executeArchiveSale = async () => {
             <button style={{...btnStyle, background: colors.yellow, color: "white"}} onClick={prepareUpdateSale}>UPDATE</button>
             <button style={{...btnStyle, background: colors.red}} onClick={prepareArchiveSale}>ARCHIVE</button>
             <button style={{...btnStyle, background: colors.blue}} onClick={() => setModals({...modals, archiveLog: true})}>ARCHIVE LOGS</button>
-            <button style={{...btnStyle, background: "#FF9800"}} onClick={() => { fetchData(); setNotification({ message: 'Data refreshed', type: 'success' }) }}>REFRESH</button>
+            {/* <button style={{...btnStyle, background: "#FF9800"}} onClick={() => { fetchData(); setNotification({ message: 'Data refreshed', type: 'success' }) }}>REFRESH</button>  */}
           </div>
         </div>
 
@@ -426,16 +455,31 @@ const executeArchiveSale = async () => {
             <div style={{ flex: 1, overflowY: "auto" }}>
                 <table style={{ width: "100%", borderCollapse: "collapse" }}>
                   <thead style={{ position: "sticky", top: 0, background: colors.green, color: "white", zIndex: 1 }}>
-                    <tr><th style={{ padding: "15px" }}>Select</th><th>Record ID</th><th>Date</th><th>Description</th><th>Amount</th><th>Type</th><th>Status</th></tr>
+                    <tr>
+                      <th style={{ width: "80px", padding: "15px" }}>Select</th>
+                      <th style={{ width: "120px" }}>Record ID</th>
+                      <th style={{ width: "200px" }}>Date Entered</th>
+                      <th style={{ width: "200px" }}>Date Updated</th>
+                      {/* By NOT giving Description a width, it will now only take the remaining space */}
+                      <th style={{ textAlign: "left", paddingLeft: "20px" }}>Description</th> 
+                      <th style={{ width: "150px" }}>Amount</th>
+                      <th style={{ width: "120px" }}>Type</th>
+                      {/* Set a fixed width here to keep it off the very edge */}
+                      <th style={{ width: "120px", paddingRight: "20px" }}>Admin</th> 
+                    </tr>
                   </thead>
                   <tbody>
-                    {transactions.length === 0 && <tr><td colSpan="7" style={{padding:"30px", textAlign:"center"}}>No records found.</td></tr>}
                     {paginate(filteredTransactions.filter(t => t.status !== 'Archived'), currentPage, itemsPerPage).map(t => (
-                      <tr key={t.id} style={{ borderBottom: "1px solid #eee", textAlign: "center", height: "50px" }}>
-                        <td><input type="radio" name="saleSelect" checked={selectedId === t.id} onChange={() => setSelectedId(t.id)} style={{ transform: "scale(1.5)", cursor: "pointer" }} /></td>
-                        <td>{t.id}</td><td>{t.date}</td><td style={{ fontWeight: "bold" }}>{t.desc}</td><td style={{ fontWeight: "bold" }}>₱{parseFloat(t.amount).toLocaleString(undefined, {minimumFractionDigits: 2})}</td>
-                        <td style={{ color: t.type === 'Income' ? colors.green : colors.red, fontWeight: "bold" }}>{t.type}</td>
-                        <td>{t.status}</td>
+                      <tr key={t.id} style={{ borderBottom: "1px solid #eee", textAlign: "center", height: "50px", fontSize: "13px" }}>
+                        <td style={{ width: "80px" }}><input type="radio" name="saleSelect" checked={selectedId === t.id} onChange={() => setSelectedId(t.id)} /></td>
+                        <td style={{ width: "120px" }}>{t.id}</td>
+                        <td style={{ width: "200px" }}>{t.date}</td>
+                        <td style={{ width: "200px", color: t.dateUpdated === '---' ? '#aaa' : 'inherit' }}>{t.dateUpdated}</td>
+                        {/* Description: Removed fixed width so it compresses naturally */}
+                        <td style={{ textAlign: "left", paddingLeft: "20px", fontWeight: "bold" }}>{t.desc}</td>
+                        <td style={{ width: "150px", fontWeight: "bold" }}>₱{parseFloat(t.amount).toLocaleString(undefined, {minimumFractionDigits: 2})}</td>
+                        <td style={{ width: "120px", color: t.type === 'Income' ? colors.green : colors.red, fontWeight: "bold" }}>{t.type}</td>
+                        <td style={{ width: "120px", fontWeight: "bold", color: colors.darkGreen, paddingRight: "20px" }}>{t.enteredBy}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -454,7 +498,21 @@ const executeArchiveSale = async () => {
         <form onSubmit={modals.add ? handleAddConfirmation : handleUpdateConfirmation}>
             <div style={{display:"flex", gap:"10px"}}>
                 <div style={{flex:1}}><label>Type</label><select style={{...formInput, opacity: !modals.add ? 0.6 : 1, cursor: !modals.add ? 'not-allowed' : 'auto'}} disabled={!modals.add} value={salesFormData.type} onChange={e=>setSalesFormData({...salesFormData, type:e.target.value})}><option>Income</option><option>Expense</option></select></div>
-                <div style={{flex:1}}><label>Date</label><input type="date" style={{...formInput, opacity: !modals.add ? 0.6 : 1, cursor: !modals.add ? 'not-allowed' : 'auto'}} disabled={!modals.add} value={salesFormData.date} onChange={e=>setSalesFormData({...salesFormData, date:e.target.value})} required/></div>
+                <div style={{flex:1}}>
+                  <label>Date</label>
+                  <input 
+                      type="date" 
+                      style={{
+                          ...formInput, 
+                          opacity: 0.8, 
+                          cursor: 'not-allowed', 
+                          background: "#eee"
+                      }} 
+                      disabled={true} 
+                      value={salesFormData.date} 
+                      required
+                  />
+              </div>
             </div>
             <div style={{display:"flex", gap:"10px"}}>
                 <div style={{flex:1}}><label>Amount</label><input type="number" step="0.01" style={formInput} value={salesFormData.amount} onChange={e=>setSalesFormData({...salesFormData, amount:e.target.value})} required/></div>

@@ -240,28 +240,36 @@ function HRSystem() {
       {/* MAIN CONTENT */}
       <div style={{ flex: 1, background: colors.beige, padding: "30px", display: "flex", flexDirection: "column", overflow: "hidden" }}>
         
+      {/* HEADER AREA */}
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "15px" }}>
           <h1 style={{ margin: 0, fontSize: "28px", color: colors.darkGreen }}>Employee Management</h1>
           <button style={{...btnStyle, background: colors.purple}} onClick={openAttendanceModal}>VIEW ATTENDANCE LOG</button>
         </div>
 
-        <SearchFilterBar 
-          searchTerm={searchTerm}
-          setSearchTerm={setSearchTerm}
-          filterCategory={filterCategory}
-          setFilterCategory={setFilterCategory}
-          showFilterMenu={showFilterMenuState}
-          setShowFilterMenu={setShowFilterMenuState}
-          searchContainerRef={searchContainerRef}
-          colors={colors}
-        />
+        {/* SEARCH & ACTIONS BAR - ALIGNED IN ONE ROW */}
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px", gap: "20px" }}>
+          
+          {/* Left Side: Search Bar */}
+          <div style={{ flex: 1 }}>
+            <SearchFilterBar 
+              searchTerm={searchTerm}
+              setSearchTerm={setSearchTerm}
+              filterCategory={filterCategory}
+              setFilterCategory={setFilterCategory}
+              showFilterMenu={showFilterMenuState}
+              setShowFilterMenu={setShowFilterMenuState}
+              searchContainerRef={searchContainerRef}
+              colors={colors}
+            />
+          </div>
 
-        <div style={{ display: "flex", gap: "10px", marginBottom: "15px" }}>
-          <button style={{...btnStyle, background: colors.darkGreen}} onClick={prepareAdd}>ADD</button>
-          <button style={{...btnStyle, background: "#d3af37"}} onClick={prepareUpdate}>UPDATE</button>
-          <button style={{...btnStyle, background: colors.red}} onClick={prepareArchive}>ARCHIVE</button>
-          <button style={{...btnStyle, background: "#337AB7"}} onClick={openArchiveLogModal}>VIEW ARCHIVE LOG</button>
-          <button style={{...btnStyle, background: "#FF9800", marginLeft: "auto"}} onClick={handleRefresh}>REFRESH</button>
+          {/* Right Side: Action Buttons */}
+          <div style={{ display: "flex", gap: "10px", flexShrink: 0 }}>
+            <button style={{...btnStyle, background: colors.darkGreen}} onClick={prepareAdd}>ADD</button>
+            <button style={{...btnStyle, background: "#d3af37"}} onClick={prepareUpdate}>UPDATE</button>
+            <button style={{...btnStyle, background: colors.red}} onClick={prepareArchive}>ARCHIVE</button>
+            <button style={{...btnStyle, background: "#337AB7"}} onClick={openArchiveLogModal}>VIEW ARCHIVE LOG</button>
+          </div>
         </div>
 
         <EmployeeTable 

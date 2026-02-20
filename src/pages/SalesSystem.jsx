@@ -5,18 +5,13 @@ import logo from '../assets/wm-logo.svg'
 import { Notification } from '../components/Notification'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
 
-// --- HELPER: PAGINATION ---
-const PaginationControls = ({ total, page, setPage, perPage }) => {
-  const totalPages = Math.max(1, Math.ceil(total / perPage))
-  return (
-    <div style={{ display: "flex", justifyContent: "center", padding: "15px", gap: "15px", alignItems: "center", color: "#888", fontWeight: "bold", marginTop: "10px", borderTop: "1px solid #f0f0f0" }}>
-      {Array.from({ length: totalPages }, (_, i) => i + 1).map(num => (
-        <span key={num} onClick={() => setPage(num)} style={{ cursor: "pointer", color: page === num ? "#333" : "#ccc", transform: page === num ? "scale(1.2)" : "scale(1)", fontSize: "16px" }}>{num}</span>
-      ))}
-      <span onClick={() => setPage(p => Math.min(p + 1, totalPages))} style={{ cursor: "pointer", fontSize: "18px" }}>&gt;</span>
-    </div>
-  )
-}
+// --- IMPORTED SEPARATED FILES ---
+import { PaginationControls } from '../components/PaginationControls'
+import { paginate } from '../utils/helpers'
+import { 
+    colors, btnStyle, cardStyle, inputStyle, formInput, 
+    modalOverlay, modalContent, confirmOverlay, confirmContent 
+} from '../styles/SalesStyles'
 
 function SalesSystem() {
   const navigate = useNavigate()
@@ -150,9 +145,12 @@ function SalesSystem() {
 
     transactions.forEach(t => {
         const tDate = new Date(t.rawDate || t.date)
-        if (tDate.getFullYear() === currentYear) {
-            if (t.type === 'Expense' && t.status === 'Completed') {
+        if (tDate.getFullYear() === currentYear && t.status === 'Completed') {
+            if (t.type === 'Expense') {
                 yearlyExpense += (parseFloat(t.amount) || 0)
+            } else if (t.type === 'Income') {
+                // ADD THIS LINE:
+                yearlyIncome += (parseFloat(t.amount) || 0)
             }
         }
     })
@@ -196,8 +194,13 @@ function SalesSystem() {
 
       transactions.forEach(t => {
           const tDate = new Date(t.rawDate)
-          if (tDate >= start && tDate <= end && t.type === 'Expense' && t.status === 'Completed') {
-              fExpenses += (parseFloat(t.amount) || 0)
+          if (tDate >= start && tDate <= end && t.status === 'Completed') {
+              if (t.type === 'Expense') {
+                  fExpenses += (parseFloat(t.amount) || 0)
+              } else if (t.type === 'Income') {
+                  // ADD THIS LINE:
+                  fSales += (parseFloat(t.amount) || 0)
+              }
           }
       })
 
@@ -221,7 +224,6 @@ function SalesSystem() {
   }, [transactions, searchTerm, filterCategory])
 
   // --- HELPER FUNCTIONS ---
-  const paginate = (items, page, perPage) => items.slice((page - 1) * perPage, (page - 1) * perPage + perPage)
   const triggerConfirmation = (action, title, message) => { setConfirmationAction(() => action); setConfirmationMsg({ title, message }); setModals({ ...modals, confirmation: true }) }
   const confirmAction = () => { if (confirmationAction) confirmationAction(); setModals({ ...modals, confirmation: false }) }
   const closeModal = () => { setModals({ add: false, update: false, archive: false, confirmation: false, archiveLog: false }); setConfirmationAction(null); setSelectedId(null); setArchiveReason('') }
@@ -332,16 +334,6 @@ const executeArchiveSale = async () => {
           closeModal(); 
       }
   };
-  // --- STYLES ---
-  const colors = { green: "#6B7C65", beige: "#E8DCC6", purple: "#7D4E99", darkGreen: "#4A5D4B", red: "#D9534F", blue: "#337AB7", yellow: "#D4AF37" }
-  const btnStyle = { padding: "8px 16px", borderRadius: "5px", border: "none", cursor: "pointer", fontWeight: "bold", color: "white", boxShadow: "0 2px 4px rgba(0,0,0,0.2)" }
-  const cardStyle = { flex: 1, padding: "20px", borderRadius: "10px", textAlign: "center", color: "white" }
-  const inputStyle = { padding: "5px 10px", borderRadius: "5px", border: "1px solid #ccc", fontSize: "12px", marginRight: "5px" }
-  const formInput = { width: "100%", padding: "10px", margin: "5px 0 15px", borderRadius: "5px", border: "1px solid #ccc" }
-  const modalOverlay = { position: "fixed", top: 0, left: 0, width: "100%", height: "100%", background: "rgba(0,0,0,0.5)", display: "flex", justifyContent: "center", alignItems: "center", zIndex: 1000 }
-  const modalContent = { background: "white", padding: "30px", borderRadius: "15px", width: "500px", boxShadow: "0 10px 25px rgba(0,0,0,0.3)", position: "relative" }
-  const confirmOverlay = { ...modalOverlay, zIndex: 2000 }
-  const confirmContent = { ...modalContent, width: "400px", textAlign: "center" }
 
   return (
     <div style={{ display: "flex", height: "100vh", width: "100vw", overflow: "hidden", fontFamily: "sans-serif" }}>
@@ -367,18 +359,24 @@ const executeArchiveSale = async () => {
           <button style={{...btnStyle, background: colors.purple}} onClick={() => navigate('/sales-reports')}>VIEW REPORT</button>
         </div>
 
-        {/* SEARCH BAR */}
-        <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "20px" }}>
-          <input placeholder="🔍 Search by Description..." style={{ padding: "8px", borderRadius: "20px", border: "1px solid #ccc", width: "250px" }} value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
-        </div>
+        {/* SEARCH & ACTIONS BAR */}
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
+          {/* Search Input */}
+          <input 
+            placeholder="🔍 Search by All..." 
+            style={{ padding: "8px", borderRadius: "20px", border: "1px solid #ccc", width: "300px" }} 
+            value={searchTerm} 
+            onChange={(e) => setSearchTerm(e.target.value)} 
+          />
 
-        {/* ACTIONS */}
-        <div style={{ display: "flex", gap: "10px", marginBottom: "15px" }}>
-          <button style={{...btnStyle, background: colors.darkGreen}} onClick={prepareAddSale}>ADD</button>
-          <button style={{...btnStyle, background: colors.yellow, color: "white"}} onClick={prepareUpdateSale}>UPDATE</button>
-          <button style={{...btnStyle, background: colors.red}} onClick={prepareArchiveSale}>ARCHIVE</button>
-          <button style={{...btnStyle, background: colors.blue}} onClick={() => setModals({...modals, archiveLog: true})}>VIEW ARCHIVE LOG</button>
-          <button style={{...btnStyle, background: "#FF9800", marginLeft: "auto"}} onClick={() => { fetchData(); setNotification({ message: 'Data refreshed', type: 'success' }) }}>REFRESH</button>
+          {/* Action Buttons */}
+          <div style={{ display: "flex", gap: "10px" }}>
+            <button style={{...btnStyle, background: colors.darkGreen}} onClick={prepareAddSale}>ADD</button>
+            <button style={{...btnStyle, background: colors.yellow, color: "white"}} onClick={prepareUpdateSale}>UPDATE</button>
+            <button style={{...btnStyle, background: colors.red}} onClick={prepareArchiveSale}>ARCHIVE</button>
+            <button style={{...btnStyle, background: colors.blue}} onClick={() => setModals({...modals, archiveLog: true})}>ARCHIVE LOGS</button>
+            <button style={{...btnStyle, background: "#FF9800"}} onClick={() => { fetchData(); setNotification({ message: 'Data refreshed', type: 'success' }) }}>REFRESH</button>
+          </div>
         </div>
 
         {/* METRICS PANEL */}

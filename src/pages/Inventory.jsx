@@ -1,10 +1,10 @@
 import { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
-import logo from '../assets/wm-logo.svg';
+import logo from '../assets/wm-logo.svg'; // You can keep this or remove if Sidebar handles it
 import { Notification } from '../components/Notification';
 
-// Modular Imports (Ensure these files exist!)
+// Modular Imports
 import { useInventoryData } from '../hooks/useInventoryData';
 import { PaginationControls } from '../components/PaginationControls';
 import * as styles from '../constants/inventoryStyles';
@@ -13,6 +13,7 @@ import * as styles from '../constants/inventoryStyles';
 import { AlertBanners } from '../components/inventory/AlertBanners';
 import { InventoryTable } from '../components/inventory/InventoryTable';
 import { InventoryModals } from '../components/inventory/InventoryModals';
+import Sidebar from '../components/Sidebar'; // <--- 1. IMPORT THE NEW SIDEBAR
 
 function InventorySystem() {
   const navigate = useNavigate();
@@ -112,11 +113,8 @@ function InventorySystem() {
     setModals({ ...modals, update: true });
   };
 
-const executeUpdate = async (e) => {
+  const executeUpdate = async (e) => {
     e.preventDefault();
-    
-    // We only include ItemName, Category, Quantity, and ReorderThreshold
-    // UnitPrice and Expiry are removed from this list to prevent updates
     const { error } = await supabase.from('Inventory').update({
         ItemName: formData.ItemName, 
         Category: formData.Category,
@@ -162,20 +160,8 @@ const executeUpdate = async (e) => {
   return (
     <div style={{ display: "flex", height: "100vh", width: "100vw", overflow: "hidden", fontFamily: "sans-serif" }}>
       
-      {/* SIDEBAR */}
-      <div style={{ width: "250px", flexShrink: 0, background: styles.colors.green, padding: "30px 20px", color: "white", display: "flex", flexDirection: "column", boxSizing: "border-box" }}>
-        <div style={{ paddingBottom: "10px", textAlign: "center" }}>
-            <img src={logo} alt="Logo" style={{ width: "130px", height: "auto" }} />
-        </div>
-        <h2 style={{fontSize: "18px", marginBottom: "40px", marginTop: -20, textAlign: "center"}}>WeekendMatcha</h2>
-        
-        <div style={{ padding: "10px", fontSize: "16px", fontWeight: "bold", borderRadius: "8px", marginBottom: "10px", color: "white", cursor: "pointer", background: "#5a6955"}}>Inventory System ➤</div>
-        <div style={{ padding: "10px", fontSize: "16px", fontWeight: "bold", borderRadius: "8px", marginBottom: "10px", color: "white", cursor: "pointer", opacity: 0.5}} onClick={() => navigate('/sales-system')}>Sales System</div>
-        {/* RESTORED HUMAN RESOURCE BUTTON */}
-        <div style={{ padding: "10px", fontSize: "16px", fontWeight: "bold", borderRadius: "8px", marginBottom: "10px", color: "white", cursor: "pointer", opacity: 0.5}} onClick={() => navigate('/hr-system')}>Human Resource</div>
-        
-        <div style={{ marginTop: "auto", cursor: "pointer", opacity: 0.8, display:"flex", alignItems:"center", gap:"10px", fontSize:"18px" }} onClick={() => navigate('/')}><span>↪</span> Log Out</div>
-      </div>
+      {/* 2. REPLACED OLD SIDEBAR CODE WITH COMPONENT */}
+      <Sidebar />
 
       {/* MAIN CONTENT */}
       <div style={{ flex: 1, background: styles.colors.beige, padding: "30px", display: "flex", flexDirection: "column", overflow: "hidden" }}>
@@ -226,7 +212,7 @@ const executeUpdate = async (e) => {
         </div>
       </div>
 
-      {/* ALL MODALS (Add, Update, Confirm, Archive, Logs) */}
+      {/* ALL MODALS */}
       <InventoryModals 
          modals={modals} 
          closeModal={closeModal} 

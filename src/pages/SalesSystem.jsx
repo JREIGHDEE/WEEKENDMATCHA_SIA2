@@ -271,12 +271,13 @@ const prepareAddSale = async () => {
       else { setNotification({ message: "Added!", type: 'success' }); fetchData(); closeModal() }
   }
   
-  const prepareUpdateSale = () => { 
-      if(!selectedId) {
-        setNotification({ message: "Select record", type: 'error' })
-        return
-      } 
-      const t = transactions.find(x=>x.id===selectedId); 
+const prepareUpdateSale = (id) => { 
+      // 1. Set the ID directly from the row click
+      setSelectedId(id); 
+      
+      // 2. Find the transaction using that exact passed ID
+      const t = transactions.find(x => x.id === id); 
+      
       setSalesFormData({
           type: t.type, 
           date: new Date(t.rawDate).toISOString().split('T')[0],
@@ -288,7 +289,8 @@ const prepareAddSale = async () => {
       }); 
       setModals({...modals, update:true}) 
   }
-  const handleUpdateConfirmation = (e) => { e.preventDefault(); triggerConfirmation(executeUpdateSale, "Update Record", "Confirm update?") }
+
+const handleUpdateConfirmation = (e) => { e.preventDefault(); triggerConfirmation(executeUpdateSale, "Update Record", "Confirm update?") }
   
 const executeUpdateSale = async () => { 
     const t = transactions.find(x => x.id === selectedId); 
@@ -317,13 +319,12 @@ const executeUpdateSale = async () => {
     }
 }
 
-  const prepareArchiveSale = () => {
-    if(!selectedId) {
-      setNotification({ message: "Select record", type: 'error' })
-      return
-    }
+const prepareArchiveSale = (id) => {
+    // 1. Set the ID directly from the row click
+    setSelectedId(id);
     setModals({...modals, archive:true})
   }
+
   const handleArchiveConfirmation = () => triggerConfirmation(executeArchiveSale, "Archive", "Confirm archive?")
   
 const executeArchiveSale = async () => { 
@@ -401,10 +402,7 @@ const executeArchiveSale = async () => {
           {/* Action Buttons */}
           <div style={{ display: "flex", gap: "10px" }}>
             <button style={{...btnStyle, background: colors.darkGreen}} onClick={prepareAddSale}>ADD</button>
-            <button style={{...btnStyle, background: colors.yellow, color: "white"}} onClick={prepareUpdateSale}>UPDATE</button>
-            <button style={{...btnStyle, background: colors.red}} onClick={prepareArchiveSale}>ARCHIVE</button>
             <button style={{...btnStyle, background: colors.blue}} onClick={() => setModals({...modals, archiveLog: true})}>ARCHIVE LOGS</button>
-            {/* <button style={{...btnStyle, background: "#FF9800"}} onClick={() => { fetchData(); setNotification({ message: 'Data refreshed', type: 'success' }) }}>REFRESH</button>  */}
           </div>
         </div>
 
@@ -456,30 +454,50 @@ const executeArchiveSale = async () => {
                 <table style={{ width: "100%", borderCollapse: "collapse" }}>
                   <thead style={{ position: "sticky", top: 0, background: colors.green, color: "white", zIndex: 1 }}>
                     <tr>
-                      <th style={{ width: "80px", padding: "15px" }}>Select</th>
-                      <th style={{ width: "120px" }}>Record ID</th>
+                      {/* Removed the Select th */}
+                      <th style={{ width: "120px", padding: "15px" }}>Record ID</th>
                       <th style={{ width: "200px" }}>Date Entered</th>
                       <th style={{ width: "200px" }}>Date Updated</th>
-                      {/* By NOT giving Description a width, it will now only take the remaining space */}
                       <th style={{ textAlign: "left", paddingLeft: "20px" }}>Description</th> 
                       <th style={{ width: "150px" }}>Amount</th>
                       <th style={{ width: "120px" }}>Type</th>
-                      {/* Set a fixed width here to keep it off the very edge */}
-                      <th style={{ width: "120px", paddingRight: "20px" }}>Admin</th> 
+                      <th style={{ width: "120px" }}>Admin</th> 
+                      {/* Added Actions th */}
+                      <th style={{ width: "120px", paddingRight: "15px" }}>Actions</th>
                     </tr>
                   </thead>
                   <tbody>
                     {paginate(filteredTransactions.filter(t => t.status !== 'Archived'), currentPage, itemsPerPage).map(t => (
                       <tr key={t.id} style={{ borderBottom: "1px solid #eee", textAlign: "center", height: "50px", fontSize: "13px" }}>
-                        <td style={{ width: "80px" }}><input type="radio" name="saleSelect" checked={selectedId === t.id} onChange={() => setSelectedId(t.id)} /></td>
+                        {/* Removed the radio button td */}
                         <td style={{ width: "120px" }}>{t.id}</td>
                         <td style={{ width: "200px" }}>{t.date}</td>
                         <td style={{ width: "200px", color: t.dateUpdated === '---' ? '#aaa' : 'inherit' }}>{t.dateUpdated}</td>
-                        {/* Description: Removed fixed width so it compresses naturally */}
                         <td style={{ textAlign: "left", paddingLeft: "20px", fontWeight: "bold" }}>{t.desc}</td>
                         <td style={{ width: "150px", fontWeight: "bold" }}>₱{parseFloat(t.amount).toLocaleString(undefined, {minimumFractionDigits: 2})}</td>
                         <td style={{ width: "120px", color: t.type === 'Income' ? colors.green : colors.red, fontWeight: "bold" }}>{t.type}</td>
-                        <td style={{ width: "120px", fontWeight: "bold", color: colors.darkGreen, paddingRight: "20px" }}>{t.enteredBy}</td>
+                        <td style={{ width: "120px", fontWeight: "bold", color: colors.darkGreen }}>{t.enteredBy}</td>
+                        {/* Added Actions td */}
+                        <td style={{ width: "120px", paddingRight: "15px" }}>
+                          <div style={{ display: "flex", gap: "8px", justifyContent: "center" }}>
+                            {/* Update Button (Pencil Icon) */}
+                            <button 
+                              onClick={() => prepareUpdateSale(t.id)} 
+                              style={{ padding: "6px 10px", background: colors.yellow, color: "white", border: "none", borderRadius: "5px", cursor: "pointer", fontSize: "12px" }}
+                              title="Update Record"
+                            >
+                              Update
+                            </button>
+                            {/* Archive Button (Trash Icon) */}
+                            <button 
+                              onClick={() => prepareArchiveSale(t.id)} 
+                              style={{ padding: "6px 10px", background: colors.red, color: "white", border: "none", borderRadius: "5px", cursor: "pointer", fontSize: "12px" }}
+                              title="Archive Record"
+                            >
+                              Archive
+                            </button>
+                          </div>
+                        </td>
                       </tr>
                     ))}
                   </tbody>

@@ -106,11 +106,20 @@ function InventorySystem() {
     }
   };
 
-  const prepareUpdate = () => {
-    if (!selectedId) return setNotification({ message: "Please select an item to update.", type: 'error' });
-    const item = inventory.find(i => i.InventoryID === selectedId);
+const prepareUpdate = (id) => {
+    // 1. Set the ID directly from the row click
+    setSelectedId(id);
+    // 2. Find the exact item
+    const item = inventory.find(i => i.InventoryID === id);
+    if (!item) return;
     setFormData(item);
     setModals({ ...modals, update: true });
+  };
+
+  const prepareArchive = (id) => {
+    // 1. Set the ID directly from the row click
+    setSelectedId(id);
+    setModals({ ...modals, archive: true });
   };
 
   const executeUpdate = async (e) => {
@@ -191,11 +200,9 @@ function InventorySystem() {
                 )}
             </div>
 
-            {/* ACTIONS */}
+            {/* ACTIONS - Removed Update and Archive */}
             <div style={{ display: "flex", gap: "10px" }}>
                 <button style={{...styles.btnStyle, background: styles.colors.darkGreen}} onClick={() => setModals({...modals, add: true})}>ADD</button>
-                <button style={{...styles.btnStyle, background: styles.colors.yellow}} onClick={prepareUpdate}>UPDATE</button>
-                <button style={{...styles.btnStyle, background: styles.colors.red}} onClick={() => selectedId ? setModals({...modals, archive: true}) : setNotification({ message: "Select an item.", type: 'error' })}>ARCHIVE</button>
                 <button style={{...styles.btnStyle, background: styles.colors.blue}} onClick={() => { fetchArchiveLogs(); setModals({...modals, viewLog: true}); }}>ARCHIVE LOGS</button>
             </div>
         </div>
@@ -204,8 +211,9 @@ function InventorySystem() {
         <div style={{ flex: 1, background: "white", borderRadius: "15px", boxShadow: "0 4px 10px rgba(0,0,0,0.1)", overflow: "hidden", display: "flex", flexDirection: "column" }}>
             <InventoryTable 
                 items={paginate(filteredInventory, currentPage, itemsPerPage)} 
-                selectedId={selectedId} 
-                setSelectedId={setSelectedId} 
+                // Pass the new handler functions as props
+                prepareUpdate={prepareUpdate}
+                prepareArchive={prepareArchive}
                 loading={loading} 
             />
             <PaginationControls total={filteredInventory.length} page={currentPage} setPage={setCurrentPage} perPage={itemsPerPage} />

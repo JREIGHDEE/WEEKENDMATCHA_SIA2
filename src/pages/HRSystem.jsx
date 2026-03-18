@@ -129,15 +129,12 @@ function HRSystem() {
     }
   }
 
-  // --- UPDATE EMPLOYEE ---
-  const prepareUpdate = () => {
-    if (!selectedEmpId) { 
-      showWarning('Select an employee first')
-      return 
-    }
-    const emp = employees.find(e => e.EmployeeID === selectedEmpId)
-    populateUpdateForm(emp)
-    modalState.openModal('update')
+// --- UPDATE EMPLOYEE ---
+  const prepareUpdate = (id) => {
+    setSelectedEmpId(id);
+    const emp = employees.find(e => e.EmployeeID === id);
+    populateUpdateForm(emp);
+    modalState.openModal('update');
   }
 
   const executeUpdateEmployee = async () => {
@@ -153,14 +150,11 @@ function HRSystem() {
     }
   }
 
-  // --- ARCHIVE & LOGS ---
-  const prepareArchive = () => {
-    if (!selectedEmpId) { 
-      showWarning('Select an employee first')
-      return 
-    }
-    setArchiveReason('')
-    modalState.openModal('archive')
+// --- ARCHIVE EMPLOYEE ---
+  const prepareArchive = (id) => {
+    setSelectedEmpId(id);
+    setArchiveReason('');
+    modalState.openModal('archive');
   }
   
   const executeArchive = async () => {
@@ -193,16 +187,13 @@ function HRSystem() {
     closeModal('archiveLog')
   }
 
-  // --- ATTENDANCE ---
-  const openAttendanceModal = async () => {
-    if (!selectedEmpId) { 
-      showWarning('Please select an employee first.')
-      return 
-    }
-    const { data } = await employeeService.fetchAttendanceLogs(selectedEmpId)
-    setAttendanceLogs(data || [])
-    setAttendancePage(1)
-    modalState.openModal('attendance')
+// --- ATTENDANCE ---
+  const handleOpenAttendance = async (id) => {
+    setSelectedEmpId(id);
+    const { data } = await employeeService.fetchAttendanceLogs(id);
+    setAttendanceLogs(data || []);
+    setAttendancePage(1);
+    modalState.openModal('attendance');
   }
 
   // --- HELPERS ---
@@ -243,13 +234,11 @@ function HRSystem() {
       {/* HEADER AREA */}
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "15px" }}>
           <h1 style={{ margin: 0, fontSize: "28px", color: colors.darkGreen }}>Employee Management</h1>
-          <button style={{...btnStyle, background: colors.purple}} onClick={openAttendanceModal}>VIEW ATTENDANCE LOG</button>
+          {/* Removed global View Attendance button since it requires a specific employee */}
         </div>
 
         {/* SEARCH & ACTIONS BAR - ALIGNED IN ONE ROW */}
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px", gap: "20px" }}>
-          
-          {/* Left Side: Search Bar */}
           <div style={{ flex: 1 }}>
             <SearchFilterBar 
               searchTerm={searchTerm}
@@ -263,11 +252,9 @@ function HRSystem() {
             />
           </div>
 
-          {/* Right Side: Action Buttons */}
+          {/* Right Side: Action Buttons (Only Add and Archive Log remain) */}
           <div style={{ display: "flex", gap: "10px", flexShrink: 0 }}>
             <button style={{...btnStyle, background: colors.darkGreen}} onClick={prepareAdd}>ADD</button>
-            <button style={{...btnStyle, background: "#d3af37"}} onClick={prepareUpdate}>UPDATE</button>
-            <button style={{...btnStyle, background: colors.red}} onClick={prepareArchive}>ARCHIVE</button>
             <button style={{...btnStyle, background: "#337AB7"}} onClick={openArchiveLogModal}>VIEW ARCHIVE LOG</button>
           </div>
         </div>
@@ -275,9 +262,11 @@ function HRSystem() {
         <EmployeeTable 
           filteredEmployees={filteredEmployees}
           currentPage={currentPage}
+          setCurrentPage={setCurrentPage} // Add this line so clicking pages works
           itemsPerPage={PAGINATION.employees}
-          selectedEmpId={selectedEmpId}
-          setSelectedEmpId={setSelectedEmpId}
+          prepareUpdate={prepareUpdate}
+          prepareArchive={prepareArchive}
+          openAttendanceModal={handleOpenAttendance}
           colors={colors}
           PaginationControls={PaginationControls}
         />

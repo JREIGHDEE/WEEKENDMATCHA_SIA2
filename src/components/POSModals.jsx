@@ -1,7 +1,8 @@
-import React from 'react'
+import React, { useState } from 'react'
+import CancelConfirmationModal from './CancelConfirmationModal'
 
 export default function POSModals({ state, actions, ui, PaginationControls }) {
-  const { colors, uiStyles, paginate } = ui;
+  const { colors, uiStyles, paginate, showCancelConfirm, handleCancelClick, handleCancelConfirm, handleCancelCancel } = ui;
 
   return (
     <>
@@ -37,7 +38,7 @@ export default function POSModals({ state, actions, ui, PaginationControls }) {
                 </div>
 
                 <div style={{display: "flex", gap: "10px"}}>
-                    <button onClick={() => actions.setShowOptionsModal(false)} style={{flex: 1, padding: "12px", background: "#ccc", border: "none", borderRadius: "10px", fontWeight: "bold", cursor: "pointer"}}>Cancel</button>
+                    <button onClick={() => handleCancelClick(() => actions.setShowOptionsModal(false))} style={{flex: 1, padding: "12px", background: "#ccc", border: "none", borderRadius: "10px", fontWeight: "bold", cursor: "pointer"}}>Cancel</button>
                     <button onClick={actions.confirmAddToCart} style={{flex: 1, padding: "12px", background: "#5a6955", color: "white", border: "none", borderRadius: "10px", fontWeight: "bold", cursor: "pointer"}}>Add to Cart</button>
                 </div>
             </div>
@@ -66,7 +67,7 @@ export default function POSModals({ state, actions, ui, PaginationControls }) {
                     {actions.getChange() < 0 ? <div style={{ color: colors.blueText, fontWeight: "bold", fontSize: "18px" }}>Insufficient Amount</div> : <div style={{ color: "black", fontWeight: "bold", fontSize: "18px" }}>₱{actions.getChange().toFixed(2)}</div>}
                 </div>
                 <div style={{ display: "flex", gap: "10px", marginTop: "10px" }}>
-                    <button onClick={() => actions.setShowPaymentModal(false)} style={{ flex: 1, padding: "12px", background: colors.redBtn, color: "white", border: "none", borderRadius: "10px", fontWeight: "bold", cursor: "pointer" }}>Cancel Order</button>
+                    <button onClick={() => handleCancelClick(() => actions.setShowPaymentModal(false))} style={{ flex: 1, padding: "12px", background: colors.redBtn, color: "white", border: "none", borderRadius: "10px", fontWeight: "bold", cursor: "pointer" }}>Cancel Order</button>
                     <button onClick={actions.handleConfirmPayment} disabled={actions.getChange() < 0} style={{ flex: 1, padding: "12px", background: actions.getChange() < 0 ? "#ccc" : colors.darkBtn, color: "white", border: "none", borderRadius: "10px", fontWeight: "bold", cursor: actions.getChange() < 0 ? "default" : "pointer" }}>Confirm</button>
                 </div>
             </div>
@@ -121,7 +122,7 @@ export default function POSModals({ state, actions, ui, PaginationControls }) {
                 <button onClick={() => actions.updateStatus('COMPLETED')} style={{ width: "220px", padding: "15px", background: colors.statusGreen, color: "white", border: "none", borderRadius: "12px", fontWeight: "bold", cursor: "pointer", fontSize: "14px" }}>COMPLETED</button>
                 <button onClick={() => actions.updateStatus('IN PROGRESS')} style={{ width: "220px", padding: "15px", background: colors.statusYellow, color: "white", border: "none", borderRadius: "12px", fontWeight: "bold", cursor: "pointer", fontSize: "14px" }}>IN PROGRESS</button>
                 <button onClick={() => actions.updateStatus('NOT IN PROGRESS')} style={{ width: "220px", padding: "15px", background: colors.statusRed, color: "white", border: "none", borderRadius: "12px", fontWeight: "bold", cursor: "pointer", fontSize: "14px" }}>NOT IN PROGRESS</button>
-                <button onClick={() => actions.setShowStatusModal(false)} style={{ marginTop: "10px", background: "none", border: "none", color: "#999", cursor: "pointer", textDecoration: "underline" }}>Cancel</button>
+                <button onClick={() => handleCancelClick(() => actions.setShowStatusModal(false))} style={{ marginTop: "10px", background: "none", border: "none", color: "#999", cursor: "pointer", textDecoration: "underline" }}>Cancel</button>
             </div>
         </div>
       )}
@@ -132,7 +133,7 @@ export default function POSModals({ state, actions, ui, PaginationControls }) {
                 <h2 style={{color:"#5a6955", margin:0, fontSize: "24px", textAlign: "left"}}>Complete Order?</h2>
                 <p style={{fontSize:"14px", color:"#666", lineHeight: "1.5", textAlign: "left"}}>Are you sure you want to complete this order? This action cannot be undone.<br/>Please review the details before continuing.</p>
                 <div style={{ display: "flex", justifyContent: "flex-end", marginTop: "15px", gap: "20px" }}>
-                    <button onClick={() => actions.setShowCompleteConfirm(false)} style={{ background: "none", border: "none", color: colors.redBtn, fontWeight: "bold", cursor: "pointer", fontSize: "14px" }}>Cancel</button>
+                    <button onClick={() => handleCancelClick(() => actions.setShowCompleteConfirm(false))} style={{ background: "none", border: "none", color: colors.redBtn, fontWeight: "bold", cursor: "pointer", fontSize: "14px" }}>Cancel</button>
                     <button onClick={actions.confirmCompletion} style={{ background: "none", border: "none", color: colors.darkBtn, fontWeight: "bold", cursor: "pointer", fontSize: "14px" }}>Confirm</button>
                 </div>
             </div>
@@ -147,7 +148,7 @@ export default function POSModals({ state, actions, ui, PaginationControls }) {
                 <div><label style={{fontSize: "14px", fontWeight: "bold"}}>Email (Admin):</label><input style={{...uiStyles.inputStyle, marginTop: "5px"}} value={state.adminUser} onChange={e => actions.setAdminUser(e.target.value)} /></div>
                 <div><label style={{fontSize: "14px", fontWeight: "bold"}}>Password:</label><input type="password" style={{...uiStyles.inputStyle, marginTop: "5px"}} value={state.adminPass} onChange={e => actions.setAdminPass(e.target.value)} /></div>
                 <button onClick={actions.handleAdminLoginSubmit} style={{background: "#6B7C65", color: "white", padding: "12px", border: "1px solid white", borderRadius: "20px", fontWeight: "bold", cursor: "pointer", marginTop: "10px"}}>LOG IN</button>
-                <button onClick={() => actions.setShowAdminLogin(false)} style={{background: "transparent", color: "white", border: "none", textDecoration: "underline", cursor: "pointer"}}>Cancel</button>
+                <button onClick={() => handleCancelClick(() => actions.setShowAdminLogin(false))} style={{background: "transparent", color: "white", border: "none", textDecoration: "underline", cursor: "pointer"}}>Cancel</button>
             </div>
         </div>
       )}
@@ -248,6 +249,14 @@ export default function POSModals({ state, actions, ui, PaginationControls }) {
             </div>
         </div>
       )}
+      
+      <CancelConfirmationModal 
+        isOpen={showCancelConfirm} 
+        onConfirm={handleCancelConfirm} 
+        onCancel={handleCancelCancel}
+        colors={colors}
+        btnStyle={{padding: "10px 20px", borderRadius: "5px", border: "none", cursor: "pointer", fontWeight: "bold", color: "white", boxShadow: "0 2px 4px rgba(0,0,0,0.2)"}}
+      />
     </>
   )
 }

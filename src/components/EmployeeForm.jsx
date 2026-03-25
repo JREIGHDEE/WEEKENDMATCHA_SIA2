@@ -1,4 +1,6 @@
 import React, { useEffect, useState } from 'react'
+import CancelConfirmationModal from './CancelConfirmationModal'
+import { validateEmployeeForm, isFieldValid, getFieldBorderColor, validateShiftTimes, formatPhilippineNumber } from '../utils/validation'
 
 // TimePicker used only by the employee form
 const TimePicker = ({ label, value, onChange }) => {
@@ -43,197 +45,150 @@ export default function EmployeeForm({
   triggerConfirmation, executeAddEmployee, executeUpdateEmployee,
   setNotification, showError, inputStyle, btnStyle, colors
 }) {
+  const [showCancelConfirm, setShowCancelConfirm] = useState(false)
 
-  const validateEmployeeForm = () => {
-    const errors = []
-
-    if (!formData.firstName || formData.firstName.trim() === '') errors.push("First Name is required")
-    else if (formData.firstName.length < 2) errors.push("First Name must be at least 2 characters")
-    else if (formData.firstName.length > 50) errors.push("First Name must not exceed 50 characters")
-    else if (!/^[a-zA-Z\s'-]+$/.test(formData.firstName)) errors.push("First Name can only contain letters, spaces, hyphens, and apostrophes")
-
-    if (!formData.lastName || formData.lastName.trim() === '') errors.push("Last Name is required")
-    else if (formData.lastName.length < 2) errors.push("Last Name must be at least 2 characters")
-    else if (formData.lastName.length > 50) errors.push("Last Name must not exceed 50 characters")
-    else if (!/^[a-zA-Z\s'-]+$/.test(formData.lastName)) errors.push("Last Name can only contain letters, spaces, hyphens, and apostrophes")
-
-    if (!formData.email || formData.email.trim() === '') errors.push("Email is required")
-    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) errors.push("Email format is invalid")
-    else if (formData.email.length > 100) errors.push("Email must not exceed 100 characters")
-
-    if (!formData.password || formData.password.trim() === '') errors.push("Password is required")
-    else if (formData.password.length < 6) errors.push("Password must be at least 6 characters")
-    else if (formData.password.length > 100) errors.push("Password must not exceed 100 characters")
-    else if (!/(?=.*[a-z])/.test(formData.password)) errors.push("Password must contain at least one lowercase letter")
-    else if (!/(?=.*[A-Z])/.test(formData.password)) errors.push("Password must contain at least one uppercase letter")
-    else if (!/(?=.*[0-9])/.test(formData.password)) errors.push("Password must contain at least one number")
-
-    if (!formData.contact || formData.contact.trim() === '') errors.push("Contact Number is required")
-    else if (!/^[0-9+\-\s()]+$/.test(formData.contact)) errors.push("Contact Number can only contain numbers, spaces, +, -, and parentheses")
-    else if (formData.contact.replace(/\D/g, '').length < 7) errors.push("Contact Number must contain at least 7 digits")
-    else if (formData.contact.length > 20) errors.push("Contact Number must not exceed 20 characters")
-
-    if (!formData.address || formData.address.trim() === '') errors.push("Address is required")
-    else if (formData.address.length < 5) errors.push("Address must be at least 5 characters")
-    else if (formData.address.length > 255) errors.push("Address must not exceed 255 characters")
-
-    if (!formData.dob || formData.dob.trim() === '') errors.push("Date of Birth is required")
-    else {
-      const dobDate = new Date(formData.dob)
-      const today = new Date()
-      const age = today.getFullYear() - dobDate.getFullYear()
-      const monthDiff = today.getMonth() - dobDate.getMonth()
-      const actualAge = monthDiff < 0 || (monthDiff === 0 && today.getDate() < dobDate.getDate()) ? age - 1 : age
-      if (actualAge < 16) errors.push("Employee must be at least 16 years old")
-      else if (actualAge > 100) errors.push("Please enter a valid Date of Birth")
+  const handleValidation = () => {
+    const errors = validateEmployeeForm(formData, ALL_ROLES)
+    if (errors.length > 0) {
+      showError(errors[0])
+      return false
     }
-
-    if (!formData.dateHired || formData.dateHired.trim() === '') errors.push("Date Hired is required")
-    else if (new Date(formData.dateHired) > new Date()) errors.push("Date Hired cannot be in the future")
-
-    if (!formData.role || formData.role.trim() === '') errors.push("Role is required")
-    else if (!ALL_ROLES.includes(formData.role)) errors.push("Invalid Role selected")
-
-    if (!formData.status || formData.status.trim() === '') errors.push("Status is required")
-    else if (!['Active', 'Inactive'].includes(formData.status)) errors.push("Invalid Status selected")
-
-    if (!formData.schedulePattern || formData.schedulePattern.trim() === '') errors.push("Schedule Pattern is required")
-    else {
-      const validDays = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday']
-      if (!validDays.includes(formData.schedulePattern)) errors.push("Invalid Schedule Pattern selected")
-    }
-
-    if (errors.length > 0) { showError(errors[0]); return false }
     return true
-  }
-
-  const isFieldValid = (fieldName) => {
-    switch(fieldName) {
-      case 'firstName':
-        return formData.firstName && formData.firstName.length >= 2 && formData.firstName.length <= 50 && /^[a-zA-Z\s'-]+$/.test(formData.firstName)
-      case 'lastName':
-        return formData.lastName && formData.lastName.length >= 2 && formData.lastName.length <= 50 && /^[a-zA-Z\s'-]+$/.test(formData.lastName)
-      case 'email':
-        return formData.email && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email) && formData.email.length <= 100
-      case 'password':
-        return formData.password && formData.password.length >= 6 && /(?=.*[a-z])/.test(formData.password) && /(?=.*[A-Z])/.test(formData.password) && /(?=.*[0-9])/.test(formData.password)
-      case 'contact':
-        return formData.contact && /^[0-9+\-\s()]+$/.test(formData.contact) && formData.contact.replace(/\D/g, '').length >= 7
-      case 'address':
-        return formData.address && formData.address.length >= 5 && formData.address.length <= 255
-      case 'dob':
-        if (!formData.dob) return false
-        const dobDate = new Date(formData.dob)
-        const today = new Date()
-        const age = today.getFullYear() - dobDate.getFullYear()
-        const monthDiff = today.getMonth() - dobDate.getMonth()
-        const actualAge = monthDiff < 0 || (monthDiff === 0 && today.getDate() < dobDate.getDate()) ? age - 1 : age
-        return actualAge >= 16 && actualAge <= 100
-      case 'dateHired':
-        return formData.dateHired && new Date(formData.dateHired) <= new Date()
-      default:
-        return true
-    }
-  }
-
-  const getFieldBorderColor = (fieldName) => {
-    if (!formData[fieldName] || formData[fieldName].trim() === '') return '#ccc'
-    return isFieldValid(fieldName) ? '#4CAF50' : '#f44336'
   }
 
   const handleAddConfirmation = (e) => {
     e.preventDefault()
-    if (!validateEmployeeForm()) return
+    if (!handleValidation()) return
     triggerConfirmation(() => executeAddEmployee())
   }
 
   const handleUpdateConfirmation = (e) => {
     e.preventDefault()
-    if (!validateEmployeeForm()) return
+    if (!handleValidation()) return
     triggerConfirmation(() => executeUpdateEmployee())
   }
 
-  return (
-    <div style={{ position: 'fixed', top:0, left:0, width:'100%', height:'100%', display:'flex', justifyContent:'center', alignItems:'center', zIndex:1000 }}>
-      <div style={{ background: 'white', padding: 25, borderRadius: 15, width: 550, maxHeight: '90vh', overflowY: 'auto' }}>
-        <h2 style={{ marginTop: 0 }}>{modals.add ? "Add Employee" : "Update Employee"}</h2>
-        <form onSubmit={modals.add ? handleAddConfirmation : handleUpdateConfirmation}>
-          <h4 style={{ margin: "10px 0", borderBottom: "1px solid #eee" }}>Personal Information</h4>
-          <div style={{ display: "flex", gap: "10px" }}>
-            <div style={{flex: 1}}>
-              <label style={{fontSize:"12px", fontWeight:"bold"}}>First Name</label>
-              <input disabled={!modals.add} style={{...inputStyle, borderColor: getFieldBorderColor('firstName'), borderWidth: '2px', opacity: !modals.add ? 0.6 : 1, cursor: !modals.add ? 'not-allowed' : 'auto'}} placeholder="Reigh" value={formData.firstName} onChange={e => !modals.add || setFormData({...formData, firstName: e.target.value})} />
-            </div>
-            <div style={{flex: 1}}>
-              <label style={{fontSize:"12px", fontWeight:"bold"}}>Last Name</label>
-              <input disabled={!modals.add} style={{...inputStyle, borderColor: getFieldBorderColor('lastName'), borderWidth: '2px', opacity: !modals.add ? 0.6 : 1, cursor: !modals.add ? 'not-allowed' : 'auto'}} placeholder="Denolan" value={formData.lastName} onChange={e => !modals.add || setFormData({...formData, lastName: e.target.value})} />
-            </div>
-          </div>
-          <label style={{fontSize:"12px", fontWeight:"bold"}}>Address</label>
-          <input style={{...inputStyle, borderColor: getFieldBorderColor('address'), borderWidth: '2px'}} placeholder="123 Main Street, New York, NY 10001" value={formData.address} onChange={e => setFormData({...formData, address: e.target.value})} />
-          <div style={{ display: "flex", gap: "10px" }}>
-            <div style={{flex: 1}}>
-              <label style={{fontSize:"12px", fontWeight:"bold"}}>Contact Number</label>
-              <input style={{...inputStyle, borderColor: getFieldBorderColor('contact'), borderWidth: '2px'}} placeholder="+1-555-123-4567" value={formData.contact} onChange={e => setFormData({...formData, contact: e.target.value})} />
-            </div>
-            <div style={{flex: 1}}>
-              <label style={{fontSize:"12px", fontWeight:"bold"}}>Date of Birth</label>
-              <input type="date" disabled={!modals.add} style={{...inputStyle, borderColor: getFieldBorderColor('dob'), borderWidth: '2px', opacity: !modals.add ? 0.6 : 1, cursor: !modals.add ? 'not-allowed' : 'auto'}} value={formData.dob} onChange={e => !modals.add || setFormData({...formData, dob: e.target.value})} />
-            </div>
-          </div>
-          {modals.add && (
-            <>
-              <h4 style={{ margin: "15px 0 10px", borderBottom: "1px solid #eee" }}>Account Details</h4>
-              <label style={{fontSize:"12px", fontWeight:"bold"}}>Email</label>
-              <input style={{...inputStyle, borderColor: getFieldBorderColor('email'), borderWidth: '2px'}} placeholder="reigh.denolan@test.com" type="email" value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} />
-              <label style={{fontSize:"12px", fontWeight:"bold"}}>Password</label>
-              <input style={{...inputStyle, borderColor: getFieldBorderColor('password'), borderWidth: '2px'}} placeholder="SecurePass123" type="text" value={formData.password} onChange={e => setFormData({...formData, password: e.target.value})} />
-            </>
-          )}
-          <h4 style={{ margin: "15px 0 10px", borderBottom: "1px solid #eee" }}>Job Details</h4>
-          <div style={{ display: "flex", gap: "10px" }}>
-            <div style={{flex: 1}}>
-              <label style={{fontSize:"12px", fontWeight:"bold"}}>Role</label>
-              <select style={inputStyle} value={formData.role} onChange={e => setFormData({...formData, role: e.target.value})}>
-                {ALL_ROLES.map(r => <option key={r} value={r}>{r}</option>)}
-              </select>
-            </div>
-            <div style={{flex: 1}}>
-              <label style={{fontSize:"12px", fontWeight:"bold"}}>Status</label>
-              <select style={inputStyle} value={formData.status} onChange={e => setFormData({...formData, status: e.target.value})}>
-                <option value="Active">Active</option> <option value="On Leave">On Leave</option> <option value="Inactive">Inactive</option>
-              </select>
-            </div>
-          </div>
-          {modals.add && (
-            <>
-              <label style={{fontSize:"12px", fontWeight:"bold"}}>Date Hired</label>
-              <input type="date" style={{...inputStyle, borderColor: getFieldBorderColor('dateHired'), borderWidth: '2px'}} value={formData.dateHired} onChange={e => setFormData({...formData, dateHired: e.target.value})} />
-            </>
-          )}
-          <label style={{ fontSize: "12px", fontWeight: "bold", marginTop: "10px", display: "block" }}>Recurring Schedule Day</label>
-          <select style={inputStyle} value={formData.schedulePattern} onChange={e => setFormData({...formData, schedulePattern: e.target.value})}>
-              <option value="Monday">Every Monday</option>
-              <option value="Tuesday">Every Tuesday</option>
-              <option value="Wednesday">Every Wednesday</option>
-              <option value="Thursday">Every Thursday</option>
-              <option value="Friday">Every Friday</option>
-              <option value="Saturday">Every Saturday</option>
-              <option value="Sunday">Every Sunday</option>
-          </select>
+  const handleCancelClick = (e) => {
+    e.preventDefault()
+    setShowCancelConfirm(true)
+  }
 
-          <label style={{ fontSize: "12px", fontWeight: "bold", marginTop: "10px", display: "block" }}>Shift Time (Flexible)</label>
-          <div style={{ display: "flex", alignItems: "center", background: "#f9f9f9", padding: "10px", borderRadius: "5px", border: "1px solid #eee" }}>
-            <TimePicker label="Start Time" value={formData.shiftStart} onChange={(val) => setFormData({...formData, shiftStart: val})} />
-            <span style={{ margin: "0 10px", fontWeight: "bold" }}>TO</span>
-            <TimePicker label="End Time" value={formData.shiftEnd} onChange={(val) => setFormData({...formData, shiftEnd: val})} />
-          </div>
-          <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px", marginTop: "25px" }}>
-            <button type="button" onClick={() => setModals({...modals, add: false, update: false})} style={{...btnStyle, background: "#ccc", color: "#333"}}>Cancel</button>
-            <button type="submit" style={{...btnStyle, background: colors.green}}>Confirm</button>
-          </div>
-        </form>
+  const handleCancelConfirm = () => {
+    setShowCancelConfirm(false)
+    setModals({...modals, add: false, update: false})
+  }
+
+  const handleCancelCancel = () => {
+    setShowCancelConfirm(false)
+  }
+
+  return (
+    <>
+      <div style={{ position: 'fixed', top:0, left:0, width:'100%', height:'100%', display:'flex', justifyContent:'center', alignItems:'center', zIndex:1000 }}>
+        <div style={{ background: 'white', padding: 25, borderRadius: 15, width: 550, maxHeight: '90vh', overflowY: 'auto' }}>
+          <h2 style={{ marginTop: 0 }}>{modals.add ? "Add Employee" : "Update Employee"}</h2>
+          <form onSubmit={modals.add ? handleAddConfirmation : handleUpdateConfirmation}>
+            <h4 style={{ margin: "10px 0", borderBottom: "1px solid #eee" }}>Personal Information</h4>
+            <div style={{ display: "flex", gap: "10px" }}>
+              <div style={{flex: 1}}>
+                <label style={{fontSize:"12px", fontWeight:"bold"}}>First Name</label>
+                <input disabled={!modals.add} style={{...inputStyle, borderColor: getFieldBorderColor('firstName', formData, ALL_ROLES), borderWidth: '2px', opacity: !modals.add ? 0.6 : 1, cursor: !modals.add ? 'not-allowed' : 'auto'}} placeholder="Reigh" value={formData.firstName} onChange={e => !modals.add || setFormData({...formData, firstName: e.target.value})} />
+              </div>
+              <div style={{flex: 1}}>
+                <label style={{fontSize:"12px", fontWeight:"bold"}}>Last Name</label>
+                <input disabled={!modals.add} style={{...inputStyle, borderColor: getFieldBorderColor('lastName', formData, ALL_ROLES), borderWidth: '2px', opacity: !modals.add ? 0.6 : 1, cursor: !modals.add ? 'not-allowed' : 'auto'}} placeholder="Denolan" value={formData.lastName} onChange={e => !modals.add || setFormData({...formData, lastName: e.target.value})} />
+              </div>
+            </div>
+            <label style={{fontSize:"12px", fontWeight:"bold"}}>Address</label>
+            <input style={{...inputStyle, borderColor: getFieldBorderColor('address', formData, ALL_ROLES), borderWidth: '2px'}} placeholder="123 Main Street, New York, NY 10001" value={formData.address} onChange={e => setFormData({...formData, address: e.target.value})} />
+            <div style={{ display: "flex", gap: "10px" }}>
+              <div style={{flex: 1}}>
+                <label style={{fontSize:"12px", fontWeight:"bold"}}>Contact Number (Philippine)</label>
+                <div style={{display: "flex", alignItems: "center", background: "white", border: `2px solid ${getFieldBorderColor('contact', formData, ALL_ROLES)}`, borderRadius: "5px", padding: "0"}}>
+                  <span style={{padding: "8px 10px", fontWeight: "bold", color: "#555", background: "#f9f9f9", borderRight: "1px solid #ddd"}}>+63</span>
+                  <input 
+                    style={{...inputStyle, flex: 1, border: "none", borderColor: "transparent", padding: "8px 10px"}} 
+                    placeholder="9123456789" 
+                    value={formData.contact} 
+                    onChange={e => {
+                      const digits = e.target.value.replace(/\D/g, '').slice(0, 10)
+                      setFormData({...formData, contact: digits})
+                    }}
+                    inputMode="numeric"
+                  />
+                </div>
+              </div>
+              <div style={{flex: 1}}>
+                <label style={{fontSize:"12px", fontWeight:"bold"}}>Date of Birth</label>
+                <input type="date" disabled={!modals.add} style={{...inputStyle, borderColor: getFieldBorderColor('dob', formData, ALL_ROLES), borderWidth: '2px', opacity: !modals.add ? 0.6 : 1, cursor: !modals.add ? 'not-allowed' : 'auto'}} value={formData.dob} onChange={e => !modals.add || setFormData({...formData, dob: e.target.value})} />
+              </div>
+            </div>
+            {modals.add && (
+              <>
+                <h4 style={{ margin: "15px 0 10px", borderBottom: "1px solid #eee" }}>Account Details</h4>
+                <label style={{fontSize:"12px", fontWeight:"bold"}}>Email</label>
+                <input style={{...inputStyle, borderColor: getFieldBorderColor('email', formData, ALL_ROLES), borderWidth: '2px'}} placeholder="reigh.denolan@test.com" type="email" value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} />
+                <label style={{fontSize:"12px", fontWeight:"bold"}}>Password</label>
+                <input style={{...inputStyle, borderColor: getFieldBorderColor('password', formData, ALL_ROLES), borderWidth: '2px'}} placeholder="SecurePass123" type="text" value={formData.password} onChange={e => setFormData({...formData, password: e.target.value})} />
+              </>
+            )}
+            <h4 style={{ margin: "15px 0 10px", borderBottom: "1px solid #eee" }}>Job Details</h4>
+            <div style={{ display: "flex", gap: "10px" }}>
+              <div style={{flex: 1}}>
+                <label style={{fontSize:"12px", fontWeight:"bold"}}>Role</label>
+                <select style={inputStyle} value={formData.role} onChange={e => setFormData({...formData, role: e.target.value})}>
+                  {ALL_ROLES.map(r => <option key={r} value={r}>{r}</option>)}
+                </select>
+              </div>
+              <div style={{flex: 1}}>
+                <label style={{fontSize:"12px", fontWeight:"bold"}}>Status</label>
+                <select style={inputStyle} value={formData.status} onChange={e => setFormData({...formData, status: e.target.value})}>
+                  <option value="Active">Active</option> <option value="On Leave">On Leave</option> <option value="Inactive">Inactive</option>
+                </select>
+              </div>
+            </div>
+            {modals.add && (
+              <>
+                <label style={{fontSize:"12px", fontWeight:"bold"}}>Date Hired</label>
+                <input type="date" style={{...inputStyle, borderColor: getFieldBorderColor('dateHired', formData, ALL_ROLES), borderWidth: '2px'}} value={formData.dateHired} onChange={e => setFormData({...formData, dateHired: e.target.value})} />
+              </>
+            )}
+            <label style={{ fontSize: "12px", fontWeight: "bold", marginTop: "10px", display: "block" }}>Recurring Schedule Day</label>
+            <select style={inputStyle} value={formData.schedulePattern} onChange={e => setFormData({...formData, schedulePattern: e.target.value})}>
+                <option value="Monday">Every Monday</option>
+                <option value="Tuesday">Every Tuesday</option>
+                <option value="Wednesday">Every Wednesday</option>
+                <option value="Thursday">Every Thursday</option>
+                <option value="Friday">Every Friday</option>
+                <option value="Saturday">Every Saturday</option>
+                <option value="Sunday">Every Sunday</option>
+            </select>
+
+            <label style={{ fontSize: "12px", fontWeight: "bold", marginTop: "10px", display: "block" }}>Shift Time (Start to End)</label>
+            <div style={{ display: "flex", alignItems: "center", background: "#f9f9f9", padding: "10px", borderRadius: "5px", border: formData.shiftStart && formData.shiftEnd && !validateShiftTimes(formData.shiftStart, formData.shiftEnd).isValid ? "2px solid #f44336" : "1px solid #eee" }}>
+              <TimePicker label="Start Time" value={formData.shiftStart} onChange={(val) => setFormData({...formData, shiftStart: val})} />
+              <span style={{ margin: "0 10px", fontWeight: "bold" }}>TO</span>
+              <TimePicker label="End Time" value={formData.shiftEnd} onChange={(val) => setFormData({...formData, shiftEnd: val})} />
+            </div>
+            {formData.shiftStart && formData.shiftEnd && !validateShiftTimes(formData.shiftStart, formData.shiftEnd).isValid && (
+              <span style={{ fontSize: "12px", color: "#f44336", marginTop: "5px", display: "block" }}>
+                {validateShiftTimes(formData.shiftStart, formData.shiftEnd).error}
+              </span>
+            )}
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px", marginTop: "25px" }}>
+              <button type="button" onClick={handleCancelClick} style={{...btnStyle, background: "#ccc", color: "#333"}}>Cancel</button>
+              <button type="submit" style={{...btnStyle, background: colors.green}}>Confirm</button>
+            </div>
+          </form>
+        </div>
       </div>
-    </div>
+      <CancelConfirmationModal 
+        isOpen={showCancelConfirm} 
+        onConfirm={handleCancelConfirm} 
+        onCancel={handleCancelCancel}
+        colors={colors}
+        btnStyle={btnStyle}
+      />
+    </>
   )
 }

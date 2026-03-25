@@ -1,12 +1,33 @@
-import React from 'react';
+import React, { useState } from 'react';
 import * as styles from '../../constants/inventoryStyles';
 import { PaginationControls } from '../PaginationControls';
+import CancelConfirmationModal from '../CancelConfirmationModal';
 
 export const InventoryModals = ({ 
   modals, closeModal, formData, handleInputChange, handleAddSubmit, 
   executeUpdate, executeAddItem, setModals, executeArchive, 
   archiveReason, setArchiveReason, archiveLogs, archivePage, setArchivePage 
 }) => {
+  const [showCancelConfirm, setShowCancelConfirm] = useState(false)
+  const [pendingCloseAction, setPendingCloseAction] = useState(null)
+
+  const handleCancelClick = (action) => {
+    setPendingCloseAction(() => action)
+    setShowCancelConfirm(true)
+  }
+
+  const handleCancelConfirm = () => {
+    setShowCancelConfirm(false)
+    if (pendingCloseAction) {
+      pendingCloseAction()
+    }
+    setPendingCloseAction(null)
+  }
+
+  const handleCancelCancel = () => {
+    setShowCancelConfirm(false)
+    setPendingCloseAction(null)
+  }
   return (
     <>
       {/* ADD / UPDATE MODAL */}
@@ -104,7 +125,7 @@ export const InventoryModals = ({
                     </div>
 
                     <div style={{display:"flex", justifyContent:"flex-end", gap:"10px"}}>
-                        <button type="button" onClick={closeModal} style={{...styles.btnStyle, background: "#ccc", color: "#333"}}>Cancel</button>
+                        <button type="button" onClick={() => handleCancelClick(closeModal)} style={{...styles.btnStyle, background: "#ccc", color: "#333"}}>Cancel</button>
                         <button type="submit" style={{ ...styles.btnStyle, background: styles.colors.darkGreen }}>{modals.add ? "Next" : "Save Changes"}</button>
                     </div>
                 </form>
@@ -141,7 +162,7 @@ export const InventoryModals = ({
                 <label style={styles.labelStyle}>Reason</label>
                 <textarea style={{...styles.inputStyle, height:"80px"}} value={archiveReason} onChange={e => setArchiveReason(e.target.value)} placeholder="e.g. Discontinued product" />
                 <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px" }}>
-                    <button onClick={closeModal} style={{...styles.btnStyle, background: "#ccc", color: "#333"}}>Cancel</button>
+                    <button onClick={() => handleCancelClick(closeModal)} style={{...styles.btnStyle, background: "#ccc", color: "#333"}}>Cancel</button>
                     <button onClick={executeArchive} style={{...styles.btnStyle, background: styles.colors.red}}>Confirm Archive</button>
                 </div>
             </div>
@@ -176,6 +197,13 @@ export const InventoryModals = ({
             </div>
         </div>
       )}
+      <CancelConfirmationModal 
+        isOpen={showCancelConfirm} 
+        onConfirm={handleCancelConfirm} 
+        onCancel={handleCancelCancel}
+        colors={styles.colors}
+        btnStyle={styles.btnStyle}
+      />
     </>
   );
 };

@@ -37,10 +37,13 @@ Comprehensive form validation has been implemented for the HR System employee cr
 
 ### **Contact Number**
 - ✅ Required field
-- Format: Numbers, +, -, (), and spaces only
-- Min: 7 digits (can have formatting)
-- Max: 20 characters
-- Valid examples: `+1-234-567-8900`, `(555) 123-4567`, `5551234567`
+- **Format:** Philippine phone number
+  - Fixed prefix: +63 (automatically prepended)
+  - User enters: 9-10 digits only (no country code needed)
+- Digits allowed: 0-9, spaces, hyphens, parentheses
+- Length: 9-10 digits
+- Example input: `9123456789` or `912-345-6789`
+- Stored as: `+63 9123456789`
 - Real-time feedback: Green border = valid, Red border = invalid
 
 ### **Address**
@@ -78,6 +81,16 @@ Comprehensive form validation has been implemented for the HR System employee cr
 - ✅ Required field
 - Valid options: Monday-Sunday (each day means "Every [Day]")
 - Real-time feedback: Must select from dropdown
+
+### **Shift Time**
+- ✅ Required field (both start and end times)
+- Format: 12-hour format with AM/PM (e.g., "08:00 AM", "05:00 PM")
+- Range validation: End time must be **after** start time
+- Start time options: 1:00 - 12:45 (15-minute intervals)
+- End time options: 1:00 - 12:45 (15-minute intervals)
+- Real-time feedback: 
+  - Red border on shift container if end time ≤ start time
+  - Error message displays: "End time must be after start time"
 
 ---
 
@@ -121,8 +134,8 @@ First Name: John
 Last Name: Smith
 Email: john.smith@example.com
 Password: SecurePass123
-Contact: (555) 123-4567
-Address: 123 Main Street, Springfield, IL
+Contact: 9123456789
+Address: 123 Main Street, Manila, PH
 Date of Birth: 1995-05-15
 Date Hired: 2024-01-01
 Role: Barista
@@ -142,8 +155,9 @@ Password: "weak" → Error: "Password must be at least 6 characters"
 Password: "weakpass" → Error: "Password must contain at least one uppercase letter"
 Password: "WeakPass" → Error: "Password must contain at least one number"
 
-Contact: "555-12" → Error: "Contact Number must contain at least 7 digits"
-Contact: "555-abc-1234" → Error: "Contact Number can only contain numbers, spaces, +, -, and parentheses"
+Contact: "555-12" → Error: "Contact Number must have at least 9 digits"
+Contact: "555-abc-1234" → Error: "Contact Number can only contain numbers, spaces, hyphens, and parentheses"
+Contact: "12345678901" → Error: "Contact Number must have at most 10 digits"
 
 Date of Birth: "2015-01-01" → Error: "Employee must be at least 16 years old"
 

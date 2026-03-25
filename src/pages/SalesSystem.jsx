@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { supabase } from '../supabaseClient'
 import logo from '../assets/wm-logo.svg'
 import { Notification } from '../components/Notification'
+import CancelConfirmationModal from '../components/CancelConfirmationModal'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
 
 // --- IMPORTED SEPARATED FILES ---
@@ -47,6 +48,8 @@ function SalesSystem() {
 
   // Modals
   const [modals, setModals] = useState({ add: false, update: false, archive: false, confirmation: false, archiveLog: false })
+  const [showCancelConfirm, setShowCancelConfirm] = useState(false)
+  const [pendingCloseAction, setPendingCloseAction] = useState(null)
   const [salesFormData, setSalesFormData] = useState({ type: 'Income', date: new Date().toISOString().split('T')[0], time: '12:00', amount: '', enteredBy: 'Current User', description: '', status: 'Completed' })
   const [archiveReason, setArchiveReason] = useState('')
   const [archiveLogs, setArchiveLogs] = useState([])
@@ -238,6 +241,24 @@ function SalesSystem() {
   const triggerConfirmation = (action, title, message) => { setConfirmationAction(() => action); setConfirmationMsg({ title, message }); setModals({ ...modals, confirmation: true }) }
   const confirmAction = () => { if (confirmationAction) confirmationAction(); setModals({ ...modals, confirmation: false }) }
   const closeModal = () => { setModals({ add: false, update: false, archive: false, confirmation: false, archiveLog: false }); setConfirmationAction(null); setSelectedId(null); setArchiveReason('') }
+  
+  const handleCancelClick = (action) => {
+    setPendingCloseAction(() => action)
+    setShowCancelConfirm(true)
+  }
+
+  const handleCancelConfirm = () => {
+    setShowCancelConfirm(false)
+    if (pendingCloseAction) {
+      pendingCloseAction()
+    }
+    setPendingCloseAction(null)
+  }
+
+  const handleCancelCancel = () => {
+    setShowCancelConfirm(false)
+    setPendingCloseAction(null)
+  }
 
   // --- CRUD ACTIONS ---
 const prepareAddSale = async () => { 
@@ -537,11 +558,11 @@ const executeArchiveSale = async () => {
                 <div style={{flex:1}}><label>Entered By</label><input disabled style={{...formInput, background:"#eee"}} value={salesFormData.enteredBy} /></div>
             </div>
             <div><label>Description</label><textarea style={{...formInput, height:"80px"}} value={salesFormData.description} onChange={e=>setSalesFormData({...salesFormData, description:e.target.value})} required/></div>
-            <div style={{display:"flex", justifyContent:"flex-end", gap:"10px"}}><button type="button" onClick={closeModal} style={{...btnStyle, background:"#ccc", color:"#333"}}>Cancel</button><button type="submit" style={{...btnStyle, background:colors.green}}>{modals.add?"Add":"Update"}</button></div>
+            <div style={{display:"flex", justifyContent:"flex-end", gap:"10px"}}><button type="button" onClick={() => handleCancelClick(closeModal)} style={{...btnStyle, background:"#ccc", color:"#333"}}>Cancel</button><button type="submit" style={{...btnStyle, background:colors.green}}>{modals.add?"Add":"Update"}</button></div>
         </form></div></div>
       )}
       {modals.archive && (
-        <div style={modalOverlay}><div style={modalContent}><h2 style={{color:colors.red}}>Archive Record</h2><textarea style={{...formInput, height:"100px"}} placeholder="Reason..." value={archiveReason} onChange={e=>setArchiveReason(e.target.value)} /><div style={{display:"flex", justifyContent:"flex-end", gap:"10px"}}><button onClick={closeModal} style={{...btnStyle, background:"#ccc", color:"#333"}}>Cancel</button><button onClick={handleArchiveConfirmation} style={{...btnStyle, background:colors.red}}>Confirm</button></div></div></div>
+        <div style={modalOverlay}><div style={modalContent}><h2 style={{color:colors.red}}>Archive Record</h2><textarea style={{...formInput, height:"100px"}} placeholder="Reason..." value={archiveReason} onChange={e=>setArchiveReason(e.target.value)} /><div style={{display:"flex", justifyContent:"flex-end", gap:"10px"}}><button onClick={() => handleCancelClick(closeModal)} style={{...btnStyle, background:"#ccc", color:"#333"}}>Cancel</button><button onClick={handleArchiveConfirmation} style={{...btnStyle, background:colors.red}}>Confirm</button></div></div></div>
       )}
       {modals.archiveLog && (
         <div style={modalOverlay}><div style={{...modalContent, width:"900px"}}><h2 style={{color:colors.blue}}>Archive Log</h2><div style={{height:"400px", overflow:"auto"}}><table style={{width:"100%"}}><thead style={{background:colors.blue, color:"white"}}><tr><th>ID</th><th>Reason</th><th>By</th><th>Date Archived</th><th>Auto-Delete Date</th></tr></thead><tbody>{archiveLogs.map(l => {
@@ -551,6 +572,14 @@ const executeArchiveSale = async () => {
           <tr key={l.logId}><td style={{textAlign:"center", padding:"10px"}}>{l.originalId}</td><td style={{textAlign:"center"}}>{l.reason}</td><td style={{textAlign:"center"}}>{l.archivedBy}</td><td style={{textAlign:"center"}}>{l.dateArchived}</td><td style={{textAlign:"center", color: new Date() > deleteDate ? "#d32f2f" : "#f57c00", fontWeight:"bold"}}>{deleteDate.toISOString().split('T')[0]}</td></tr>
         )})} </tbody></table></div><button onClick={closeModal} style={{...btnStyle, background:"#ccc", color:"#333", marginTop:"20px"}}>Close</button></div></div>
       )}
+
+      <CancelConfirmationModal 
+        isOpen={showCancelConfirm} 
+        onConfirm={handleCancelConfirm} 
+        onCancel={handleCancelCancel}
+        colors={colors}
+        btnStyle={btnStyle}
+      />
 
       <Notification 
         message={notification.message} 

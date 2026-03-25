@@ -1,13 +1,35 @@
-import React from 'react'
+import React, { useState } from 'react'
 import { supabase } from '../supabaseClient'
 import logo from '../assets/wm-logo.svg' 
-import { Notification } from '../components/Notification' 
+import { Notification } from '../components/Notification'
+import CancelConfirmationModal from '../components/CancelConfirmationModal'
 import { usePOSLogic } from '../hooks/usePOSLogic'
 import POSModals from '../components/POSModals'
 
 function POSSystem() {
   const { state, actions, ui, navigate } = usePOSLogic();
   const { colors, uiStyles, paginate } = ui;
+
+  const [showCancelConfirm, setShowCancelConfirm] = useState(false)
+  const [pendingCloseAction, setPendingCloseAction] = useState(null)
+
+  const handleCancelClick = (action) => {
+    setPendingCloseAction(() => action)
+    setShowCancelConfirm(true)
+  }
+
+  const handleCancelConfirm = () => {
+    setShowCancelConfirm(false)
+    if (pendingCloseAction) {
+      pendingCloseAction()
+    }
+    setPendingCloseAction(null)
+  }
+
+  const handleCancelCancel = () => {
+    setShowCancelConfirm(false)
+    setPendingCloseAction(null)
+  }
 
   const PaginationControls = ({ total, page, setPage, perPage }) => {
     const totalPages = Math.max(1, Math.ceil(total / perPage))
@@ -125,7 +147,20 @@ function POSSystem() {
       </div>
 
       {/* ALL POPUP MODALS INJECTED HERE */}
-      <POSModals state={state} actions={actions} ui={ui} PaginationControls={PaginationControls} />
+      <POSModals 
+        state={state} 
+        actions={actions} 
+        ui={{...ui, showCancelConfirm, handleCancelClick, handleCancelConfirm, handleCancelCancel}} 
+        PaginationControls={PaginationControls} 
+      />
+
+      <CancelConfirmationModal 
+        isOpen={showCancelConfirm} 
+        onConfirm={handleCancelConfirm} 
+        onCancel={handleCancelCancel}
+        colors={colors}
+        btnStyle={uiStyles.btnStyle || {padding: "8px 16px", borderRadius: "5px", border: "none", cursor: "pointer", fontWeight: "bold", color: "white"}}
+      />
 
       <Notification message={state.notification.message} type={state.notification.type} onClose={() => actions.setNotification({ message: '', type: 'success' })} />
     </div>

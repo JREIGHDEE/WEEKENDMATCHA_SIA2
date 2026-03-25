@@ -233,7 +233,7 @@ function HRSystem() {
         
       {/* HEADER AREA */}
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "15px" }}>
-          <h1 style={{ margin: 0, fontSize: "28px", color: colors.darkGreen }}>Employee Management</h1>
+          <h1 style={{ margin: 0, fontSize: "28px", color: colors.darkGreen }}>Human Resource Management</h1>
           {/* Removed global View Attendance button since it requires a specific employee */}
         </div>
 

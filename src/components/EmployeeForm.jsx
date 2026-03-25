@@ -153,16 +153,27 @@ export default function EmployeeForm({
                 <input type="date" style={{...inputStyle, borderColor: getFieldBorderColor('dateHired', formData, ALL_ROLES), borderWidth: '2px'}} value={formData.dateHired} onChange={e => setFormData({...formData, dateHired: e.target.value})} />
               </>
             )}
-            <label style={{ fontSize: "12px", fontWeight: "bold", marginTop: "10px", display: "block" }}>Recurring Schedule Day</label>
-            <select style={inputStyle} value={formData.schedulePattern} onChange={e => setFormData({...formData, schedulePattern: e.target.value})}>
-                <option value="Monday">Every Monday</option>
-                <option value="Tuesday">Every Tuesday</option>
-                <option value="Wednesday">Every Wednesday</option>
-                <option value="Thursday">Every Thursday</option>
-                <option value="Friday">Every Friday</option>
-                <option value="Saturday">Every Saturday</option>
-                <option value="Sunday">Every Sunday</option>
-            </select>
+            <label style={{ fontSize: "12px", fontWeight: "bold", marginTop: "10px", display: "block" }}>Shift Date Range (Start to End)</label>
+            <div style={{ display: "flex", gap: "10px" }}>
+              <div style={{ flex: 1 }}>
+                <label style={{ fontSize: "10px", fontWeight: "bold", color: "#555" }}>Start Date</label>
+                <input 
+                  type="date" 
+                  style={{...inputStyle, borderColor: getFieldBorderColor('shiftStartDate', formData, ALL_ROLES), borderWidth: '2px'}} 
+                  value={formData.shiftStartDate || ''} 
+                  onChange={e => setFormData({...formData, shiftStartDate: e.target.value})} 
+                />
+              </div>
+              <div style={{ flex: 1 }}>
+                <label style={{ fontSize: "10px", fontWeight: "bold", color: "#555" }}>End Date</label>
+                <input 
+                  type="date" 
+                  style={{...inputStyle, borderColor: getFieldBorderColor('shiftEndDate', formData, ALL_ROLES), borderWidth: '2px'}} 
+                  value={formData.shiftEndDate || ''} 
+                  onChange={e => setFormData({...formData, shiftEndDate: e.target.value})} 
+                />
+              </div>
+            </div>
 
             <label style={{ fontSize: "12px", fontWeight: "bold", marginTop: "10px", display: "block" }}>Shift Time (Start to End)</label>
             <div style={{ display: "flex", alignItems: "center", background: "#f9f9f9", padding: "10px", borderRadius: "5px", border: formData.shiftStart && formData.shiftEnd && !validateShiftTimes(formData.shiftStart, formData.shiftEnd).isValid ? "2px solid #f44336" : "1px solid #eee" }}>

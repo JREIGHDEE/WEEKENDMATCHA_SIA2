@@ -117,13 +117,18 @@ export const validateEmployeeForm = (formData, ALL_ROLES) => {
     errors.push("Invalid Status selected")
   }
 
-  // Schedule Pattern validation
-  if (!formData.schedulePattern || formData.schedulePattern.trim() === '') {
-    errors.push("Schedule Pattern is required")
-  } else {
-    const validDays = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
-    if (!validDays.includes(formData.schedulePattern)) {
-      errors.push("Invalid Schedule Pattern selected")
+  // Shift Date Range validation
+  if (!formData.shiftStartDate || formData.shiftStartDate.trim() === '') {
+    errors.push("Shift Start Date is required")
+  }
+  if (!formData.shiftEndDate || formData.shiftEndDate.trim() === '') {
+    errors.push("Shift End Date is required")
+  }
+  if (formData.shiftStartDate && formData.shiftEndDate) {
+    const startDate = new Date(formData.shiftStartDate)
+    const endDate = new Date(formData.shiftEndDate)
+    if (startDate > endDate) {
+      errors.push("Shift Start Date cannot be after End Date")
     }
   }
 
@@ -201,8 +206,12 @@ export const isFieldValid = (fieldName, formData, ALL_ROLES = []) => {
     case 'status':
       return formData.status && ['Active', 'On Leave', 'Inactive'].includes(formData.status)
     
-    case 'schedulePattern':
-      return formData.schedulePattern && ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'].includes(formData.schedulePattern)
+    case 'shiftStartDate':
+      return formData.shiftStartDate && formData.shiftStartDate.trim() !== ''
+    
+    case 'shiftEndDate':
+      return formData.shiftEndDate && formData.shiftEndDate.trim() !== '' && 
+             (!formData.shiftStartDate || new Date(formData.shiftStartDate) <= new Date(formData.shiftEndDate))
     
     default:
       return true

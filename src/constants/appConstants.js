@@ -24,7 +24,8 @@ export const DEFAULT_FORM_DATA = {
   shiftStart: '08:00 AM',
   shiftEnd: '05:00 PM',
   dateHired: new Date().toISOString().split('T')[0],
-  schedulePattern: 'Saturday'
+  shiftStartDate: '',
+  shiftEndDate: ''
 }
 
 // --- DEFAULT MODALS STATE ---

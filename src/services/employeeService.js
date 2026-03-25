@@ -52,7 +52,8 @@ export const createEmployee = async (formData, authData, existingUserId = null) 
     ShiftSchedule: fullShift,
     EmployeeStatus: formData.status,
     DateOfBirth: formData.dob,
-    SchedulePattern: formData.schedulePattern
+    ShiftStartDate: formData.shiftStartDate,
+    ShiftEndDate: formData.shiftEndDate
   }])
 
   if (empError) return { error: empError }
@@ -79,7 +80,8 @@ export const updateEmployee = async (employeeId, formData, userID) => {
     EmployeeStatus: formData.status, 
     DateOfBirth: formData.dob, 
     DateHired: formData.dateHired,
-    SchedulePattern: formData.schedulePattern
+    ShiftStartDate: formData.shiftStartDate,
+    ShiftEndDate: formData.shiftEndDate
   }).eq('EmployeeID', employeeId)
 
   return { userUpdate, empUpdate }

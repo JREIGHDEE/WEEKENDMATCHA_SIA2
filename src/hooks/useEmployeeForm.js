@@ -19,7 +19,7 @@ export const useEmployeeForm = () => {
       email: '', password: '', role: 'Barista', status: 'Active', 
       shiftStart: '08:00 AM', shiftEnd: '05:00 PM', 
       dateHired: new Date().toISOString().split('T')[0],
-      schedulePattern: 'Saturday' 
+      shiftStartDate: '', shiftEndDate: ''
     })
   }, [])
 
@@ -38,7 +38,8 @@ export const useEmployeeForm = () => {
       shiftStart: start, 
       shiftEnd: end, 
       dateHired: employee.DateHired,
-      schedulePattern: employee.SchedulePattern || 'Saturday'
+      shiftStartDate: employee.ShiftStartDate || '',
+      shiftEndDate: employee.ShiftEndDate || ''
     })
   }, [])
 

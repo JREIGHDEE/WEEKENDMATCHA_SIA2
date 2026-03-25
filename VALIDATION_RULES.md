@@ -77,10 +77,12 @@ Comprehensive form validation has been implemented for the HR System employee cr
 - Valid options: Active, On Leave, Inactive
 - Real-time feedback: Must select from dropdown
 
-### **Schedule Pattern**
-- ✅ Required field
-- Valid options: Monday-Sunday (each day means "Every [Day]")
-- Real-time feedback: Must select from dropdown
+### **Shift Date Range**
+- ✅ Required field (both start and end dates)
+- Start Date: Cannot be empty
+- End Date: Cannot be empty
+- Range validation: Start Date must be **before or equal to** End Date
+- Real-time feedback: Green border = valid, Red border = invalid
 
 ### **Shift Time**
 - ✅ Required field (both start and end times)

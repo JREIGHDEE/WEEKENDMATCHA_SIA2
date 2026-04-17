@@ -134,7 +134,15 @@ export function usePOSLogic() {
   const getChange = () => (parseFloat(cashReceived) || 0) - getFinalTotal()
 
   const handleOpenPayment = () => { if (cart.length > 0) { setCustomerName(''); setCashReceived(''); setIsDiscounted(false); setShowPaymentModal(true) } }
-  const handlePrintReceipt = () => { setReceiptPrinted(true); setNotification({ message: "Printing Receipt...", type: 'info' }) }
+  const handlePrintReceipt = () => { 
+        setReceiptPrinted(true); 
+      
+        // This tells the tablet to print!
+        // In a normal browser, it opens a pop-up. In a Kiosk app, it prints silently.
+        setTimeout(() => {
+            window.print();
+        }, 500); // 500ms delay ensures the UI has updated before printing
+    }
 
   const handleCloseReceipt = () => {
     if (!receiptPrinted && !window.confirm("Receipt has not been printed. Close anyway?")) return

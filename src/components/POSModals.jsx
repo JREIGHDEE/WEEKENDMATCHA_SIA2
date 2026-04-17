@@ -77,33 +77,74 @@ export default function POSModals({ state, actions, ui, PaginationControls }) {
       {/* RECEIPT MODAL */}
       {state.showReceiptModal && (
         <div style={uiStyles.modalOverlay}>
+            
+            {/* ADD THIS CSS STYLE BLOCK */}
+            <style>
+              {`
+                @media print {
+                  /* Hide EVERYTHING on the page */
+                  body * { visibility: hidden; }
+                  
+                  /* Show ONLY the receipt */
+                  #printable-receipt, #printable-receipt * { visibility: visible; }
+                  
+                  /* Position the receipt at the very top left for the printer */
+                  #printable-receipt {
+                    position: absolute;
+                    left: 0;
+                    top: 0;
+                    width: 58mm; /* Senda PT-210 paper width */
+                    margin: 0;
+                    padding: 0;
+                    font-family: monospace; /* Best font for thermal printers */
+                    color: black !important;
+                  }
+
+                  /* Remove browser margins and headers */
+                  @page { margin: 0; }
+                  
+                  /* Hide the buttons from the physical printed paper */
+                  .no-print-buttons { display: none !important; }
+                }
+              `}
+            </style>
+
             <div style={{background: "white", padding: "40px", borderRadius: "20px", width: "350px", textAlign: "center", boxShadow: "0 10px 40px rgba(0,0,0,0.4)"}}>
-                <h3 style={{margin: "0 0 5px 0", fontSize: "18px", fontWeight: "bold"}}>WeekendMatcha</h3>
-                <p style={{fontSize: "12px", color: "#666", margin: "0 0 15px 0"}}>Emerald St., Marfori Heights Subd., Davao City<br/>{new Date().toLocaleString()}</p>
-                <hr style={{borderTop: "1px solid #333", borderBottom: "none", margin: "10px 0"}} />
-                <div style={{textAlign: "right", fontSize: "12px", color: "#555", marginBottom: "5px"}}>Cashier: {state.currentUser?.User?.FirstName}</div>
-                <div style={{textAlign: "right", fontSize: "12px", color: "#555", marginBottom: "5px"}}>Customer: {state.customerName}</div>
-                <div style={{textAlign: "right", fontSize: "12px", color: "#555", marginBottom: "15px"}}>Order ID: {state.currentOrderId}</div>
-                <hr style={{borderTop: "1px solid #333", borderBottom: "none", margin: "10px 0"}} />
-                <div style={{textAlign: "left", marginBottom: "15px"}}>
-                    <div style={{display:"flex", justifyContent:"space-between", fontWeight:"bold", fontSize:"12px", marginBottom:"5px"}}><span>Item</span><span>Price</span></div>
-                    {state.cart.map((item, i) => (
-                        <div key={i} style={{marginBottom:"5px"}}>
-                            <div style={{display:"flex", justifyContent:"space-between", fontSize:"12px"}}>
-                                <span>{item.qty}x {item.name}</span>
-                                <span>₱{(item.price * item.qty).toFixed(2)}</span>
-                            </div>
-                            <div style={{fontSize:"10px", color:"#666", fontStyle:"italic", paddingLeft: "10px"}}>- {item.sweetness}</div>
-                        </div>
-                    ))}
+                
+                {/* WRAP THE RECEIPT IN THIS ID */}
+                <div id="printable-receipt">
+                  <h3 style={{margin: "0 0 5px 0", fontSize: "18px", fontWeight: "bold"}}>WeekendMatcha</h3>
+                  <p style={{fontSize: "12px", color: "#666", margin: "0 0 15px 0"}}>Emerald St., Marfori Heights Subd., Davao City<br/>{new Date().toLocaleString()}</p>
+                  <hr style={{borderTop: "1px dashed #333", borderBottom: "none", margin: "10px 0"}} />
+                  <div style={{textAlign: "right", fontSize: "12px", color: "#555", marginBottom: "5px"}}>Cashier: {state.currentUser?.User?.FirstName}</div>
+                  <div style={{textAlign: "right", fontSize: "12px", color: "#555", marginBottom: "5px"}}>Customer: {state.customerName}</div>
+                  <div style={{textAlign: "right", fontSize: "12px", color: "#555", marginBottom: "15px"}}>Order ID: {state.currentOrderId}</div>
+                  <hr style={{borderTop: "1px dashed #333", borderBottom: "none", margin: "10px 0"}} />
+                  
+                  <div style={{textAlign: "left", marginBottom: "15px"}}>
+                      <div style={{display:"flex", justifyContent:"space-between", fontWeight:"bold", fontSize:"12px", marginBottom:"5px"}}><span>Item</span><span>Price</span></div>
+                      {state.cart.map((item, i) => (
+                          <div key={i} style={{marginBottom:"5px"}}>
+                              <div style={{display:"flex", justifyContent:"space-between", fontSize:"12px"}}>
+                                  <span>{item.qty}x {item.name}</span>
+                                  <span>₱{(item.price * item.qty).toFixed(2)}</span>
+                              </div>
+                              <div style={{fontSize:"10px", color:"#666", fontStyle:"italic", paddingLeft: "10px"}}>- {item.sweetness}</div>
+                          </div>
+                      ))}
+                  </div>
+                  
+                  <hr style={{borderTop: "1px dashed #333", borderBottom: "none", margin: "10px 0"}} />
+                  {state.isDiscounted && <div style={{display:"flex", justifyContent:"space-between", fontSize:"12px", color: colors.discountRed, fontStyle:"italic", marginBottom:"5px"}}><span>Discount Applied</span><span>-₱{actions.getDiscountAmount().toFixed(2)}</span></div>}
+                  <div style={{display:"flex", justifyContent:"space-between", fontWeight:"bold", fontSize:"16px", marginBottom:"5px"}}><span>Total:</span><span>₱{actions.getFinalTotal().toFixed(2)}</span></div>
+                  <div style={{display:"flex", justifyContent:"space-between", fontSize:"12px", marginBottom:"2px"}}><span>Cash Paid:</span><span>₱{parseFloat(state.cashReceived).toFixed(2)}</span></div>
+                  <div style={{display:"flex", justifyContent:"space-between", fontSize:"12px", marginBottom:"20px"}}><span>Change:</span><span>₱{actions.getChange().toFixed(2)}</span></div>
+                  <p style={{fontSize: "12px", color: "#666", marginTop: "10px", fontStyle:"italic"}}>Thank you for your purchase!</p>
                 </div>
-                <hr style={{borderTop: "1px solid #333", borderBottom: "none", margin: "10px 0"}} />
-                {state.isDiscounted && <div style={{display:"flex", justifyContent:"space-between", fontSize:"12px", color: colors.discountRed, fontStyle:"italic", marginBottom:"5px"}}><span>Discount Applied</span><span>-₱{actions.getDiscountAmount().toFixed(2)}</span></div>}
-                <div style={{display:"flex", justifyContent:"space-between", fontWeight:"bold", fontSize:"16px", marginBottom:"5px"}}><span>Total:</span><span>₱{actions.getFinalTotal().toFixed(2)}</span></div>
-                <div style={{display:"flex", justifyContent:"space-between", fontSize:"12px", marginBottom:"2px"}}><span>Cash Paid:</span><span>₱{parseFloat(state.cashReceived).toFixed(2)}</span></div>
-                <div style={{display:"flex", justifyContent:"space-between", fontSize:"12px", marginBottom:"20px"}}><span>Change:</span><span>₱{actions.getChange().toFixed(2)}</span></div>
-                <p style={{fontSize: "12px", color: "#666", marginTop: "10px", fontStyle:"italic"}}>Thank you for your purchase!</p>
-                <div style={{ marginTop: "20px" }}>
+                {/* END OF PRINTABLE WRAPPER */}
+
+                {/* Give buttons a class so they don't print on the receipt */}
+                <div className="no-print-buttons" style={{ marginTop: "20px" }}>
                     {!state.receiptPrinted ? (
                         <button onClick={actions.handlePrintReceipt} style={{ width: "100%", padding: "12px", background: "#FF6B6B", color: "white", border: "none", borderRadius: "20px", fontWeight: "bold", cursor: "pointer", marginBottom: "10px" }}>Print Receipt</button>
                     ) : (

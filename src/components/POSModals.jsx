@@ -78,7 +78,6 @@ export default function POSModals({ state, actions, ui, PaginationControls }) {
       {state.showReceiptModal && (
         <div style={uiStyles.modalOverlay}>
             
-            {/* ADD THIS CSS STYLE BLOCK */}
             <style>
               {`
                 @media print {
@@ -98,6 +97,7 @@ export default function POSModals({ state, actions, ui, PaginationControls }) {
                     padding: 0;
                     font-family: monospace; /* Best font for thermal printers */
                     color: black !important;
+                    font-weight: bold !important; /* Forces bold on print */
                   }
 
                   /* Remove browser margins and headers */
@@ -112,34 +112,39 @@ export default function POSModals({ state, actions, ui, PaginationControls }) {
             <div style={{background: "white", padding: "40px", borderRadius: "20px", width: "350px", textAlign: "center", boxShadow: "0 10px 40px rgba(0,0,0,0.4)"}}>
                 
                 {/* WRAP THE RECEIPT IN THIS ID */}
-                <div id="printable-receipt">
+                <div id="printable-receipt" style={{ fontWeight: "bold", color: "#333" }}>
                   <h3 style={{margin: "0 0 5px 0", fontSize: "18px", fontWeight: "bold"}}>WeekendMatcha</h3>
-                  <p style={{fontSize: "12px", color: "#666", margin: "0 0 15px 0"}}>Emerald St., Marfori Heights Subd., Davao City<br/>{new Date().toLocaleString()}</p>
-                  <hr style={{borderTop: "1px dashed #333", borderBottom: "none", margin: "10px 0"}} />
-                  <div style={{textAlign: "right", fontSize: "12px", color: "#555", marginBottom: "5px"}}>Cashier: {state.currentUser?.User?.FirstName}</div>
-                  <div style={{textAlign: "right", fontSize: "12px", color: "#555", marginBottom: "5px"}}>Customer: {state.customerName}</div>
-                  <div style={{textAlign: "right", fontSize: "12px", color: "#555", marginBottom: "15px"}}>Order ID: {state.currentOrderId}</div>
-                  <hr style={{borderTop: "1px dashed #333", borderBottom: "none", margin: "10px 0"}} />
+                  <p style={{fontSize: "12px", color: "#333", margin: "0 0 15px 0", fontWeight: "bold"}}>Emerald St., Marfori Heights Subd., Davao City<br/>{new Date().toLocaleString()}</p>
+                  
+                  <hr style={{borderTop: "2px dashed #333", borderBottom: "none", margin: "10px 0"}} />
+                  
+                  <div style={{textAlign: "right", fontSize: "12px", color: "#333", marginBottom: "5px", fontWeight: "bold"}}>Cashier: {state.currentUser?.User?.FirstName}</div>
+                  <div style={{textAlign: "right", fontSize: "12px", color: "#333", marginBottom: "5px", fontWeight: "bold"}}>Customer: {state.customerName}</div>
+                  <div style={{textAlign: "right", fontSize: "12px", color: "#333", marginBottom: "15px", fontWeight: "bold"}}>Order ID: {state.currentOrderId}</div>
+                  
+                  <hr style={{borderTop: "2px dashed #333", borderBottom: "none", margin: "10px 0"}} />
                   
                   <div style={{textAlign: "left", marginBottom: "15px"}}>
                       <div style={{display:"flex", justifyContent:"space-between", fontWeight:"bold", fontSize:"12px", marginBottom:"5px"}}><span>Item</span><span>Price</span></div>
                       {state.cart.map((item, i) => (
                           <div key={i} style={{marginBottom:"5px"}}>
-                              <div style={{display:"flex", justifyContent:"space-between", fontSize:"12px"}}>
+                              <div style={{display:"flex", justifyContent:"space-between", fontSize:"12px", fontWeight: "bold"}}>
                                   <span>{item.qty}x {item.name}</span>
                                   <span>₱{(item.price * item.qty).toFixed(2)}</span>
                               </div>
-                              <div style={{fontSize:"10px", color:"#666", fontStyle:"italic", paddingLeft: "10px"}}>- {item.sweetness}</div>
+                              <div style={{fontSize:"10px", color: "#333", fontStyle:"italic", paddingLeft: "10px", fontWeight: "bold"}}>- {item.sweetness}</div>
                           </div>
                       ))}
                   </div>
                   
-                  <hr style={{borderTop: "1px dashed #333", borderBottom: "none", margin: "10px 0"}} />
-                  {state.isDiscounted && <div style={{display:"flex", justifyContent:"space-between", fontSize:"12px", color: colors.discountRed, fontStyle:"italic", marginBottom:"5px"}}><span>Discount Applied</span><span>-₱{actions.getDiscountAmount().toFixed(2)}</span></div>}
+                  <hr style={{borderTop: "2px dashed #333", borderBottom: "none", margin: "10px 0"}} />
+                  
+                  {state.isDiscounted && <div style={{display:"flex", justifyContent:"space-between", fontSize:"12px", color: colors.discountRed, fontStyle:"italic", marginBottom:"5px", fontWeight: "bold"}}><span>Discount Applied</span><span>-₱{actions.getDiscountAmount().toFixed(2)}</span></div>}
                   <div style={{display:"flex", justifyContent:"space-between", fontWeight:"bold", fontSize:"16px", marginBottom:"5px"}}><span>Total:</span><span>₱{actions.getFinalTotal().toFixed(2)}</span></div>
-                  <div style={{display:"flex", justifyContent:"space-between", fontSize:"12px", marginBottom:"2px"}}><span>Cash Paid:</span><span>₱{parseFloat(state.cashReceived).toFixed(2)}</span></div>
-                  <div style={{display:"flex", justifyContent:"space-between", fontSize:"12px", marginBottom:"20px"}}><span>Change:</span><span>₱{actions.getChange().toFixed(2)}</span></div>
-                  <p style={{fontSize: "12px", color: "#666", marginTop: "10px", fontStyle:"italic"}}>Thank you for your purchase!</p>
+                  <div style={{display:"flex", justifyContent:"space-between", fontSize:"12px", marginBottom:"2px", fontWeight: "bold"}}><span>Cash Paid:</span><span>₱{parseFloat(state.cashReceived).toFixed(2)}</span></div>
+                  <div style={{display:"flex", justifyContent:"space-between", fontSize:"12px", marginBottom:"20px", fontWeight: "bold"}}><span>Change:</span><span>₱{actions.getChange().toFixed(2)}</span></div>
+                  
+                  <p style={{fontSize: "12px", color: "#333", marginTop: "10px", fontStyle:"italic", fontWeight: "bold"}}>Thank you for your purchase!</p>
                 </div>
                 {/* END OF PRINTABLE WRAPPER */}
 

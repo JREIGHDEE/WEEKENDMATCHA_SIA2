@@ -74,81 +74,67 @@ export default function POSModals({ state, actions, ui, PaginationControls }) {
         </div>
       )}
 
-      {/* RECEIPT MODAL */}
-      {state.showReceiptModal && (
+     {state.showReceiptModal && (
         <div style={uiStyles.modalOverlay}>
-            
             <style>
               {`
                 @media print {
-                  /* Hide EVERYTHING on the page */
                   body * { visibility: hidden; }
-                  
-                  /* Show ONLY the receipt */
                   #printable-receipt, #printable-receipt * { visibility: visible; }
-                  
-                  /* Position the receipt at the very top left for the printer */
                   #printable-receipt {
                     position: absolute;
                     left: 0;
                     top: 0;
-                    width: 58mm; /* Senda PT-210 paper width */
+                    width: 58mm;
                     margin: 0;
                     padding: 0;
-                    font-family: monospace; /* Best font for thermal printers */
+                    font-family: monospace;
                     color: black !important;
-                    font-weight: bold !important; /* Forces bold on print */
+                    font-weight: bold !important;
+                    font-size: 14px !important;
                   }
-
-                  /* Remove browser margins and headers */
                   @page { margin: 0; }
-                  
-                  /* Hide the buttons from the physical printed paper */
                   .no-print-buttons { display: none !important; }
                 }
               `}
             </style>
 
             <div style={{background: "white", padding: "40px", borderRadius: "20px", width: "350px", textAlign: "center", boxShadow: "0 10px 40px rgba(0,0,0,0.4)"}}>
-                
-                {/* WRAP THE RECEIPT IN THIS ID */}
-                <div id="printable-receipt" style={{ fontWeight: "bold", color: "#333" }}>
-                  <h3 style={{margin: "0 0 5px 0", fontSize: "18px", fontWeight: "bold"}}>WeekendMatcha</h3>
-                  <p style={{fontSize: "12px", color: "#333", margin: "0 0 15px 0", fontWeight: "bold"}}>Emerald St., Marfori Heights Subd., Davao City<br/>{new Date().toLocaleString()}</p>
+                <div id="printable-receipt" style={{ fontWeight: "bold", color: "#333", fontSize: "14px" }}>
+                  <div style={{margin: "0 0 5px 0", fontWeight: "bold"}}>WeekendMatcha</div>
+                  <div style={{margin: "0 0 15px 0", fontWeight: "bold"}}>Emerald St., Marfori Heights Subd., Davao City<br/>{new Date().toLocaleString()}</div>
                   
                   <hr style={{borderTop: "2px dashed #333", borderBottom: "none", margin: "10px 0"}} />
                   
-                  <div style={{textAlign: "right", fontSize: "12px", color: "#333", marginBottom: "5px", fontWeight: "bold"}}>Cashier: {state.currentUser?.User?.FirstName}</div>
-                  <div style={{textAlign: "right", fontSize: "12px", color: "#333", marginBottom: "5px", fontWeight: "bold"}}>Customer: {state.customerName}</div>
-                  <div style={{textAlign: "right", fontSize: "12px", color: "#333", marginBottom: "15px", fontWeight: "bold"}}>Order ID: {state.currentOrderId}</div>
+                  <div style={{textAlign: "right", marginBottom: "5px", fontWeight: "bold"}}>Cashier: {state.currentUser?.User?.FirstName}</div>
+                  <div style={{textAlign: "right", marginBottom: "5px", fontWeight: "bold"}}>Customer: {state.customerName}</div>
+                  <div style={{textAlign: "right", marginBottom: "15px", fontWeight: "bold"}}>Order ID: {state.currentOrderId}</div>
                   
                   <hr style={{borderTop: "2px dashed #333", borderBottom: "none", margin: "10px 0"}} />
                   
                   <div style={{textAlign: "left", marginBottom: "15px"}}>
-                      <div style={{display:"flex", justifyContent:"space-between", fontWeight:"bold", fontSize:"12px", marginBottom:"5px"}}><span>Item</span><span>Price</span></div>
+                      <div style={{display:"flex", justifyContent:"space-between", fontWeight:"bold", marginBottom:"5px"}}><span>Item</span><span>Price</span></div>
                       {state.cart.map((item, i) => (
                           <div key={i} style={{marginBottom:"5px"}}>
-                              <div style={{display:"flex", justifyContent:"space-between", fontSize:"12px", fontWeight: "bold"}}>
+                              <div style={{display:"flex", justifyContent:"space-between", fontWeight: "bold"}}>
                                   <span>{item.qty}x {item.name}</span>
                                   <span>₱{(item.price * item.qty).toFixed(2)}</span>
                               </div>
-                              <div style={{fontSize:"10px", color: "#333", fontStyle:"italic", paddingLeft: "10px", fontWeight: "bold"}}>- {item.sweetness}</div>
+                              <div style={{fontStyle:"italic", paddingLeft: "10px", fontWeight: "bold"}}>- {item.sweetness}</div>
                           </div>
                       ))}
                   </div>
                   
                   <hr style={{borderTop: "2px dashed #333", borderBottom: "none", margin: "10px 0"}} />
                   
-                  {state.isDiscounted && <div style={{display:"flex", justifyContent:"space-between", fontSize:"12px", color: colors.discountRed, fontStyle:"italic", marginBottom:"5px", fontWeight: "bold"}}><span>Discount Applied</span><span>-₱{actions.getDiscountAmount().toFixed(2)}</span></div>}
-                  <div style={{display:"flex", justifyContent:"space-between", fontWeight:"bold", fontSize:"16px", marginBottom:"5px"}}><span>Total:</span><span>₱{actions.getFinalTotal().toFixed(2)}</span></div>
-                  <div style={{display:"flex", justifyContent:"space-between", fontSize:"12px", marginBottom:"2px", fontWeight: "bold"}}><span>Cash Paid:</span><span>₱{parseFloat(state.cashReceived).toFixed(2)}</span></div>
-                  <div style={{display:"flex", justifyContent:"space-between", fontSize:"12px", marginBottom:"20px", fontWeight: "bold"}}><span>Change:</span><span>₱{actions.getChange().toFixed(2)}</span></div>
+                  {state.isDiscounted && <div style={{display:"flex", justifyContent:"space-between", color: colors.discountRed, fontStyle:"italic", marginBottom:"5px", fontWeight: "bold"}}><span>Discount Applied</span><span>-₱{actions.getDiscountAmount().toFixed(2)}</span></div>}
+                  <div style={{display:"flex", justifyContent:"space-between", fontWeight:"bold", marginBottom:"5px"}}><span>Total:</span><span>₱{actions.getFinalTotal().toFixed(2)}</span></div>
+                  <div style={{display:"flex", justifyContent:"space-between", marginBottom:"2px", fontWeight: "bold"}}><span>Cash Paid:</span><span>₱{parseFloat(state.cashReceived).toFixed(2)}</span></div>
+                  <div style={{display:"flex", justifyContent:"space-between", marginBottom:"20px", fontWeight: "bold"}}><span>Change:</span><span>₱{actions.getChange().toFixed(2)}</span></div>
                   
-                  <p style={{fontSize: "12px", color: "#333", marginTop: "10px", fontStyle:"italic", fontWeight: "bold"}}>Thank you for your purchase!</p>
+                  <div style={{marginTop: "10px", fontStyle:"italic", fontWeight: "bold"}}>Thank you for your purchase!</div>
                 </div>
-                {/* END OF PRINTABLE WRAPPER */}
 
-                {/* Give buttons a class so they don't print on the receipt */}
                 <div className="no-print-buttons" style={{ marginTop: "20px" }}>
                     {!state.receiptPrinted ? (
                         <button onClick={actions.handlePrintReceipt} style={{ width: "100%", padding: "12px", background: "#FF6B6B", color: "white", border: "none", borderRadius: "20px", fontWeight: "bold", cursor: "pointer", marginBottom: "10px" }}>Print Receipt</button>

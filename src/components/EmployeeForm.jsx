@@ -47,6 +47,9 @@ export default function EmployeeForm({
 }) {
   const [showCancelConfirm, setShowCancelConfirm] = useState(false)
 
+  const labelStyle = { fontSize: "12px", fontWeight: "bold", display: "inline-flex", alignItems: "center", gap: "4px" }
+  const requiredStyle = { color: "#D9534F" }
+
   const handleValidation = () => {
     const errors = validateEmployeeForm(formData, ALL_ROLES)
     if (errors.length > 0) {
@@ -91,19 +94,19 @@ export default function EmployeeForm({
             <h4 style={{ margin: "10px 0", borderBottom: "1px solid #eee" }}>Personal Information</h4>
             <div style={{ display: "flex", gap: "10px" }}>
               <div style={{flex: 1}}>
-                <label style={{fontSize:"12px", fontWeight:"bold"}}>First Name</label>
+                <label style={labelStyle}>First Name<span style={requiredStyle}>*</span></label>
                 <input disabled={!modals.add} style={{...inputStyle, borderColor: getFieldBorderColor('firstName', formData, ALL_ROLES), borderWidth: '2px', opacity: !modals.add ? 0.6 : 1, cursor: !modals.add ? 'not-allowed' : 'auto'}} placeholder="Reigh" value={formData.firstName} onChange={e => !modals.add || setFormData({...formData, firstName: e.target.value})} />
               </div>
               <div style={{flex: 1}}>
-                <label style={{fontSize:"12px", fontWeight:"bold"}}>Last Name</label>
+                <label style={labelStyle}>Last Name<span style={requiredStyle}>*</span></label>
                 <input disabled={!modals.add} style={{...inputStyle, borderColor: getFieldBorderColor('lastName', formData, ALL_ROLES), borderWidth: '2px', opacity: !modals.add ? 0.6 : 1, cursor: !modals.add ? 'not-allowed' : 'auto'}} placeholder="Denolan" value={formData.lastName} onChange={e => !modals.add || setFormData({...formData, lastName: e.target.value})} />
               </div>
             </div>
-            <label style={{fontSize:"12px", fontWeight:"bold"}}>Address</label>
+            <label style={labelStyle}>Address<span style={requiredStyle}>*</span></label>
             <input style={{...inputStyle, borderColor: getFieldBorderColor('address', formData, ALL_ROLES), borderWidth: '2px'}} placeholder="123 Main Street, New York, NY 10001" value={formData.address} onChange={e => setFormData({...formData, address: e.target.value})} />
             <div style={{ display: "flex", gap: "10px" }}>
               <div style={{flex: 1}}>
-                <label style={{fontSize:"12px", fontWeight:"bold"}}>Contact Number (Philippine)</label>
+                <label style={labelStyle}>Contact Number (Philippine)<span style={requiredStyle}>*</span></label>
                 <div style={{display: "flex", alignItems: "center", background: "white", border: `2px solid ${getFieldBorderColor('contact', formData, ALL_ROLES)}`, borderRadius: "5px", padding: "0"}}>
                   <span style={{padding: "8px 10px", fontWeight: "bold", color: "#555", background: "#f9f9f9", borderRight: "1px solid #ddd"}}>+63</span>
                   <input 
@@ -119,29 +122,29 @@ export default function EmployeeForm({
                 </div>
               </div>
               <div style={{flex: 1}}>
-                <label style={{fontSize:"12px", fontWeight:"bold"}}>Date of Birth</label>
+                <label style={labelStyle}>Date of Birth<span style={requiredStyle}>*</span></label>
                 <input type="date" disabled={!modals.add} style={{...inputStyle, borderColor: getFieldBorderColor('dob', formData, ALL_ROLES), borderWidth: '2px', opacity: !modals.add ? 0.6 : 1, cursor: !modals.add ? 'not-allowed' : 'auto'}} value={formData.dob} onChange={e => !modals.add || setFormData({...formData, dob: e.target.value})} />
               </div>
             </div>
             {modals.add && (
               <>
                 <h4 style={{ margin: "15px 0 10px", borderBottom: "1px solid #eee" }}>Account Details</h4>
-                <label style={{fontSize:"12px", fontWeight:"bold"}}>Email</label>
+                <label style={labelStyle}>Email<span style={requiredStyle}>*</span></label>
                 <input style={{...inputStyle, borderColor: getFieldBorderColor('email', formData, ALL_ROLES), borderWidth: '2px'}} placeholder="reigh.denolan@test.com" type="email" value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} />
-                <label style={{fontSize:"12px", fontWeight:"bold"}}>Password</label>
+                <label style={labelStyle}>Password<span style={requiredStyle}>*</span></label>
                 <input style={{...inputStyle, borderColor: getFieldBorderColor('password', formData, ALL_ROLES), borderWidth: '2px'}} placeholder="SecurePass123" type="text" value={formData.password} onChange={e => setFormData({...formData, password: e.target.value})} />
               </>
             )}
             <h4 style={{ margin: "15px 0 10px", borderBottom: "1px solid #eee" }}>Job Details</h4>
             <div style={{ display: "flex", gap: "10px" }}>
               <div style={{flex: 1}}>
-                <label style={{fontSize:"12px", fontWeight:"bold"}}>Role</label>
+                <label style={labelStyle}>Role<span style={requiredStyle}>*</span></label>
                 <select style={inputStyle} value={formData.role} onChange={e => setFormData({...formData, role: e.target.value})}>
                   {ALL_ROLES.map(r => <option key={r} value={r}>{r}</option>)}
                 </select>
               </div>
               <div style={{flex: 1}}>
-                <label style={{fontSize:"12px", fontWeight:"bold"}}>Status</label>
+                <label style={labelStyle}>Status<span style={requiredStyle}>*</span></label>
                 <select style={inputStyle} value={formData.status} onChange={e => setFormData({...formData, status: e.target.value})}>
                   <option value="Active">Active</option> <option value="On Leave">On Leave</option> <option value="Inactive">Inactive</option>
                 </select>
@@ -149,14 +152,14 @@ export default function EmployeeForm({
             </div>
             {modals.add && (
               <>
-                <label style={{fontSize:"12px", fontWeight:"bold"}}>Date Hired</label>
+                <label style={labelStyle}>Date Hired<span style={requiredStyle}>*</span></label>
                 <input type="date" style={{...inputStyle, borderColor: getFieldBorderColor('dateHired', formData, ALL_ROLES), borderWidth: '2px'}} value={formData.dateHired} onChange={e => setFormData({...formData, dateHired: e.target.value})} />
               </>
             )}
             <label style={{ fontSize: "12px", fontWeight: "bold", marginTop: "10px", display: "block" }}>Shift Date Range (Start to End)</label>
             <div style={{ display: "flex", gap: "10px" }}>
               <div style={{ flex: 1 }}>
-                <label style={{ fontSize: "10px", fontWeight: "bold", color: "#555" }}>Start Date</label>
+                <label style={{ fontSize: "10px", fontWeight: "bold", color: "#555", display: "inline-flex", alignItems: "center", gap: "4px" }}>Start Date<span style={requiredStyle}>*</span></label>
                 <input 
                   type="date" 
                   style={{...inputStyle, borderColor: getFieldBorderColor('shiftStartDate', formData, ALL_ROLES), borderWidth: '2px'}} 
@@ -165,7 +168,7 @@ export default function EmployeeForm({
                 />
               </div>
               <div style={{ flex: 1 }}>
-                <label style={{ fontSize: "10px", fontWeight: "bold", color: "#555" }}>End Date</label>
+                <label style={{ fontSize: "10px", fontWeight: "bold", color: "#555", display: "inline-flex", alignItems: "center", gap: "4px" }}>End Date<span style={requiredStyle}>*</span></label>
                 <input 
                   type="date" 
                   style={{...inputStyle, borderColor: getFieldBorderColor('shiftEndDate', formData, ALL_ROLES), borderWidth: '2px'}} 

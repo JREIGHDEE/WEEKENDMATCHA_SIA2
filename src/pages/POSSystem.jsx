@@ -2,7 +2,6 @@ import React, { useState } from 'react'
 import { supabase } from '../supabaseClient'
 import logo from '../assets/wm-logo.svg' 
 import { Notification } from '../components/Notification'
-import CancelConfirmationModal from '../components/CancelConfirmationModal'
 import { usePOSLogic } from '../hooks/usePOSLogic'
 import POSModals from '../components/POSModals'
 
@@ -152,14 +151,6 @@ function POSSystem() {
         actions={actions} 
         ui={{...ui, showCancelConfirm, handleCancelClick, handleCancelConfirm, handleCancelCancel}} 
         PaginationControls={PaginationControls} 
-      />
-
-      <CancelConfirmationModal 
-        isOpen={showCancelConfirm} 
-        onConfirm={handleCancelConfirm} 
-        onCancel={handleCancelCancel}
-        colors={colors}
-        btnStyle={uiStyles.btnStyle || {padding: "8px 16px", borderRadius: "5px", border: "none", cursor: "pointer", fontWeight: "bold", color: "white"}}
       />
 
       <Notification message={state.notification.message} type={state.notification.type} onClose={() => actions.setNotification({ message: '', type: 'success' })} />

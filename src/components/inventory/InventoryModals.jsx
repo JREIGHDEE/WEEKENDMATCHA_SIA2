@@ -39,7 +39,7 @@ export const InventoryModals = ({
                 <form onSubmit={modals.add ? handleAddSubmit : executeUpdate}>
                     
                     {/* Item Name - Editable in Update */}
-                    <label style={styles.labelStyle}>Item Name</label>
+                    <label style={{...styles.labelStyle, display: 'inline-flex', alignItems: 'center', gap: '4px'}}>Item Name<span style={{ color: '#D9534F' }}>*</span></label>
                     <input 
                       name="ItemName" 
                       style={styles.inputStyle} 
@@ -51,7 +51,7 @@ export const InventoryModals = ({
                     <div style={{display:"flex", gap:"15px"}}>
                         {/* Category - Editable in Update */}
                         <div style={{flex:1}}>
-                            <label style={styles.labelStyle}>Category</label>
+                            <label style={{...styles.labelStyle, display: 'inline-flex', alignItems: 'center', gap: '4px'}}>Category<span style={{ color: '#D9534F' }}>*</span></label>
                             <select name="Category" style={styles.inputStyle} value={formData.Category} onChange={handleInputChange}>
                                 <option>Ingredients</option>
                                 <option>Packaging</option>
@@ -62,7 +62,7 @@ export const InventoryModals = ({
 
                         {/* Unit Measurement - DISABLED in Update */}
                         <div style={{flex:1}}>
-                            <label style={styles.labelStyle}>Unit Measurement</label>
+                            <label style={{...styles.labelStyle, display: 'inline-flex', alignItems: 'center', gap: '4px'}}>Unit Measurement<span style={{ color: '#D9534F' }}>*</span></label>
                             <select 
                                 name="UnitMeasurement" 
                                 style={{...styles.inputStyle, opacity: modals.update ? 0.6 : 1, cursor: modals.update ? 'not-allowed' : 'auto'}} 
@@ -82,13 +82,13 @@ export const InventoryModals = ({
                     <div style={{display:"flex", gap:"15px"}}>
                         {/* Quantity - Editable in Update */}
                         <div style={{flex:1}}>
-                             <label style={styles.labelStyle}>Quantity</label>
+                             <label style={{...styles.labelStyle, display: 'inline-flex', alignItems: 'center', gap: '4px'}}>Quantity<span style={{ color: '#D9534F' }}>*</span></label>
                              <input type="number" step="0.01" name="Quantity" style={styles.inputStyle} value={formData.Quantity} onChange={handleInputChange} required />
                         </div>
 
                         {/* Unit Price - DISABLED in Update */}
                         <div style={{flex:1}}>
-                             <label style={styles.labelStyle}>Unit Price (₱)</label>
+                             <label style={{...styles.labelStyle, display: 'inline-flex', alignItems: 'center', gap: '4px'}}>Unit Price (₱)<span style={{ color: '#D9534F' }}>*</span></label>
                              <input 
                                 type="number" 
                                 step="0.01" 
@@ -105,13 +105,13 @@ export const InventoryModals = ({
                     <div style={{display:"flex", gap:"15px"}}>
                         {/* Low Alert Threshold - Editable in Update */}
                         <div style={{flex:1}}>
-                             <label style={styles.labelStyle}>Low Alert Threshold</label>
+                             <label style={{...styles.labelStyle, display: 'inline-flex', alignItems: 'center', gap: '4px'}}>Low Alert Threshold<span style={{ color: '#D9534F' }}>*</span></label>
                              <input type="number" name="ReorderThreshold" style={styles.inputStyle} value={formData.ReorderThreshold} onChange={handleInputChange} required />
                         </div>
 
                         {/* Expiry Date - DISABLED in Update */}
                         <div style={{flex:1}}>
-                             <label style={styles.labelStyle}>Expiry Date</label>
+                             <label style={{...styles.labelStyle, display: 'inline-flex', alignItems: 'center', gap: '4px'}}>Expiry Date<span style={{ color: '#D9534F' }}>*</span></label>
                              <input 
                                 type="date" 
                                 name="Expiry" 

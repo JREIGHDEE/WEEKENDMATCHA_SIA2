@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { supabase } from '../supabaseClient'
 import { useNavigate, useLocation } from 'react-router-dom'
 import logo from '../assets/wm-logo.svg'
+import { requiredLabelStyle, requiredAsteriskStyle } from '../constants/uiStyles'
 
 function Login() {
   const [email, setEmail] = useState('')
@@ -108,23 +109,29 @@ function Login() {
         
         <form onSubmit={handleLogin} style={{ display: "flex", flexDirection: "column", gap: "15px" }}>
           
-          <input 
-            type="email" 
-            placeholder="Email" 
-            value={email} 
-            onChange={(e) => setEmail(e.target.value)}
-            style={{ padding: "12px", borderRadius: "5px", border: "1px solid #ccc" }}
-            required
-          />
+          <div style={{ display: "flex", flexDirection: "column", gap: "5px" }}>
+            <label style={requiredLabelStyle}>Email<span style={requiredAsteriskStyle}>*</span></label>
+            <input 
+              type="email" 
+              placeholder="Email" 
+              value={email} 
+              onChange={(e) => setEmail(e.target.value)}
+              style={{ padding: "12px", borderRadius: "5px", border: "1px solid #ccc" }}
+              required
+            />
+          </div>
           
-          <input 
-            type="password" 
-            placeholder="Password" 
-            value={password} 
-            onChange={(e) => setPassword(e.target.value)}
-            style={{ padding: "12px", borderRadius: "5px", border: "1px solid #ccc" }}
-            required
-          />
+          <div style={{ display: "flex", flexDirection: "column", gap: "5px" }}>
+            <label style={requiredLabelStyle}>Password<span style={requiredAsteriskStyle}>*</span></label>
+            <input 
+              type="password" 
+              placeholder="Password" 
+              value={password} 
+              onChange={(e) => setPassword(e.target.value)}
+              style={{ padding: "12px", borderRadius: "5px", border: "1px solid #ccc" }}
+              required
+            />
+          </div>
           
           <button 
             type="submit" 

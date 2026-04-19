@@ -260,6 +260,9 @@ function SalesSystem() {
     setPendingCloseAction(null)
   }
 
+  const formLabelStyle = { fontSize: "13px", fontWeight: "bold", display: "inline-flex", alignItems: "center", gap: "4px" }
+  const requiredStyle = { color: "#D9534F" }
+
   // --- CRUD ACTIONS ---
 const prepareAddSale = async () => { 
     const { data: { user } } = await supabase.auth.getUser()
@@ -536,9 +539,9 @@ const executeArchiveSale = async () => {
         <div style={modalOverlay}><div style={modalContent}><h2 style={{color:colors.darkGreen, marginTop:0}}>{modals.add ? "Add Record" : "Update Record"}</h2>
         <form onSubmit={modals.add ? handleAddConfirmation : handleUpdateConfirmation}>
             <div style={{display:"flex", gap:"10px"}}>
-                <div style={{flex:1}}><label>Type</label><select style={{...formInput, opacity: !modals.add ? 0.6 : 1, cursor: !modals.add ? 'not-allowed' : 'auto'}} disabled={!modals.add} value={salesFormData.type} onChange={e=>setSalesFormData({...salesFormData, type:e.target.value})}><option>Income</option><option>Expense</option></select></div>
+                <div style={{flex:1}}><label style={formLabelStyle}>Type<span style={requiredStyle}>*</span></label><select style={{...formInput, opacity: !modals.add ? 0.6 : 1, cursor: !modals.add ? 'not-allowed' : 'auto'}} disabled={!modals.add} value={salesFormData.type} onChange={e=>setSalesFormData({...salesFormData, type:e.target.value})}><option>Income</option><option>Expense</option></select></div>
                 <div style={{flex:1}}>
-                  <label>Date</label>
+                  <label style={formLabelStyle}>Date<span style={requiredStyle}>*</span></label>
                   <input 
                       type="date" 
                       style={{
@@ -554,15 +557,15 @@ const executeArchiveSale = async () => {
               </div>
             </div>
             <div style={{display:"flex", gap:"10px"}}>
-                <div style={{flex:1}}><label>Amount</label><input type="number" step="0.01" style={formInput} value={salesFormData.amount} onChange={e=>setSalesFormData({...salesFormData, amount:e.target.value})} required/></div>
-                <div style={{flex:1}}><label>Entered By</label><input disabled style={{...formInput, background:"#eee"}} value={salesFormData.enteredBy} /></div>
+                <div style={{flex:1}}><label style={formLabelStyle}>Amount<span style={requiredStyle}>*</span></label><input type="number" step="0.01" style={formInput} value={salesFormData.amount} onChange={e=>setSalesFormData({...salesFormData, amount:e.target.value})} required/></div>
+                <div style={{flex:1}}><label style={formLabelStyle}>Entered By</label><input disabled style={{...formInput, background:"#eee"}} value={salesFormData.enteredBy} /></div>
             </div>
-            <div><label>Description</label><textarea style={{...formInput, height:"80px"}} value={salesFormData.description} onChange={e=>setSalesFormData({...salesFormData, description:e.target.value})} required/></div>
+            <div><label style={formLabelStyle}>Description<span style={requiredStyle}>*</span></label><textarea style={{...formInput, height:"80px"}} value={salesFormData.description} onChange={e=>setSalesFormData({...salesFormData, description:e.target.value})} required/></div>
             <div style={{display:"flex", justifyContent:"flex-end", gap:"10px"}}><button type="button" onClick={() => handleCancelClick(closeModal)} style={{...btnStyle, background:"#ccc", color:"#333"}}>Cancel</button><button type="submit" style={{...btnStyle, background:colors.green}}>{modals.add?"Add":"Update"}</button></div>
         </form></div></div>
       )}
       {modals.archive && (
-        <div style={modalOverlay}><div style={modalContent}><h2 style={{color:colors.red}}>Archive Record</h2><textarea style={{...formInput, height:"100px"}} placeholder="Reason..." value={archiveReason} onChange={e=>setArchiveReason(e.target.value)} /><div style={{display:"flex", justifyContent:"flex-end", gap:"10px"}}><button onClick={() => handleCancelClick(closeModal)} style={{...btnStyle, background:"#ccc", color:"#333"}}>Cancel</button><button onClick={handleArchiveConfirmation} style={{...btnStyle, background:colors.red}}>Confirm</button></div></div></div>
+        <div style={modalOverlay}><div style={modalContent}><h2 style={{color:colors.red}}>Archive Record</h2><label style={{ fontSize: "13px", fontWeight: "bold", display: "inline-flex", alignItems: "center", gap: "4px", marginBottom: "8px" }}>Reason<span style={{ color: "#D9534F" }}>*</span></label><textarea style={{...formInput, height:"100px"}} placeholder="Reason..." value={archiveReason} onChange={e=>setArchiveReason(e.target.value)} /><div style={{display:"flex", justifyContent:"flex-end", gap:"10px"}}><button onClick={() => handleCancelClick(closeModal)} style={{...btnStyle, background:"#ccc", color:"#333"}}>Cancel</button><button onClick={handleArchiveConfirmation} style={{...btnStyle, background:colors.red}}>Confirm</button></div></div></div>
       )}
       {modals.archiveLog && (
         <div style={modalOverlay}><div style={{...modalContent, width:"900px"}}><h2 style={{color:colors.blue}}>Archive Log</h2><div style={{height:"400px", overflow:"auto"}}><table style={{width:"100%"}}><thead style={{background:colors.blue, color:"white"}}><tr><th>ID</th><th>Reason</th><th>By</th><th>Date Archived</th><th>Auto-Delete Date</th></tr></thead><tbody>{archiveLogs.map(l => {

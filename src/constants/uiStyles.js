@@ -35,6 +35,18 @@ export const inputStyle = {
   boxSizing: "border-box"
 }
 
+export const requiredLabelStyle = {
+  fontSize: "12px",
+  fontWeight: "bold",
+  display: "inline-flex",
+  alignItems: "center",
+  gap: "4px"
+}
+
+export const requiredAsteriskStyle = {
+  color: "#D9534F"
+}
+
 // --- PILL BUTTON STYLE GENERATOR ---
 export const pillBtnStyle = (active, colors) => ({
   padding: "5px 15px",

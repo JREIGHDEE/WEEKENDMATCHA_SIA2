@@ -50,7 +50,7 @@ export default function POSModals({ state, actions, ui, PaginationControls }) {
         <div style={uiStyles.modalOverlay}>
             <div style={uiStyles.modalContent}>
                 <h2 style={{ textAlign: "center", color: "#6B7C65", marginTop: 0, fontSize: "24px" }}>Process Payment</h2>
-                <div><label style={{fontWeight: "bold", fontSize: "14px"}}>Name of Customer</label><input style={uiStyles.inputStyle} value={state.customerName} onChange={(e) => actions.setCustomerName(e.target.value)} /></div>
+                <div><label style={{fontWeight: "bold", fontSize: "14px", display: "inline-flex", alignItems: "center", gap: "4px"}}>Name of Customer<span style={{ color: "#D9534F" }}>*</span></label><input style={uiStyles.inputStyle} value={state.customerName} onChange={(e) => actions.setCustomerName(e.target.value)} /></div>
                 <div>
                     <label style={{fontWeight: "bold", fontSize: "14px"}}>Total Amount</label>
                     <div style={{ ...uiStyles.inputStyle, background: "#f0f0f0", display: "flex", justifyContent: "flex-end", alignItems: "center", gap: "10px" }}>
@@ -61,7 +61,7 @@ export default function POSModals({ state, actions, ui, PaginationControls }) {
                         Apply Discount for Senior Citizen and PWD (20%) <input type="checkbox" checked={state.isDiscounted} onChange={(e) => actions.setIsDiscounted(e.target.checked)} style={{ marginLeft: "5px", transform: "scale(1.2)" }} />
                     </div>
                 </div>
-                <div><label style={{fontWeight: "bold", fontSize: "14px"}}>Cash Received</label><input type="number" style={uiStyles.inputStyle} value={state.cashReceived} onChange={(e) => actions.setCashReceived(e.target.value)} placeholder="₱0.00" /></div>
+                <div><label style={{fontWeight: "bold", fontSize: "14px", display: "inline-flex", alignItems: "center", gap: "4px"}}>Cash Received<span style={{ color: "#D9534F" }}>*</span></label><input type="number" style={uiStyles.inputStyle} value={state.cashReceived} onChange={(e) => actions.setCashReceived(e.target.value)} placeholder="₱0.00" /></div>
                 <div style={{ textAlign: "center" }}>
                     <div style={{ fontWeight: "bold", fontSize: "14px" }}>Change :</div>
                     {actions.getChange() < 0 ? <div style={{ color: colors.blueText, fontWeight: "bold", fontSize: "18px" }}>Insufficient Amount</div> : <div style={{ color: "black", fontWeight: "bold", fontSize: "18px" }}>₱{actions.getChange().toFixed(2)}</div>}

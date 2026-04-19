@@ -24,6 +24,7 @@ function ArchiveModal({ archiveReason, setArchiveReason, triggerConfirmation, ex
       <div style={modalOverlay}>
         <div style={modalContent}>
           <h2 style={{ color: colors.red, marginTop: 0 }}>Archive Employee</h2>
+          <label style={{ fontSize: "12px", fontWeight: "bold", display: "inline-flex", alignItems: "center", gap: "4px", marginBottom: "8px" }}>Reason<span style={{ color: "#D9534F" }}>*</span></label>
           <textarea 
             style={{ ...inputStyle, height: "100px", resize: "none" }} 
             placeholder="Reason for Archiving (Required)" 

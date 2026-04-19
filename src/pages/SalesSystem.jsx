@@ -35,7 +35,7 @@ function SalesSystem() {
 
   // Search & Filter
   const [searchTerm, setSearchTerm] = useState('')
-  const [filterCategory, setFilterCategory] = useState('Description') 
+  const [filterCategory, setFilterCategory] = useState('All') 
   const [showFilterMenu, setShowFilterMenu] = useState(false)
   const searchContainerRef = useRef(null)
 
@@ -126,6 +126,13 @@ function SalesSystem() {
   }
 
   useEffect(() => { fetchData() }, [])
+
+  // Handle outside clicks for search filter
+  useEffect(() => {
+    const handleClick = (e) => { if (searchContainerRef.current && !searchContainerRef.current.contains(e.target)) setShowFilterMenu(false); };
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [])
 
   // --- 2. METRICS & GRAPHS ---
   useEffect(() => {
@@ -230,6 +237,7 @@ function SalesSystem() {
       result = result.filter(t => {
         if (filterCategory === 'Description') return t.desc.toLowerCase().includes(lowerTerm)
         else if (filterCategory === 'ID') return t.id.toLowerCase().includes(lowerTerm)
+        else if (filterCategory === 'All') return t.desc.toLowerCase().includes(lowerTerm) || t.id.toLowerCase().includes(lowerTerm)
         else return false
       })
     }
@@ -416,12 +424,31 @@ const executeArchiveSale = async () => {
         {/* SEARCH & ACTIONS BAR */}
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
           {/* Search Input */}
-          <input 
-            placeholder="🔍 Search by All..." 
-            style={{ padding: "8px", borderRadius: "20px", border: "1px solid #ccc", width: "300px" }} 
-            value={searchTerm} 
-            onChange={(e) => setSearchTerm(e.target.value)} 
-          />
+          <div style={{ position: "relative" }} ref={searchContainerRef}>
+            <input 
+              placeholder={`🔍 Search by ${filterCategory}...`} 
+              style={{ padding: "8px", borderRadius: "20px", border: "1px solid #ccc", width: "300px" }} 
+              value={searchTerm} 
+              onChange={(e) => setSearchTerm(e.target.value)} 
+              onFocus={() => setShowFilterMenu(true)}
+            />
+            {showFilterMenu && (
+              <div style={{ position: "absolute", top: "110%", left: 0, background: "white", padding: "15px", borderRadius: "15px", boxShadow: "0 4px 15px rgba(0,0,0,0.2)", zIndex: 50, border: "1px solid #ddd", width: "380px" }}>
+                <p style={{ margin: "0 0 10px 0", fontSize: "14px", fontWeight: "bold", color: "#555" }}>Filter by Category:</p>
+                <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+                  {['All', 'ID', 'Description'].map(cat => (
+                    <button 
+                      key={cat} 
+                      style={{ padding: "5px 15px", borderRadius: "20px", border: "1px solid #666", background: filterCategory === cat ? colors.green : "white", color: filterCategory === cat ? "white" : "black", cursor: "pointer", fontSize: "12px", fontWeight: "bold" }} 
+                      onClick={() => { setFilterCategory(cat); setShowFilterMenu(false) }}
+                    >
+                      {cat.toUpperCase()}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
 
           {/* Action Buttons */}
           <div style={{ display: "flex", gap: "10px" }}>

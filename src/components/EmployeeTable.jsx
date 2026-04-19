@@ -1,6 +1,18 @@
 // 1. Add setCurrentPage to the props at the top
 function EmployeeTable({ filteredEmployees, currentPage, setCurrentPage, itemsPerPage, prepareUpdate, prepareArchive, openAttendanceModal, colors, PaginationControls}) {
   
+  const getStatusColor = (status) => {
+    switch (status) {
+      case 'Inactive':
+        return colors.red;
+      case 'On Leave':
+        return '#FFD700'; // Yellow
+      case 'Active':
+      default:
+        return 'green';
+    }
+  }
+  
   const paginate = (items, page, perPage) => {
     const startIndex = (page - 1) * perPage
     return items.slice(startIndex, startIndex + perPage)
@@ -19,7 +31,7 @@ function EmployeeTable({ filteredEmployees, currentPage, setCurrentPage, itemsPe
                 <td>{emp.EmployeeID}</td>
                 <td style={{ fontWeight: "bold" }}>{emp.User?.FirstName} {emp.User?.LastName}</td>
                 <td>{emp.User?.RoleName}</td>
-                <td style={{ color: "green", fontWeight: "bold" }}>{emp.EmployeeStatus}</td>
+                <td style={{ color: getStatusColor(emp.EmployeeStatus), fontWeight: "bold" }}>{emp.EmployeeStatus}</td>
                 <td>{emp.DateHired}</td>
                 <td>{emp.User?.ContactNumber}</td>
                 

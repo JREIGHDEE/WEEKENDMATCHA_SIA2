@@ -37,7 +37,7 @@ function HRSystem() {
   const notificationState = useNotification()
 
   // Destructure hook returns
-  const { employees, setEmployees, filteredEmployees, searchTerm, setSearchTerm, filterCategory, setFilterCategory, updateFilteredEmployees } = employeeFiltering
+  const { employees, setEmployees, filteredEmployees, searchTerm, setSearchTerm, filterCategory, setFilterCategory, statusFilter, setStatusFilter, updateFilteredEmployees } = employeeFiltering
   const { formData, setFormData, archiveReason, setArchiveReason, prepareAddForm, populateUpdateForm } = employeeForm
   const { modals, closeModal, closeMultipleModals, triggerConfirmation, confirmAction, selectedEmpId, setSelectedEmpId } = modalState
   const { notification, showSuccess, showError, showWarning, clearNotification } = notificationState
@@ -65,7 +65,7 @@ function HRSystem() {
   useEffect(() => {
     updateFilteredEmployees()
     setCurrentPage(1) 
-  }, [employees, searchTerm, filterCategory, updateFilteredEmployees])
+  }, [employees, searchTerm, filterCategory, statusFilter, updateFilteredEmployees])
 
   async function fetchEmployees() {
     const { data, error } = await employeeService.fetchAllEmployees()
@@ -220,7 +220,39 @@ function HRSystem() {
   const modalOverlay = { position: "fixed", top: 0, left: 0, width: "100%", height: "100%", background: "rgba(0,0,0,0.6)", display: "flex", justifyContent: "center", alignItems: "center", zIndex: 1000 }
   const confirmOverlay = { ...modalOverlay, zIndex: 2000 } 
   const modalContent = { background: "white", padding: "25px", borderRadius: "15px", width: "550px", maxHeight: "90vh", overflowY: "auto", boxShadow: "0 10px 25px rgba(0,0,0,0.3)" }
-  const pillBtn = (active) => ({ padding: "5px 15px", borderRadius: "20px", border: "1px solid #666", background: active ? colors.green : "white", color: active ? "white" : "black", cursor: "pointer", fontSize: "12px", fontWeight: "bold" })
+  const pillBtn = (active, status) => {
+    let backgroundColor = "white";
+    let textColor = "black";
+    
+    if (active) {
+      switch (status) {
+        case 'Inactive':
+          backgroundColor = colors.red;
+          textColor = "white";
+          break;
+        case 'On Leave':
+          backgroundColor = "#ff9d00d1"; // Yellow
+          textColor = "black";
+          break;
+        case 'Active':
+        default:
+          backgroundColor = colors.green;
+          textColor = "white";
+          break;
+      }
+    }
+    
+    return { 
+      padding: "5px 15px", 
+      borderRadius: "20px", 
+      border: "1px solid #666", 
+      background: backgroundColor, 
+      color: textColor, 
+      cursor: "pointer", 
+      fontSize: "12px", 
+      fontWeight: "bold" 
+    };
+  }
 
   return (
     <div style={{ display: "flex", height: "100vh", width: "100vw", overflow: "hidden", fontFamily: "sans-serif" }}>
@@ -235,6 +267,19 @@ function HRSystem() {
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "15px" }}>
           <h1 style={{ margin: 0, fontSize: "28px", color: colors.darkGreen }}>Human Resource Management</h1>
           {/* Removed global View Attendance button since it requires a specific employee */}
+        </div>
+
+        {/* STATUS TABS */}
+        <div style={{ display: "flex", gap: "10px", marginBottom: "20px" }}>
+          {['All', 'Active', 'Inactive', 'On Leave'].map(status => (
+            <button 
+              key={status} 
+              style={pillBtn(statusFilter === status, status)} 
+              onClick={() => setStatusFilter(status)}
+            >
+              {status.toUpperCase()}
+            </button>
+          ))}
         </div>
 
         {/* SEARCH & ACTIONS BAR - ALIGNED IN ONE ROW */}

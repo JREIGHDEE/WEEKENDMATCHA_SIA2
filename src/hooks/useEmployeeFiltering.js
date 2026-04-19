@@ -6,9 +6,17 @@ export const useEmployeeFiltering = () => {
   const [filteredEmployees, setFilteredEmployees] = useState([])
   const [searchTerm, setSearchTerm] = useState('')
   const [filterCategory, setFilterCategory] = useState('Name')
+  const [statusFilter, setStatusFilter] = useState('All')
 
-  const filterEmployees = useCallback((employees, searchTerm, filterCategory) => {
+  const filterEmployees = useCallback((employees, searchTerm, filterCategory, statusFilter) => {
     let result = employees
+    
+    // First apply status filter
+    if (statusFilter !== 'All') {
+      result = result.filter(e => e.EmployeeStatus === statusFilter)
+    }
+    
+    // Then apply search filter
     if (searchTerm) {
       const lowerTerm = searchTerm.toLowerCase()
       result = result.filter(e => {
@@ -30,9 +38,9 @@ export const useEmployeeFiltering = () => {
   }, [])
 
   const updateFilteredEmployees = useCallback(() => {
-    const filtered = filterEmployees(employees, searchTerm, filterCategory)
+    const filtered = filterEmployees(employees, searchTerm, filterCategory, statusFilter)
     setFilteredEmployees(filtered)
-  }, [employees, searchTerm, filterCategory, filterEmployees])
+  }, [employees, searchTerm, filterCategory, statusFilter, filterEmployees])
 
   return {
     employees,
@@ -43,6 +51,8 @@ export const useEmployeeFiltering = () => {
     setSearchTerm,
     filterCategory,
     setFilterCategory,
+    statusFilter,
+    setStatusFilter,
     updateFilteredEmployees
   }
 }

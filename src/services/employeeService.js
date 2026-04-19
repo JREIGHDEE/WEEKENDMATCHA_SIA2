@@ -5,7 +5,6 @@ export const fetchAllEmployees = async () => {
   const { data, error } = await supabase
     .from('Employee')
     .select('*, User(*)') 
-    .neq('EmployeeStatus', 'Inactive') 
     .order('EmployeeID', { ascending: true })
   return { data, error }
 }

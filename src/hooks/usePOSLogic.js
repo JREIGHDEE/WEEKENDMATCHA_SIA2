@@ -248,7 +248,7 @@ export function usePOSLogic() {
           const productData = { ProductName: newItemName, ProductPrice: parseFloat(newItemPrice), ProductImageURL: publicUrl, Category: newItemCategory, Recipe: newItemRecipe }
           if (isEditing) {
                const { error } = await supabase.from('Product').update(productData).eq('ProductID', editItemId)
-               if(error) throw error; alert("Item Updated Successfully!")
+               if(error) throw error; setNotification({ message: "Item Updated Successfully!", type: 'success' })
           } else {
                const { error } = await supabase.from('Product').insert([productData])
                if(error) throw error; setNotification({ message: "Item Added Successfully!", type: 'success' })

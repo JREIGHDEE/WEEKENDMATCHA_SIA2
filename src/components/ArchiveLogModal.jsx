@@ -35,7 +35,7 @@ function ArchiveLogModal({ archiveLogs, archivePage, setArchivePage, archivePerP
                     <td>{log.ArchivedDate}</td>
                     <td style={{ color: new Date() > deleteDate ? "#d32f2f" : "#f57c00", fontWeight: "bold" }}>{deleteDate.toISOString().split('T')[0]}</td>
                     <td>{log.ReasonArchived}</td>
-                    <td><button onClick={() => executeRestore(log.LogID, log.EmployeeID)} style={{ padding: "5px 15px", background: "#337AB7", color: "white", border: "none", borderRadius: "15px", cursor: "pointer", fontWeight: "bold" }}>Restore</button></td>
+                    <td><button onClick={() => executeRestore(log.LogID, log.EmployeeID, log.UserID)} style={{ padding: "5px 15px", background: "#337AB7", color: "white", border: "none", borderRadius: "15px", cursor: "pointer", fontWeight: "bold" }}>Restore</button></td>
                   </tr>
                 )
               })}

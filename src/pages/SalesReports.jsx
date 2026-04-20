@@ -1,12 +1,15 @@
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useReportLogic } from '../hooks/useReportLogic';
+import { Notification } from '../components/Notification';
 import Sidebar from '../components/Sidebar';
 import ReportTable from '../components/ReportTable';
 import { colors, btnStyle, inputStyle } from '../constants/uiStyles';
 
 function SalesReports() {
   const navigate = useNavigate();
-  const { state, actions } = useReportLogic();
+  const [notification, setNotification] = useState({ message: '', type: 'success' });
+  const { state, actions } = useReportLogic(setNotification);
 
   return (
     <div style={{ display: "flex", height: "100vh", width: "100vw", background: colors.beige }}>
@@ -29,6 +32,12 @@ function SalesReports() {
 
         <ReportTable history={state.reportHistory} loading={state.loading} colors={colors} />
       </div>
+
+      <Notification
+        message={notification.message}
+        type={notification.type}
+        onClose={() => setNotification({ message: '', type: 'success' })}
+      />
 
       {/* Keep your Print Section and Modals here or move them to separate files too! */}
     </div>

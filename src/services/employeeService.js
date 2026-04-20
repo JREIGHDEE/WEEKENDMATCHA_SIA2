@@ -88,7 +88,11 @@ export const updateEmployee = async (employeeId, formData, userID) => {
 
 // --- ARCHIVE OPERATIONS ---
 export const archiveEmployee = async (employeeId, userID, reason) => {
+  // Update Employee status to Inactive
   const archiveResult = await supabase.from('Employee').update({ EmployeeStatus: 'Inactive' }).eq('EmployeeID', employeeId)
+  
+  // Also update User IsActive field if it exists
+  const userUpdateResult = await supabase.from('User').update({ IsActive: false }).eq('UserID', userID)
   
   const logResult = await supabase.from('ArchiveLog').insert([{ 
     EmployeeID: employeeId, 
@@ -97,7 +101,7 @@ export const archiveEmployee = async (employeeId, userID, reason) => {
     ReasonArchived: reason 
   }])
 
-  return { archiveResult, logResult }
+  return { archiveResult, userUpdateResult, logResult }
 }
 
 export const fetchArchiveLogs = async () => {
@@ -108,10 +112,14 @@ export const fetchArchiveLogs = async () => {
   return { data, error }
 }
 
-export const restoreEmployee = async (logID, empID) => {
+export const restoreEmployee = async (logID, empID, userID) => {
+  // Update Employee status back to Active
   const updateResult = await supabase.from('Employee').update({ EmployeeStatus: 'Active' }).eq('EmployeeID', empID)
   
   if (updateResult.error) return { error: updateResult.error }
+  
+  // Also update User IsActive field if it exists
+  const userUpdateResult = await supabase.from('User').update({ IsActive: true }).eq('UserID', userID)
   
   const deleteResult = await supabase.from('ArchiveLog').delete().eq('LogID', logID)
   

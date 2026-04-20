@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../supabaseClient';
 
-export function useReportLogic() {
+export function useReportLogic(setNotification) {
   const [showGenerateModal, setShowGenerateModal] = useState(false);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [reportHistory, setReportHistory] = useState([]);
@@ -54,7 +54,11 @@ export function useReportLogic() {
         fetchReportHistory();
       }, 800);
     } catch (err) {
-      alert("Error: " + err.message);
+      if (setNotification) {
+        setNotification({ message: "Error: " + err.message, type: 'error' });
+      } else {
+        alert("Error: " + err.message);
+      }
     } finally {
       setLoading(false);
       setReportForm({ dateFrom: '', dateTo: '', reportType: 'Daily Sales' });

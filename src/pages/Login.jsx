@@ -2,12 +2,14 @@ import { useState, useEffect } from 'react'
 import { supabase } from '../supabaseClient'
 import { useNavigate, useLocation } from 'react-router-dom'
 import logo from '../assets/wm-logo.svg'
+import { Notification } from '../components/Notification'
 import { requiredLabelStyle, requiredAsteriskStyle } from '../constants/uiStyles'
 
 function Login() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
+  const [notification, setNotification] = useState({ message: '', type: 'success' })
   const navigate = useNavigate()
   const location = useLocation() 
 
@@ -23,6 +25,14 @@ function Login() {
   // 3. Define Admin Roles
   const ADMIN_ROLES = ['HR Admin', 'Inventory Admin', 'Sales Admin']
 
+  const showNotification = (message, type = 'success') => {
+    setNotification({ message, type })
+  }
+
+  const clearNotification = () => {
+    setNotification({ message: '', type: 'success' })
+  }
+
   async function handleLogin(e) {
     e.preventDefault()
     setLoading(true)
@@ -34,7 +44,7 @@ function Login() {
     })
 
     if (authError) {
-      alert("Login failed: " + authError.message)
+      showNotification("Login failed: " + authError.message, 'error')
       setLoading(false)
       return
     }
@@ -49,14 +59,34 @@ function Login() {
       .maybeSingle() // Prevents crash if user missing
 
     if (userError) {
-      alert("Database Error: " + userError.message)
+      showNotification("Database Error: " + userError.message, 'error')
       setLoading(false)
       return
     }
 
     // C. Handle Missing Profile (e.g. Old accounts or sync issues)
     if (!userData) {
-      alert("Login successful, but no User Profile was found in the database.\n\nPlease contact HR to set up your profile.")
+      showNotification("Login successful, but no User Profile was found in the database. Please contact HR to set up your profile.", 'warning')
+      await supabase.auth.signOut()
+      setLoading(false)
+      return
+    }
+
+    // C1. Check if Employee is Archived/Inactive
+    const { data: employeeData, error: employeeError } = await supabase
+      .from('Employee')
+      .select('EmployeeStatus')
+      .eq('UserID', userId)
+      .maybeSingle()
+
+    if (employeeError) {
+      showNotification("Database Error: " + employeeError.message, 'error')
+      setLoading(false)
+      return
+    }
+
+    if (employeeData && employeeData.EmployeeStatus === 'Inactive') {
+      showNotification("Account Disabled: Your account has been archived and is no longer active. Please contact HR to reactivate your account.", 'error')
       await supabase.auth.signOut()
       setLoading(false)
       return
@@ -73,7 +103,7 @@ function Login() {
             navigate('/admin-menu')
         } else {
             await supabase.auth.signOut()
-            alert("⛔ ACCESS DENIED\n\nYou are attempting to access the Admin System with an Employee account.\nPlease use the 'Personal' or 'POS' option.")
+            showNotification("Access Denied: You are attempting to access the Admin System with an Employee account. Please use the 'Personal' or 'POS' option.", 'error')
         }
     } 
     else if (loginType === 'pos') {
@@ -149,6 +179,12 @@ function Login() {
           ← Back to Landing Page
         </p>
       </div>
+
+      <Notification
+        message={notification.message}
+        type={notification.type}
+        onClose={clearNotification}
+      />
     </div>
   )
 }

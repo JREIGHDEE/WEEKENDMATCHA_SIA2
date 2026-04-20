@@ -176,8 +176,8 @@ function HRSystem() {
     modalState.openModal('archiveLog')
   }
 
-  const executeRestore = async (logID, empID) => {
-    const { error } = await employeeService.restoreEmployee(logID, empID)
+  const executeRestore = async (logID, empID, userID) => {
+    const { error } = await employeeService.restoreEmployee(logID, empID, userID)
     if (error) { 
       showError('Error restoring: ' + error.message)
       return 

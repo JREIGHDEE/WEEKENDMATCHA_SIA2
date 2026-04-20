@@ -1,12 +1,22 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../supabaseClient'
+import { Notification } from '../components/Notification'
 import logo from '../assets/wm-logo.svg' 
 import cafePhoto from '../assets/cafe-photo.png'
 
 function AdminMenu() {
   const navigate = useNavigate()
   const [loading, setLoading] = useState(true)
+  const [notification, setNotification] = useState({ message: '', type: 'success' })
+
+  const showNotification = (message, type = 'success') => {
+    setNotification({ message, type })
+  }
+
+  const clearNotification = () => {
+    setNotification({ message: '', type: 'success' })
+  }
 
   // SECURITY CHECK
   useEffect(() => {
@@ -23,8 +33,8 @@ function AdminMenu() {
       const ALLOWED = ['HR Admin', 'Inventory Admin', 'Sales Admin']
 
       if (!data || !ALLOWED.includes(data.RoleName)) {
-        alert("⛔ ACCESS DENIED: You are not an Admin.")
-        navigate('/personal-view') 
+        showNotification("Access Denied: You are not an Admin.", 'error')
+        setTimeout(() => navigate('/personal-view'), 2000)
       } else {
         setLoading(false) 
       }
@@ -114,7 +124,11 @@ function AdminMenu() {
               />
           </div>
 
-          
+      <Notification
+        message={notification.message}
+        type={notification.type}
+        onClose={clearNotification}
+      />
     </div>
   )
 }

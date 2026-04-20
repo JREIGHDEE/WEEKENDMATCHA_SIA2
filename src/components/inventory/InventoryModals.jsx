@@ -5,8 +5,8 @@ import CancelConfirmationModal from '../CancelConfirmationModal';
 
 export const InventoryModals = ({ 
   modals, closeModal, formData, handleInputChange, handleAddSubmit, 
-  executeUpdate, executeAddItem, setModals, executeArchive, 
-  archiveReason, setArchiveReason, archiveLogs, archivePage, setArchivePage 
+  handleUpdateSubmit, executeUpdateItem, executeAddItem, setModals, executeArchive, 
+  archiveReason, setArchiveReason, archiveLogs, archivePage, setArchivePage, triggerConfirmation 
 }) => {
   const [showCancelConfirm, setShowCancelConfirm] = useState(false)
   const [pendingCloseAction, setPendingCloseAction] = useState(null)
@@ -36,7 +36,7 @@ export const InventoryModals = ({
             <div style={styles.modalContent}>
                 <button onClick={closeModal} style={{ position: "absolute", top: "15px", right: "15px", background: "none", border: "none", fontSize: "24px", cursor: "pointer", color: "#999" }}>&times;</button>
                 <h2 style={{ color: styles.colors.darkGreen, marginTop: 0 }}>{modals.add ? "Add New Item" : "Update Item"}</h2>
-                <form onSubmit={modals.add ? handleAddSubmit : executeUpdate}>
+                <form onSubmit={modals.add ? handleAddSubmit : handleUpdateSubmit}>
                     
                     {/* Item Name - Editable in Update */}
                     <label style={{...styles.labelStyle, display: 'inline-flex', alignItems: 'center', gap: '4px'}}>Item Name<span style={{ color: '#D9534F' }}>*</span></label>
@@ -153,6 +153,25 @@ export const InventoryModals = ({
         </div>
       )}
 
+      {/* CONFIRM UPDATE MODAL */}
+      {modals.confirmUpdate && (
+        <div style={{ ...styles.modalOverlay, zIndex: 1100 }}>
+            <div style={{ ...styles.modalContent, width: "400px", textAlign: "center" }}>
+                <h2 style={{ color: styles.colors.darkGreen }}>Confirm Update</h2>
+                <div style={{textAlign:"left", background:"#f9f9f9", padding:"15px", borderRadius:"10px", fontSize:"14px", marginBottom:"20px"}}>
+                    <p><b>Name:</b> {formData.ItemName}</p>
+                    <p><b>Category:</b> {formData.Category}</p>
+                    <p><b>Quantity:</b> {formData.Quantity} {formData.UnitMeasurement}</p>
+                    <p><b>Low Alert Threshold:</b> {formData.ReorderThreshold}</p>
+                </div>
+                <div style={{ display: "flex", justifyContent: "center", gap: "15px" }}>
+                    <button onClick={() => setModals({ ...modals, confirmUpdate: false, update: true })} style={{ ...styles.btnStyle, background: "#ccc", color: "#333" }}>Edit</button>
+                    <button onClick={executeUpdateItem} style={{ ...styles.btnStyle, background: styles.colors.darkGreen }}>Confirm & Update</button>
+                </div>
+            </div>
+        </div>
+      )}
+
       {/* ARCHIVE MODAL */}
       {modals.archive && (
         <div style={styles.modalOverlay}>
@@ -163,7 +182,13 @@ export const InventoryModals = ({
                 <textarea style={{...styles.inputStyle, height:"80px"}} value={archiveReason} onChange={e => setArchiveReason(e.target.value)} placeholder="e.g. Discontinued product" />
                 <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px" }}>
                     <button onClick={() => handleCancelClick(closeModal)} style={{...styles.btnStyle, background: "#ccc", color: "#333"}}>Cancel</button>
-                    <button onClick={executeArchive} style={{...styles.btnStyle, background: styles.colors.red}}>Confirm Archive</button>
+                    <button onClick={() => {
+                      if (!archiveReason.trim()) {
+                        alert("Please provide a reason for archiving.");
+                        return;
+                      }
+                      triggerConfirmation(executeArchive);
+                    }} style={{...styles.btnStyle, background: styles.colors.red}}>Confirm Archive</button>
                 </div>
             </div>
         </div>

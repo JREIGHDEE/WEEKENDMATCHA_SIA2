@@ -29,7 +29,7 @@ export function InventoryTable({ items, loading, prepareUpdate, prepareArchive }
                         <tr><td colSpan="8" style={{ textAlign: "center", padding: "30px" }}>No items found.</td></tr>
                     ) : (
                         items.map(item => {
-                            const isExpired = item.ExpiryDate ? new Date(item.ExpiryDate) < new Date() : false;
+                            const isExpired = item.Expiry ? new Date(item.Expiry) < new Date() : false;
                             const isLowStock = item.Quantity <= item.ReorderThreshold && !isExpired;
                             
                             let statusText = "Good";
@@ -48,7 +48,7 @@ export function InventoryTable({ items, loading, prepareUpdate, prepareArchive }
                                     </td>
                                     <td style={{ width: "120px", fontWeight: "bold" }}>₱{parseFloat(item.UnitPrice).toFixed(2)}</td>
                                     <td style={{ width: "150px", fontWeight: "bold", color: isExpired ? styles.colors.red : "inherit" }}>
-                                        {item.ExpiryDate ? new Date(item.ExpiryDate).toLocaleDateString() : 'N/A'}
+                                        {item.Expiry ? new Date(item.Expiry).toLocaleDateString() : 'N/A'}
                                     </td>
                                     <td style={{ width: "150px", fontWeight: "bold", color: statusColor }}>{statusText}</td>
                                     

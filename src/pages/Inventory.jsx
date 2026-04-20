@@ -14,6 +14,7 @@ import { AlertBanners } from '../components/inventory/AlertBanners';
 import { InventoryTable } from '../components/inventory/InventoryTable';
 import { InventoryModals } from '../components/inventory/InventoryModals';
 import Sidebar from '../components/Sidebar'; // <--- 1. IMPORT THE NEW SIDEBAR
+import ConfirmationModal from '../components/ConfirmationModal';
 
 function InventorySystem() {
   const navigate = useNavigate();
@@ -33,7 +34,7 @@ function InventorySystem() {
   const [currentPage, setCurrentPage] = useState(1);
   const [archivePage, setArchivePage] = useState(1);
   const [notification, setNotification] = useState({ message: '', type: 'success' });
-  const [modals, setModals] = useState({ add: false, confirmAdd: false, update: false, archive: false, viewLog: false });
+  const [modals, setModals] = useState({ add: false, confirmAdd: false, update: false, confirmUpdate: false, archive: false, viewLog: false });
   const [archiveReason, setArchiveReason] = useState('');
   const searchContainerRef = useRef(null);
   const itemsPerPage = 7;
@@ -44,6 +45,10 @@ function InventorySystem() {
     UnitPrice: '', ReorderThreshold: '', Expiry: ''
   };
   const [formData, setFormData] = useState(initialFormState);
+
+  // --- CONFIRMATION STATE ---
+  const [showConfirmation, setShowConfirmation] = useState(false);
+  const [confirmationAction, setConfirmationAction] = useState(null);
 
   // --- FILTER LOGIC ---
   useEffect(() => {
@@ -75,10 +80,29 @@ function InventorySystem() {
   const handleInputChange = (e) => setFormData(prev => ({ ...prev, [e.target.name]: e.target.value }));
   
   const closeModal = () => {
-    setModals({ add: false, confirmAdd: false, update: false, archive: false, viewLog: false });
+    setModals({ add: false, confirmAdd: false, update: false, confirmUpdate: false, archive: false, viewLog: false });
     setFormData(initialFormState);
     setArchiveReason('');
     setSelectedId(null);
+  };
+
+  // --- CONFIRMATION FUNCTIONS ---
+  const triggerConfirmation = (action) => {
+    setConfirmationAction(() => action);
+    setShowConfirmation(true);
+  };
+
+  const confirmAction = () => {
+    if (confirmationAction) {
+      confirmationAction();
+    }
+    setShowConfirmation(false);
+    setConfirmationAction(null);
+  };
+
+  const cancelConfirmation = () => {
+    setShowConfirmation(false);
+    setConfirmationAction(null);
   };
 
   const handleAddSubmit = (e) => {
@@ -122,8 +146,16 @@ const prepareUpdate = (id) => {
     setModals({ ...modals, archive: true });
   };
 
-  const executeUpdate = async (e) => {
+  const handleUpdateSubmit = (e) => {
     e.preventDefault();
+    if(!formData.ItemName || !formData.Quantity || !formData.ReorderThreshold) {
+        setNotification({ message: "Please fill in all required fields.", type: 'error' });
+        return;
+    }
+    setModals({ ...modals, update: false, confirmUpdate: true });
+  };
+
+  const executeUpdateItem = async () => {
     const { error } = await supabase.from('Inventory').update({
         ItemName: formData.ItemName, 
         Category: formData.Category,
@@ -140,7 +172,6 @@ const prepareUpdate = (id) => {
   };
 
   const executeArchive = async () => {
-    if (!archiveReason) return setNotification({ message: "Please provide a reason.", type: 'error' });
     const itemToArchive = inventory.find(i => i.InventoryID === selectedId);
     
     const { data: { user } } = await supabase.auth.getUser();
@@ -161,6 +192,8 @@ const prepareUpdate = (id) => {
         setNotification({ message: "Item Archived Successfully.", type: 'success' });
         fetchInventory();
         closeModal();
+    } else {
+        setNotification({ message: "Error archiving item: " + archiveError.message, type: 'error' });
     }
   };
 
@@ -227,7 +260,8 @@ const prepareUpdate = (id) => {
          formData={formData} 
          handleInputChange={handleInputChange} 
          handleAddSubmit={handleAddSubmit}
-         executeUpdate={executeUpdate} 
+         handleUpdateSubmit={handleUpdateSubmit}
+         executeUpdateItem={executeUpdateItem}
          executeAddItem={executeAddItem} 
          setModals={setModals}
          executeArchive={executeArchive} 
@@ -236,6 +270,15 @@ const prepareUpdate = (id) => {
          archiveLogs={archiveLogs} 
          archivePage={archivePage} 
          setArchivePage={setArchivePage}
+         triggerConfirmation={triggerConfirmation}
+      />
+
+      <ConfirmationModal 
+        isOpen={showConfirmation}
+        onConfirm={confirmAction}
+        onCancel={cancelConfirmation}
+        colors={styles.colors}
+        btnStyle={styles.btnStyle}
       />
 
       <Notification 

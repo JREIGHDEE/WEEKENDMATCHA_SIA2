@@ -10,48 +10,139 @@ export function Notification({ message, type = 'success', onClose, duration = 30
 
   if (!message) return null
 
-  const colors = {
-    success: { bg: '#d4edda', text: '#155724', icon: '' },
-    error: { bg: '#f8d7da', text: '#721c24', icon: '' },
-    warning: { bg: '#fff3cd', text: '#856404', icon: '' },
-    info: { bg: '#d1ecf1', text: '#0c5460', icon: '' }
+  const stylesByType = {
+    success: {
+      accent: '#6B7C65',
+      bg: '#f6fbf5',
+      title: 'Success',
+      button: '#6B7C65'
+    },
+    error: {
+      accent: '#d9534f',
+      bg: '#fff6f6',
+      title: 'Insufficient Amount',
+      button: '#d9534f'
+    },
+    warning: {
+      accent: '#e5c546',
+      bg: '#fffdf5',
+      title: 'Warning',
+      button: '#c9a92f'
+    },
+    info: {
+      accent: '#5a6955',
+      bg: '#f5f7f5',
+      title: 'Notice',
+      button: '#5a6955'
+    }
   }
 
-  const style = colors[type] || colors.success
+  const current = stylesByType[type] || stylesByType.success
 
   return (
     <div
       style={{
         position: 'fixed',
-        top: '20px',
-        right: '20px',
-        background: style.bg,
-        color: style.text,
-        padding: '16px 20px',
-        borderRadius: '10px',
-        boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
-        border: `1px solid ${style.text}`,
+        inset: 0,
+        background: 'rgba(0, 0, 0, 0.45)',
         display: 'flex',
         alignItems: 'center',
-        gap: '12px',
-        fontSize: '14px',
-        fontWeight: '500',
-        zIndex: 10000,
-        maxWidth: '400px',
-        animation: 'slideIn 0.3s ease-in-out',
+        justifyContent: 'center',
+        zIndex: 99999,
+        animation: 'fadeInOverlay 0.2s ease-out'
       }}
     >
-      <span style={{ fontSize: '20px' }}>{style.icon}</span>
-      <div>{message}</div>
+      <div
+        style={{
+          width: 'min(90vw, 560px)',
+          background: '#ffffff',
+          borderRadius: '28px',
+          padding: '34px 30px 28px',
+          boxShadow: '0 18px 45px rgba(0,0,0,0.25)',
+          textAlign: 'center',
+          border: '1px solid #e5e5e5',
+          animation: 'popupIn 0.25s ease-out'
+        }}
+      >
+        <div
+          style={{
+            width: '72px',
+            height: '72px',
+            borderRadius: '50%',
+            background: current.bg,
+            border: `2px solid ${current.accent}`,
+            margin: '0 auto 18px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontSize: '34px',
+            color: current.accent,
+            fontWeight: 'bold'
+          }}
+        >
+          {type === 'error' ? '!' : type === 'warning' ? '!' : '✓'}
+        </div>
+
+        <h2
+          style={{
+            margin: '0 0 14px 0',
+            fontSize: '26px',
+            fontWeight: '800',
+            color: '#2f2f2f'
+          }}
+        >
+          {current.title}
+        </h2>
+
+        <p
+          style={{
+            margin: '0 0 28px 0',
+            fontSize: '16px',
+            lineHeight: '1.6',
+            color: '#666',
+            wordBreak: 'break-word'
+          }}
+        >
+          {message}
+        </p>
+
+        <button
+          onClick={onClose}
+          style={{
+            minWidth: '150px',
+            padding: '14px 28px',
+            border: 'none',
+            borderRadius: '12px',
+            background: current.button,
+            color: '#fff',
+            fontSize: '16px',
+            fontWeight: '700',
+            cursor: 'pointer',
+            boxShadow: '0 6px 14px rgba(0,0,0,0.12)'
+          }}
+        >
+          OK
+        </button>
+      </div>
+
       <style>
         {`
-          @keyframes slideIn {
+          @keyframes fadeInOverlay {
             from {
-              transform: translateX(400px);
               opacity: 0;
             }
             to {
-              transform: translateX(0);
+              opacity: 1;
+            }
+          }
+
+          @keyframes popupIn {
+            from {
+              transform: scale(0.95) translateY(10px);
+              opacity: 0;
+            }
+            to {
+              transform: scale(1) translateY(0);
               opacity: 1;
             }
           }

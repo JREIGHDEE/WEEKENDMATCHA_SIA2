@@ -52,38 +52,64 @@ export function usePOSLogic() {
   // --- FETCH DATA ON LOAD ---
   useEffect(() => {
     async function fetchData() {
-        const { data: { user } } = await supabase.auth.getUser()
-        if (!user) { navigate('/login'); return }
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) {
+        navigate('/login')
+        return
+      }
 
-        const { data: userData } = await supabase.from('Employee').select('EmployeeID, User(FirstName, LastName, RoleName)').eq('UserID', user.id).maybeSingle()
-        setCurrentUser(userData)
+      const { data: userData } = await supabase
+        .from('Employee')
+        .select('EmployeeID, User(FirstName, LastName, RoleName)')
+        .eq('UserID', user.id)
+        .maybeSingle()
 
-        fetchMenu()
-        fetchInventory() 
-        fetchRecentTransactions()
-        setLoading(false)
+      setCurrentUser(userData)
+
+      fetchMenu()
+      fetchInventory()
+      fetchRecentTransactions()
+      setLoading(false)
     }
     fetchData()
   }, [navigate])
 
   async function fetchMenu() {
-    const { data, error } = await supabase.from('Product').select('*').order('ProductID', { ascending: true })
-    if (error) console.error("Error fetching menu:", error)
+    const { data, error } = await supabase
+      .from('Product')
+      .select('*')
+      .order('ProductID', { ascending: true })
+
+    if (error) console.error('Error fetching menu:', error)
     else {
-        setMenu(data.map(item => ({ 
-            id: item.ProductID, name: item.ProductName, price: item.ProductPrice, img: item.ProductImageURL,
-            category: item.Category || 'Flavor', recipe: item.Recipe || [] 
-        })))
+      setMenu(
+        data.map(item => ({
+          id: item.ProductID,
+          name: item.ProductName,
+          price: item.ProductPrice,
+          img: item.ProductImageURL,
+          category: item.Category || 'Flavor',
+          recipe: item.Recipe || []
+        }))
+      )
     }
     setLoadingMenu(false)
   }
 
   async function fetchInventory() {
-    const { data, error } = await supabase.from('Inventory').select('*').eq('Category', 'Ingredients').order('ItemName', { ascending: true })
-    if (error) console.error("Inventory Fetch Error:", error)
+    const { data, error } = await supabase
+      .from('Inventory')
+      .select('*')
+      .eq('Category', 'Ingredients')
+      .order('ItemName', { ascending: true })
+
+    if (error) console.error('Inventory Fetch Error:', error)
     else {
-        const processedInventory = data.map(item => ({ ...item, isExpired: item.ExpiryDate ? new Date(item.ExpiryDate) < new Date() : false }))
-        setInventory(processedInventory)
+      const processedInventory = data.map(item => ({
+        ...item,
+        isExpired: item.ExpiryDate ? new Date(item.ExpiryDate) < new Date() : false
+      }))
+      setInventory(processedInventory)
     }
   }
 
@@ -92,199 +118,614 @@ export function usePOSLogic() {
     const startOfDay = new Date(today.setHours(0, 0, 0, 0)).toISOString()
     const endOfDay = new Date(today.setHours(23, 59, 59, 999)).toISOString()
 
-    const { data, error } = await supabase.from('Order').select('*').eq('Status', 'COMPLETED').gte('OrderDateTime', startOfDay).lte('OrderDateTime', endOfDay).order('OrderDateTime', { ascending: false })
-    if (error) console.error("Error fetching recent transactions:", error)
+    const { data, error } = await supabase
+      .from('Order')
+      .select('*')
+      .eq('Status', 'COMPLETED')
+      .gte('OrderDateTime', startOfDay)
+      .lte('OrderDateTime', endOfDay)
+      .order('OrderDateTime', { ascending: false })
+
+    if (error) console.error('Error fetching recent transactions:', error)
     else {
-        const formatted = data.map(t => ({
-            id: t.OrderID, customer: t.CustomerName, employeeId: t.EmployeeID, total: t.TotalAmount,
-            date: new Date(t.OrderDateTime).toLocaleString('en-US', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })
-        }))
-        setCompletedOrders(formatted)
+      const formatted = data.map(t => ({
+        id: t.OrderID,
+        customer: t.CustomerName,
+        employeeId: t.EmployeeID,
+        total: t.TotalAmount,
+        date: new Date(t.OrderDateTime).toLocaleString('en-US', {
+          year: 'numeric',
+          month: '2-digit',
+          day: '2-digit',
+          hour: '2-digit',
+          minute: '2-digit'
+        })
+      }))
+      setCompletedOrders(formatted)
     }
+  }
+
+  // --- CHECK STOCK BEFORE ADDING TO CART ---
+  const canAddToCart = (cartItem, qtyToAdd = 1) => {
+    if (!cartItem.recipe || !Array.isArray(cartItem.recipe) || cartItem.recipe.length === 0) {
+      return true
+    }
+
+    const existingCartItem = cart.find(i => i.uniqueKey === cartItem.uniqueKey)
+    const currentQtyInCart = existingCartItem ? existingCartItem.qty : 0
+    const totalQtyAfterAdd = currentQtyInCart + qtyToAdd
+
+    for (const ingredient of cartItem.recipe) {
+      const stockItem = inventory.find(inv => inv.InventoryID === parseInt(ingredient.id))
+      const totalNeeded = ingredient.amount * totalQtyAfterAdd
+
+      if (!stockItem || stockItem.Quantity < totalNeeded) {
+        setNotification({
+          message: `${ingredient.name} is not enough in inventory.`,
+          type: 'error'
+        })
+        return false
+      }
+    }
+
+    return true
   }
 
   // --- LOGIC FUNCTIONS ---
   const handleItemClick = (item) => {
-      if (item.category === 'Powder') directAddToCart(item)
-      else { setSelectedItemForOptions(item); setSelectedSweetness('Balanced'); setShowOptionsModal(true) }
+    if (item.category === 'Powder') {
+      directAddToCart(item)
+    } else {
+      setSelectedItemForOptions(item)
+      setSelectedSweetness('Balanced')
+      setShowOptionsModal(true)
+    }
   }
 
-  const directAddToCart = (item) => addToCartState({ ...item, sweetness: 'N/A', uniqueKey: `${item.id}-Standard` })
+  const directAddToCart = (item) => {
+    const cartItem = {
+      ...item,
+      sweetness: 'N/A',
+      uniqueKey: `${item.id}-Standard`
+    }
+
+    if (!canAddToCart(cartItem)) return
+    addToCartState(cartItem)
+  }
 
   const confirmAddToCart = () => {
-      if (!selectedItemForOptions) return
-      addToCartState({ ...selectedItemForOptions, sweetness: selectedSweetness, uniqueKey: `${selectedItemForOptions.id}-${selectedSweetness}` })
-      setShowOptionsModal(false); setSelectedItemForOptions(null)
+    if (!selectedItemForOptions) return
+
+    const cartItem = {
+      ...selectedItemForOptions,
+      sweetness: selectedSweetness,
+      uniqueKey: `${selectedItemForOptions.id}-${selectedSweetness}`
+    }
+
+    if (!canAddToCart(cartItem)) return
+
+    addToCartState(cartItem)
+    setShowOptionsModal(false)
+    setSelectedItemForOptions(null)
   }
 
   const addToCartState = (cartItem) => {
     setCart(prev => {
-        const existing = prev.find(i => i.uniqueKey === cartItem.uniqueKey)
-        if (existing) return prev.map(i => i.uniqueKey === cartItem.uniqueKey ? { ...i, qty: i.qty + 1 } : i)
-        else return [...prev, { ...cartItem, qty: 1 }]
+      const existing = prev.find(i => i.uniqueKey === cartItem.uniqueKey)
+      if (existing) {
+        return prev.map(i =>
+          i.uniqueKey === cartItem.uniqueKey
+            ? { ...i, qty: i.qty + 1 }
+            : i
+        )
+      }
+      return [...prev, { ...cartItem, qty: 1 }]
     })
   }
 
-  const increaseQty = (uniqueKey) => setCart(prev => prev.map(i => i.uniqueKey === uniqueKey ? { ...i, qty: i.qty + 1 } : i))
-  const decreaseQty = (uniqueKey) => setCart(prev => prev.map(i => i.uniqueKey === uniqueKey ? { ...i, qty: i.qty - 1 } : i).filter(i => i.qty > 0))
+  const increaseQty = (uniqueKey) => {
+    const item = cart.find(i => i.uniqueKey === uniqueKey)
+    if (!item) return
+
+    if (!canAddToCart(item)) return
+
+    setCart(prev =>
+      prev.map(i =>
+        i.uniqueKey === uniqueKey
+          ? { ...i, qty: i.qty + 1 }
+          : i
+      )
+    )
+  }
+
+  const decreaseQty = (uniqueKey) =>
+    setCart(prev =>
+      prev
+        .map(i =>
+          i.uniqueKey === uniqueKey
+            ? { ...i, qty: i.qty - 1 }
+            : i
+        )
+        .filter(i => i.qty > 0)
+    )
 
   const getSubtotal = () => cart.reduce((total, item) => total + (item.price * item.qty), 0)
   const getDiscountAmount = () => isDiscounted ? getSubtotal() * 0.20 : 0
   const getFinalTotal = () => getSubtotal() - getDiscountAmount()
   const getChange = () => (parseFloat(cashReceived) || 0) - getFinalTotal()
 
-  const handleOpenPayment = () => { if (cart.length > 0) { setCustomerName(''); setCashReceived(''); setIsDiscounted(false); setShowPaymentModal(true) } }
-  const handlePrintReceipt = () => { 
-        setReceiptPrinted(true); 
-      
-        // This tells the tablet to print!
-        // In a normal browser, it opens a pop-up. In a Kiosk app, it prints silently.
-        setTimeout(() => {
-            window.print();
-        }, 500); // 500ms delay ensures the UI has updated before printing
+  const handleOpenPayment = () => {
+    if (cart.length > 0) {
+      setCustomerName('')
+      setCashReceived('')
+      setIsDiscounted(false)
+      setShowPaymentModal(true)
     }
+  }
+
+  const handlePrintReceipt = () => {
+    setReceiptPrinted(true)
+    setNotification({ message: 'Printing Receipt...', type: 'info' })
+    setTimeout(() => {
+      window.print()
+    }, 500)
+  }
 
   const handleCloseReceipt = () => {
-    if (!receiptPrinted && !window.confirm("Receipt has not been printed. Close anyway?")) return
-    setCart([]); setCustomerName(''); setCashReceived(''); setShowReceiptModal(false)
+    if (!receiptPrinted && !window.confirm('Receipt has not been printed. Close anyway?')) return
+    setCart([])
+    setCustomerName('')
+    setCashReceived('')
+    setShowReceiptModal(false)
   }
 
   const handleConfirmPayment = async () => {
-    if (!customerName.trim()) return setNotification({ message: "Customer Name is required!", type: 'error' })
-    if (getChange() < 0) return setNotification({ message: "Insufficient Cash!", type: 'error' })
+    if (!customerName.trim()) {
+      return setNotification({ message: 'Customer Name is required!', type: 'error' })
+    }
+
+    if (getChange() < 0) {
+      return setNotification({ message: 'Insufficient Cash!', type: 'error' })
+    }
 
     setLoading(true)
     try {
-        const orderData = { EmployeeID: currentUser?.EmployeeID || 1, CustomerName: customerName, OrderDateTime: new Date().toISOString(), Status: 'IN PROGRESS', TotalAmount: getFinalTotal(), AmountGiven: parseFloat(cashReceived), ChangeGiven: getChange(), DiscountAmount: getDiscountAmount() }
-        const { data: insertedOrder, error: orderError } = await supabase.from('Order').insert([orderData]).select()
-        if (orderError || !insertedOrder || insertedOrder.length === 0) throw new Error("No data returned from Order insert.")
+      // --- FINAL STOCK CHECK BEFORE CHECKOUT ---
+      const totalNeeded = {}
 
-        const newOrderID = insertedOrder[0].OrderID
-        setCurrentOrderId(newOrderID)
+      cart.forEach(cartItem => {
+        if (cartItem.recipe && Array.isArray(cartItem.recipe)) {
+          cartItem.recipe.forEach(ingredient => {
+            const requiredAmount = ingredient.amount * cartItem.qty
 
-        const itemsData = cart.map(item => ({ OrderID: newOrderID, ProductID: item.id, Quantity: item.qty, PriceAtTimeOfOrder: item.price }))
-        const { error: itemsError } = await supabase.from('OrderItem').insert(itemsData)
-        if (itemsError) throw itemsError
-
-        await supabase.from('FinancialRecord').insert([{ EmployeeID: currentUser?.EmployeeID || 1, TransactionDate: new Date().toISOString(), RecordType: 'Income', Amount: getFinalTotal(), Description: `POS Order #${newOrderID} - ${customerName}`, Status: 'Completed' }])
-
-        for (const cartItem of cart) {
-            if (cartItem.recipe && Array.isArray(cartItem.recipe)) {
-                for (const ingredient of cartItem.recipe) {
-                    const totalDeduction = ingredient.amount * cartItem.qty
-                    if (totalDeduction > 0) {
-                        const { data: currentItem } = await supabase.from('Inventory').select('Quantity, ReorderThreshold, ItemName').eq('InventoryID', ingredient.id).maybeSingle()
-                        if (currentItem) {
-                            const newQty = currentItem.Quantity - totalDeduction
-                            await supabase.from('Inventory').update({ Quantity: newQty }).eq('InventoryID', ingredient.id)
-                            if (newQty <= currentItem.ReorderThreshold) setNotification({ message: `LOW STOCK: ${currentItem.ItemName} is now ${newQty}. (Limit: ${currentItem.ReorderThreshold})`, type: 'warning' })
-                        }
-                    }
-                }
+            if (totalNeeded[ingredient.id]) {
+              totalNeeded[ingredient.id].amount += requiredAmount
+            } else {
+              totalNeeded[ingredient.id] = {
+                name: ingredient.name,
+                amount: requiredAmount
+              }
             }
+          })
+        }
+      })
+
+      for (const id in totalNeeded) {
+        const stockItem = inventory.find(inv => inv.InventoryID === parseInt(id))
+        const amountNeeded = totalNeeded[id].amount
+
+        if (!stockItem || stockItem.Quantity < amountNeeded) {
+          setNotification({
+            message: `${totalNeeded[id].name} is not enough in inventory. Needed: ${amountNeeded}, Available: ${stockItem?.Quantity || 0}.`,
+            type: 'error'
+          })
+          setLoading(false)
+          return
+        }
+      }
+
+      const orderData = {
+        EmployeeID: currentUser?.EmployeeID || 1,
+        CustomerName: customerName,
+        OrderDateTime: new Date().toISOString(),
+        Status: 'IN PROGRESS',
+        TotalAmount: getFinalTotal(),
+        AmountGiven: parseFloat(cashReceived),
+        ChangeGiven: getChange(),
+        DiscountAmount: getDiscountAmount()
+      }
+
+      const { data: insertedOrder, error: orderError } = await supabase
+        .from('Order')
+        .insert([orderData])
+        .select()
+
+      if (orderError || !insertedOrder || insertedOrder.length === 0) {
+        throw new Error('Order creation failed.')
+      }
+
+      const newOrderID = insertedOrder[0].OrderID
+      setCurrentOrderId(newOrderID)
+
+      const itemsData = cart.map(item => ({
+        OrderID: newOrderID,
+        ProductID: item.id,
+        Quantity: item.qty,
+        PriceAtTimeOfOrder: item.price
+      }))
+
+      const { error: itemsError } = await supabase.from('OrderItem').insert(itemsData)
+      if (itemsError) throw itemsError
+
+      await supabase.from('FinancialRecord').insert([{
+        EmployeeID: currentUser?.EmployeeID || 1,
+        TransactionDate: new Date().toISOString(),
+        RecordType: 'Income',
+        Amount: getFinalTotal(),
+        Description: `POS Order #${newOrderID} - ${customerName}`,
+        Status: 'Completed'
+      }])
+
+      for (const id in totalNeeded) {
+        const stockItem = inventory.find(inv => inv.InventoryID === parseInt(id))
+        const newQty = stockItem.Quantity - totalNeeded[id].amount
+
+        const { error: updateError } = await supabase
+          .from('Inventory')
+          .update({ Quantity: newQty })
+          .eq('InventoryID', id)
+
+        if (updateError) {
+          console.error(`Error updating ${totalNeeded[id].name}:`, updateError)
         }
 
-        const newLocalOrder = { id: newOrderID, customer: customerName, items: [...cart], status: "IN PROGRESS", total: getFinalTotal(), employeeId: currentUser?.EmployeeID || "EMP", date: new Date().toLocaleString() }
-        setOrders(prev => [newLocalOrder, ...prev])
-        setShowPaymentModal(false); setReceiptPrinted(false); setShowReceiptModal(true)
+        if (newQty <= stockItem.ReorderThreshold) {
+          setNotification({
+            message: `Low stock: ${stockItem.ItemName} is now ${newQty.toFixed(2)}.`,
+            type: 'warning'
+          })
+        }
+      }
+
+      fetchInventory()
+
+      const newLocalOrder = {
+        id: newOrderID,
+        customer: customerName,
+        items: [...cart],
+        status: 'IN PROGRESS',
+        total: getFinalTotal(),
+        employeeId: currentUser?.EmployeeID || 'EMP',
+        date: new Date().toLocaleString()
+      }
+
+      setOrders(prev => [newLocalOrder, ...prev])
+      setShowPaymentModal(false)
+      setReceiptPrinted(false)
+      setShowReceiptModal(true)
     } catch (err) {
-        console.error("Payment Process Error:", err)
-        setNotification({ message: "Transaction Failed: " + err.message, type: 'error' })
+      console.error('Payment Process Error:', err)
+      setNotification({ message: 'Transaction Failed: ' + err.message, type: 'error' })
     } finally {
-        setLoading(false)
+      setLoading(false)
     }
   }
 
-  const handleStatusClick = (order) => { setSelectedOrder(order); setShowStatusModal(true) }
+  const handleStatusClick = (order) => {
+    setSelectedOrder(order)
+    setShowStatusModal(true)
+  }
+
   const updateStatus = async (status) => {
-    if (status === 'COMPLETED') { setShowStatusModal(false); setShowCompleteConfirm(true) } 
-    else { await supabase.from('Order').update({ Status: status }).eq('OrderID', selectedOrder.id); setOrders(orders.map(o => o.id === selectedOrder.id ? { ...o, status: status } : o)); setShowStatusModal(false) }
+    if (status === 'COMPLETED') {
+      setShowStatusModal(false)
+      setShowCompleteConfirm(true)
+    } else {
+      await supabase.from('Order').update({ Status: status }).eq('OrderID', selectedOrder.id)
+      setOrders(orders.map(o => o.id === selectedOrder.id ? { ...o, status } : o))
+      setShowStatusModal(false)
+    }
   }
 
   const confirmCompletion = async () => {
-      const orderToMove = orders.find(o => o.id === selectedOrder.id)
-      if (orderToMove) {
-          await supabase.from('Order').update({ Status: 'COMPLETED' }).eq('OrderID', selectedOrder.id)
-          setOrders(prev => prev.filter(o => o.id !== selectedOrder.id))
-          fetchRecentTransactions()
-      }
-      setShowCompleteConfirm(false)
+    const orderToMove = orders.find(o => o.id === selectedOrder.id)
+    if (orderToMove) {
+      await supabase.from('Order').update({ Status: 'COMPLETED' }).eq('OrderID', selectedOrder.id)
+      setOrders(prev => prev.filter(o => o.id !== selectedOrder.id))
+      fetchRecentTransactions()
+    }
+    setShowCompleteConfirm(false)
   }
 
   const handleAdminLoginSubmit = async () => {
-    if (!adminUser || !adminPass) return setNotification({ message: "Enter credentials", type: 'error' })
-    const { data: authData, error } = await supabase.auth.signInWithPassword({ email: adminUser, password: adminPass })
-    if (error) return setNotification({ message: "Login Failed", type: 'error' })
-    const { data } = await supabase.from('User').select('RoleName').eq('UserID', authData.user.id).maybeSingle()
+    if (!adminUser || !adminPass) {
+      return setNotification({ message: 'Enter credentials', type: 'error' })
+    }
+
+    const { data: authData, error } = await supabase.auth.signInWithPassword({
+      email: adminUser,
+      password: adminPass
+    })
+
+    if (error) return setNotification({ message: 'Login Failed', type: 'error' })
+
+    const { data } = await supabase
+      .from('User')
+      .select('RoleName')
+      .eq('UserID', authData.user.id)
+      .maybeSingle()
+
     if (data && ['HR Admin', 'Inventory Admin', 'Sales Admin'].includes(data.RoleName)) {
-        setAdminUser(''); setAdminPass(''); setShowAdminLogin(false); setShowManageMenu(true)
-    } else { setNotification({ message: "Access Denied", type: 'error' }) }
-  }
-
-  const handleImageUpload = (e) => { const file = e.target.files[0]; if(file) { setNewItemFile(file); setPreviewUrl(URL.createObjectURL(file)) } }
-
-  const handleAddIngredientToRecipe = () => {
-    if(!selectedIngId || !selectedIngAmount) return 
-    const ing = inventory.find(i => i.InventoryID === parseInt(selectedIngId))
-    if(ing) {
-        setNewItemRecipe([...newItemRecipe, { id: ing.InventoryID, name: ing.ItemName, unit: ing.UnitMeasurement, amount: parseFloat(selectedIngAmount) }])
-        setSelectedIngId(''); setSelectedIngAmount('')
+      setAdminUser('')
+      setAdminPass('')
+      setShowAdminLogin(false)
+      setShowManageMenu(true)
+    } else {
+      setNotification({ message: 'Access Denied', type: 'error' })
     }
   }
 
-  const removeIngredientFromRecipe = (idx) => { const updated = [...newItemRecipe]; updated.splice(idx, 1); setNewItemRecipe(updated) }
+  const handleImageUpload = (e) => {
+    const file = e.target.files[0]
+    if (file) {
+      setNewItemFile(file)
+      setPreviewUrl(URL.createObjectURL(file))
+    }
+  }
+
+  const handleAddIngredientToRecipe = () => {
+    if (!selectedIngId || !selectedIngAmount) return
+
+    const ing = inventory.find(i => i.InventoryID === parseInt(selectedIngId))
+    if (ing) {
+      setNewItemRecipe([
+        ...newItemRecipe,
+        {
+          id: ing.InventoryID,
+          name: ing.ItemName,
+          unit: ing.UnitMeasurement,
+          amount: parseFloat(selectedIngAmount)
+        }
+      ])
+      setSelectedIngId('')
+      setSelectedIngAmount('')
+    }
+  }
+
+  const removeIngredientFromRecipe = (idx) => {
+    const updated = [...newItemRecipe]
+    updated.splice(idx, 1)
+    setNewItemRecipe(updated)
+  }
 
   const handleSaveItem = async () => {
-      if (!newItemName || !newItemPrice) return setNotification({ message: "Name and Price are required.", type: 'error' })
-      setLoading(true)
-      let publicUrl = previewUrl
-      try {
-          if (newItemFile) {
-              const fileName = `${Date.now()}.${newItemFile.name.split('.').pop()}`
-              const { error: uploadError } = await supabase.storage.from('product').upload(fileName, newItemFile)
-              if (uploadError) throw uploadError
-              publicUrl = supabase.storage.from('product').getPublicUrl(fileName).data.publicUrl
-          }
-          const productData = { ProductName: newItemName, ProductPrice: parseFloat(newItemPrice), ProductImageURL: publicUrl, Category: newItemCategory, Recipe: newItemRecipe }
-          if (isEditing) {
-               const { error } = await supabase.from('Product').update(productData).eq('ProductID', editItemId)
-               if(error) throw error; setNotification({ message: "Item Updated Successfully!", type: 'success' })
-          } else {
-               const { error } = await supabase.from('Product').insert([productData])
-               if(error) throw error; setNotification({ message: "Item Added Successfully!", type: 'success' })
-          }
-          resetForm(); fetchMenu() 
-      } catch (error) { setNotification({ message: "Error saving item: " + error.message, type: 'error' }) } 
-      finally { setLoading(false) }
+    if (!newItemName || !newItemPrice) {
+      return setNotification({ message: 'Name and Price are required.', type: 'error' })
+    }
+
+    setLoading(true)
+    let publicUrl = previewUrl
+
+    try {
+      if (newItemFile) {
+        const fileName = `${Date.now()}.${newItemFile.name.split('.').pop()}`
+        const { error: uploadError } = await supabase.storage.from('product').upload(fileName, newItemFile)
+        if (uploadError) throw uploadError
+        publicUrl = supabase.storage.from('product').getPublicUrl(fileName).data.publicUrl
+      }
+
+      const productData = {
+        ProductName: newItemName,
+        ProductPrice: parseFloat(newItemPrice),
+        ProductImageURL: publicUrl,
+        Category: newItemCategory,
+        Recipe: newItemRecipe
+      }
+
+      if (isEditing) {
+        const { error } = await supabase.from('Product').update(productData).eq('ProductID', editItemId)
+        if (error) throw error
+        setNotification({ message: 'Item Updated Successfully!', type: 'success' })
+      } else {
+        const { error } = await supabase.from('Product').insert([productData])
+        if (error) throw error
+        setNotification({ message: 'Item Added Successfully!', type: 'success' })
+      }
+
+      resetForm()
+      fetchMenu()
+    } catch (error) {
+      setNotification({ message: 'Error saving item: ' + error.message, type: 'error' })
+    } finally {
+      setLoading(false)
+    }
   }
 
   const handleEditPrep = (item) => {
-      setIsEditing(true); setEditItemId(item.id); setNewItemName(item.name); setNewItemPrice(item.price); setNewItemCategory(item.category); setNewItemRecipe(item.recipe || []); setPreviewUrl(item.img); setNewItemFile(null)
+    setIsEditing(true)
+    setEditItemId(item.id)
+    setNewItemName(item.name)
+    setNewItemPrice(item.price)
+    setNewItemCategory(item.category)
+    setNewItemRecipe(item.recipe || [])
+    setPreviewUrl(item.img)
+    setNewItemFile(null)
   }
 
   const resetForm = () => {
-      setIsEditing(false); setEditItemId(null); setNewItemName(''); setNewItemPrice(''); setNewItemCategory('Flavor'); setNewItemRecipe([]); setNewItemFile(null); setPreviewUrl(null); if(fileInputRef.current) fileInputRef.current.value = ""
+    setIsEditing(false)
+    setEditItemId(null)
+    setNewItemName('')
+    setNewItemPrice('')
+    setNewItemCategory('Flavor')
+    setNewItemRecipe([])
+    setNewItemFile(null)
+    setPreviewUrl(null)
+    if (fileInputRef.current) fileInputRef.current.value = ''
   }
 
   const handleDeleteItem = async (id) => {
-      if (!window.confirm("Delete this item?")) return
-      setLoading(true); await supabase.from('Product').delete().eq('ProductID', id); setNotification({ message: "Deleted", type: 'success' }); fetchMenu(); setLoading(false)
+    if (!window.confirm('Delete this item?')) return
+    setLoading(true)
+    await supabase.from('Product').delete().eq('ProductID', id)
+    setNotification({ message: 'Deleted', type: 'success' })
+    fetchMenu()
+    setLoading(false)
   }
 
-  // --- STYLES & UI CONSTANTS (Kept here to pass down cleanly) ---
-  const colors = { green: "#6B7C65", beige: "#E8DCC6", white: "#ffffff", darkBtn: "#5a6955", redBtn: "#FF6B6B", statusRed: "#FF6B6B", statusYellow: "#E5C546", statusGreen: "#538D4E", blueText: "#337AB7", discountRed: "#D9534F" }
-  const uiStyles = {
-      modalOverlay: { position: "fixed", top: 0, left: 0, width: "100%", height: "100%", background: "rgba(0,0,0,0.6)", display: "flex", justifyContent: "center", alignItems: "center", zIndex: 2000 },
-      modalContent: { background: "white", padding: "30px", borderRadius: "20px", width: "450px", display: "flex", flexDirection: "column", gap: "15px", boxShadow: "0 10px 25px rgba(0,0,0,0.3)" },
-      inputStyle: { width: "100%", padding: "12px", borderRadius: "8px", border: "1px solid #333", fontSize: "16px", boxSizing: "border-box", fontWeight: "bold" },
-      sidebarItem: (active) => ({ padding: "12px 20px", background: active ? "rgba(255,255,255,0.2)" : "transparent", fontWeight: active ? "bold" : "normal", borderLeft: active ? "5px solid #E8DCC6" : "5px solid transparent", cursor: "pointer" })
+  // --- STYLES & UI CONSTANTS ---
+  const colors = {
+    green: '#6B7C65',
+    beige: '#E8DCC6',
+    white: '#ffffff',
+    darkBtn: '#5a6955',
+    redBtn: '#FF6B6B',
+    statusRed: '#FF6B6B',
+    statusYellow: '#E5C546',
+    statusGreen: '#538D4E',
+    blueText: '#337AB7',
+    discountRed: '#D9534F'
   }
-  const paginate = (items, page, perPage) => items.slice((page - 1) * perPage, (page - 1) * perPage + perPage)
+
+  const uiStyles = {
+    modalOverlay: {
+      position: 'fixed',
+      top: 0,
+      left: 0,
+      width: '100%',
+      height: '100%',
+      background: 'rgba(0,0,0,0.6)',
+      display: 'flex',
+      justifyContent: 'center',
+      alignItems: 'center',
+      zIndex: 2000
+    },
+    modalContent: {
+      background: 'white',
+      padding: '30px',
+      borderRadius: '20px',
+      width: '450px',
+      display: 'flex',
+      flexDirection: 'column',
+      gap: '15px',
+      boxShadow: '0 10px 25px rgba(0,0,0,0.3)'
+    },
+    inputStyle: {
+      width: '100%',
+      padding: '12px',
+      borderRadius: '8px',
+      border: '1px solid #333',
+      fontSize: '16px',
+      boxSizing: 'border-box',
+      fontWeight: 'bold'
+    },
+    sidebarItem: (active) => ({
+      padding: '12px 20px',
+      background: active ? 'rgba(255,255,255,0.2)' : 'transparent',
+      fontWeight: active ? 'bold' : 'normal',
+      borderLeft: active ? '5px solid #E8DCC6' : '5px solid transparent',
+      cursor: 'pointer'
+    })
+  }
+
+  const paginate = (items, page, perPage) =>
+    items.slice((page - 1) * perPage, (page - 1) * perPage + perPage)
 
   return {
-      state: { activeTab, currentUser, menu, loadingMenu, selectedIngAmount, inventory, cart, searchQuery, loading, showPaymentModal, showReceiptModal, showOptionsModal, selectedItemForOptions, selectedSweetness, customerName, cashReceived, isDiscounted, currentOrderId, receiptPrinted, orders, selectedOrder, showStatusModal, showCompleteConfirm, completedOrders, showRecentModal, showAdminLogin, showManageMenu, adminUser, adminPass, isEditing, editItemId, newItemName, newItemPrice, newItemCategory, newItemFile, previewUrl, fileInputRef, newItemRecipe, selectedIngId, notification, orderPage, recentPage, ordersPerPage, recentPerPage },
-      actions: { setActiveTab, handleItemClick, confirmAddToCart, increaseQty, decreaseQty, getSubtotal, getDiscountAmount, getFinalTotal, getChange, handleOpenPayment, handlePrintReceipt, handleCloseReceipt, handleConfirmPayment, handleStatusClick, updateStatus, confirmCompletion, fetchRecentTransactions, handleAdminLoginSubmit, handleImageUpload, handleAddIngredientToRecipe, removeIngredientFromRecipe, handleSaveItem, handleEditPrep, resetForm, handleDeleteItem, setSearchQuery, setOrderPage, setRecentPage, setCustomerName, setCashReceived, setIsDiscounted, setSelectedSweetness, setSelectedIngAmount, setSelectedIngId, setNewItemCategory, setNewItemName, setNewItemPrice, setShowOptionsModal, setShowPaymentModal, setShowAdminLogin, setShowManageMenu, setShowRecentModal, setAdminUser, setAdminPass, setNotification },
-      ui: { colors, uiStyles, paginate },
-      navigate
+    state: {
+      activeTab,
+      currentUser,
+      menu,
+      loadingMenu,
+      selectedIngAmount,
+      inventory,
+      cart,
+      searchQuery,
+      loading,
+      showPaymentModal,
+      showReceiptModal,
+      showOptionsModal,
+      selectedItemForOptions,
+      selectedSweetness,
+      customerName,
+      cashReceived,
+      isDiscounted,
+      currentOrderId,
+      receiptPrinted,
+      orders,
+      selectedOrder,
+      showStatusModal,
+      showCompleteConfirm,
+      completedOrders,
+      showRecentModal,
+      showAdminLogin,
+      showManageMenu,
+      adminUser,
+      adminPass,
+      isEditing,
+      editItemId,
+      newItemName,
+      newItemPrice,
+      newItemCategory,
+      newItemFile,
+      previewUrl,
+      fileInputRef,
+      newItemRecipe,
+      selectedIngId,
+      notification,
+      orderPage,
+      recentPage,
+      ordersPerPage,
+      recentPerPage
+    },
+    actions: {
+      setActiveTab,
+      handleItemClick,
+      confirmAddToCart,
+      increaseQty,
+      decreaseQty,
+      getSubtotal,
+      getDiscountAmount,
+      getFinalTotal,
+      getChange,
+      handleOpenPayment,
+      handlePrintReceipt,
+      handleCloseReceipt,
+      handleConfirmPayment,
+      handleStatusClick,
+      updateStatus,
+      confirmCompletion,
+      fetchRecentTransactions,
+      handleAdminLoginSubmit,
+      handleImageUpload,
+      handleAddIngredientToRecipe,
+      removeIngredientFromRecipe,
+      handleSaveItem,
+      handleEditPrep,
+      resetForm,
+      handleDeleteItem,
+      setSearchQuery,
+      setOrderPage,
+      setRecentPage,
+      setCustomerName,
+      setCashReceived,
+      setIsDiscounted,
+      setSelectedSweetness,
+      setSelectedIngAmount,
+      setSelectedIngId,
+      setNewItemCategory,
+      setNewItemName,
+      setNewItemPrice,
+      setShowOptionsModal,
+      setShowPaymentModal,
+      setShowAdminLogin,
+      setShowManageMenu,
+      setShowRecentModal,
+      setAdminUser,
+      setAdminPass,
+      setNotification
+    },
+    ui: { colors, uiStyles, paginate },
+    navigate
   }
 }

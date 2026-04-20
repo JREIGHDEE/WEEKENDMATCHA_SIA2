@@ -107,7 +107,7 @@ export function usePOSLogic() {
     else {
       const processedInventory = data.map(item => ({
         ...item,
-        isExpired: item.ExpiryDate ? new Date(item.ExpiryDate) < new Date() : false
+        isExpired: item.Expiry ? new Date(item.Expiry) < new Date() : false
       }))
       setInventory(processedInventory)
     }
@@ -366,24 +366,58 @@ export function usePOSLogic() {
         Status: 'Completed'
       }])
 
+      // --- DEDUCT / AUTO-ARCHIVE WHEN STOCK REACHES 0 ---
       for (const id in totalNeeded) {
         const stockItem = inventory.find(inv => inv.InventoryID === parseInt(id))
+        if (!stockItem) continue
+
         const newQty = stockItem.Quantity - totalNeeded[id].amount
 
-        const { error: updateError } = await supabase
-          .from('Inventory')
-          .update({ Quantity: newQty })
-          .eq('InventoryID', id)
+        if (newQty <= 0) {
+          // Archive first
+          const { error: archiveError } = await supabase.from('InventoryArchive').insert([{
+            EmployeeID: currentUser?.EmployeeID || null,
+            ArchivedDate: new Date().toISOString(),
+            Reason: `[AUTO] ${stockItem.ItemName} reached 0 stock after POS Order #${newOrderID}`
+          }])
 
-        if (updateError) {
-          console.error(`Error updating ${totalNeeded[id].name}:`, updateError)
-        }
+          if (archiveError) {
+            console.error(`Error archiving ${stockItem.ItemName}:`, archiveError)
+            throw new Error(`Failed to archive ${stockItem.ItemName}.`)
+          }
 
-        if (newQty <= stockItem.ReorderThreshold) {
+          // Then remove from active inventory
+          const { error: deleteError } = await supabase
+            .from('Inventory')
+            .delete()
+            .eq('InventoryID', id)
+
+          if (deleteError) {
+            console.error(`Error deleting ${stockItem.ItemName}:`, deleteError)
+            throw new Error(`Failed to remove ${stockItem.ItemName} from inventory.`)
+          }
+
           setNotification({
-            message: `Low stock: ${stockItem.ItemName} is now ${newQty.toFixed(2)}.`,
+            message: `${stockItem.ItemName} reached 0 stock and was archived automatically.`,
             type: 'warning'
           })
+        } else {
+          const { error: updateError } = await supabase
+            .from('Inventory')
+            .update({ Quantity: newQty })
+            .eq('InventoryID', id)
+
+          if (updateError) {
+            console.error(`Error updating ${totalNeeded[id].name}:`, updateError)
+            throw updateError
+          }
+
+          if (newQty <= stockItem.ReorderThreshold) {
+            setNotification({
+              message: `Low stock: ${stockItem.ItemName} is now ${newQty.toFixed(2)}.`,
+              type: 'warning'
+            })
+          }
         }
       }
 

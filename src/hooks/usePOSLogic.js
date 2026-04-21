@@ -558,7 +558,7 @@ export function usePOSLogic() {
       setShowAdminLogin(false)
       setShowManageMenu(true)
     } else {
-      setNotification({ message: 'Access Denied', type: 'error' })
+      setNotification({ message: 'Access Denied: Only admins can manage the menu. Please use an admin account.', type: 'error' })
     }
   }
 

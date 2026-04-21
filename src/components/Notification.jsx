@@ -10,6 +10,16 @@ export function Notification({ message, type = 'success', onClose, duration = 30
 
   if (!message) return null
 
+  // Determine title based on message content
+  const getTitleForMessage = () => {
+    if (message.includes('Insufficient Cash')) return 'Insufficient Cash'
+    if (message.includes('Insufficient')) return 'Insufficient Amount'
+    if (message.includes('Access Denied')) return 'Access Denied'
+    if (message.includes('Login Failed')) return 'Login Failed'
+    if (message.includes('Error')) return 'Error'
+    return 'Error'
+  }
+
   const stylesByType = {
     success: {
       accent: '#6B7C65',
@@ -20,7 +30,7 @@ export function Notification({ message, type = 'success', onClose, duration = 30
     error: {
       accent: '#d9534f',
       bg: '#fff6f6',
-      title: 'Insufficient Amount',
+      title: getTitleForMessage(),
       button: '#d9534f'
     },
     warning: {

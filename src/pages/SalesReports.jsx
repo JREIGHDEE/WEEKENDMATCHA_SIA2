@@ -86,6 +86,7 @@ function SalesReports() {
                   <option value="Daily Sales">Daily Sales</option>
                   <option value="Weekly Sales">Weekly Sales</option>
                   <option value="Monthly Sales">Monthly Sales</option>
+                  <option value="Custom Range">Custom Range</option>
                 </select>
               </div>
 
@@ -112,6 +113,19 @@ function SalesReports() {
                   </div>
                 )}
               </div>
+
+                {state.reportForm.reportType === 'Custom Range' && (
+                  <div style={{ display: "flex", gap: "15px" }}>
+                    <div style={{ flex: 1 }}>
+                      <label style={labelStyle}>Date From</label>
+                      <input type="date" style={formInputStyle} value={state.reportForm.rangeFrom} onChange={(e) => actions.setReportForm({ ...state.reportForm, rangeFrom: e.target.value })} />
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <label style={labelStyle}>Date To</label>
+                      <input type="date" style={formInputStyle} value={state.reportForm.rangeTo} onChange={(e) => actions.setReportForm({ ...state.reportForm, rangeTo: e.target.value })} />
+                    </div>
+                  </div>
+                )}
               
               <div style={{ display: "flex", gap: "10px", justifyContent: "flex-end" }}>
                 <button type="button" onClick={() => actions.setShowGenerateModal(false)} style={{ ...btnStyle, background: "#ccc", color: "#333" }}>Cancel</button>

@@ -14,7 +14,9 @@ export function useReportLogic(setNotification) {
     reportType: 'Daily Sales',
     dailyDate: '',
     weeklyDate: '',
-    monthlyDate: ''
+    monthlyDate: '',
+    rangeFrom: '',   // <-- ADD THIS
+    rangeTo: ''      // <-- ADD THIS
   });
 
   // Stores the calculated start/end dates for the DB query
@@ -71,19 +73,22 @@ export function useReportLogic(setNotification) {
       from = range.start;
       to = range.end;
       display = new Date(from).toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+    } else if (reportForm.reportType === 'Custom Range') {
+      if (!reportForm.rangeFrom || !reportForm.rangeTo) return false;
+      from = reportForm.rangeFrom;
+      to = reportForm.rangeTo;
+      display = `${new Date(from).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })} to ${new Date(to).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`;
     }
 
     setCalculatedRange({ from, to, display });
     return true;
   };
 
-// --- EXECUTION STEP ---
   const handleConfirmSavePdf = async () => {
     setLoading(true);
     setShowConfirmModal(false);
 
     try {
-      // 1. Fetch exact range from Financial Records
       const { data: records, error: fetchErr } = await supabase
         .from('FinancialRecord')
         .select('*')
@@ -95,7 +100,6 @@ export function useReportLogic(setNotification) {
       if (fetchErr) throw fetchErr;
       setPrintData(records);
 
-      // 2. Identify User
       const { data: { user } } = await supabase.auth.getUser();
       let empId = 1;
       if (user) {
@@ -103,7 +107,6 @@ export function useReportLogic(setNotification) {
          if (emp) empId = emp.EmployeeID;
       }
 
-      // 3. Save to Database ONLY NOW
       const { error: insertErr } = await supabase.from('Report').insert([{
         EmployeeID: empId,
         ReportType: reportForm.reportType,
@@ -115,21 +118,18 @@ export function useReportLogic(setNotification) {
 
       if(insertErr) throw insertErr;
 
-      // 4. Trigger Print Dialog
       setTimeout(() => {
         window.print();
         
-        // MOVED THESE HERE: Now it cleans up AFTER printing is done
         setPrintData([]);
         fetchReportHistory();
-        setReportForm({ reportType: 'Daily Sales', dailyDate: '', weeklyDate: '', monthlyDate: '' });
+        setReportForm({ reportType: 'Daily Sales', dailyDate: '', weeklyDate: '', monthlyDate: '', rangeFrom: '', rangeTo: '' });
       }, 800);
 
     } catch (err) {
       if (setNotification) setNotification({ message: "Error: " + err.message, type: 'error' });
     } finally {
       setLoading(false);
-      // Removed the premature reset from here!
     }
   };
 

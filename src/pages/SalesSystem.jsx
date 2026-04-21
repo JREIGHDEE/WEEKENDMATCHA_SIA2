@@ -106,8 +106,13 @@ function SalesSystem() {
         enteredBy: item.AdminHandled || item.Employee?.User?.FirstName || 'System' // Displays the handler
       }))
 
-      setTransactions(formattedData)
-      setFilteredTransactions(formattedData)
+// 1. Filter out the POS Orders from the manual tracking table
+      const manualTransactions = formattedData.filter(t => !t.desc.includes('POS Order'))
+
+      // 2. Set the states using the filtered list instead of the full list
+      setTransactions(manualTransactions)
+      setFilteredTransactions(manualTransactions)
+      
       setOrders(orderData || [])
 
       // Process Archive Logs

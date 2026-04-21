@@ -126,8 +126,11 @@ function SalesSystem() {
       const allTransactions = [...formattedData, ...formattedOrders].sort((a, b) => new Date(b.rawDate) - new Date(a.rawDate))
 
       // 2. Set the states using the combined list
-      setTransactions(allTransactions)
-      setFilteredTransactions(allTransactions)
+      // Filter out the POS Orders from the manual tracking table
+      const manualTransactions = formattedData.filter(t => !t.desc.includes('POS Order'))
+
+      setTransactions(manualTransactions)
+      setFilteredTransactions(manualTransactions)
       
       setOrders(orderData || [])
 

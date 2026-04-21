@@ -66,34 +66,74 @@ export function usePOSLogic() {
 
       setCurrentUser(userData)
 
-      fetchMenu()
-      fetchInventory()
-      fetchCurrentOrders()
-      fetchRecentTransactions()
+      await fetchInventory()
+      await fetchMenu()
+      await fetchCurrentOrders()
+      await fetchRecentTransactions()
       setLoading(false)
     }
     fetchData()
   }, [navigate])
 
   async function fetchMenu() {
-    const { data, error } = await supabase
+    setLoadingMenu(true)
+
+    const { data: productData, error: productError } = await supabase
       .from('Product')
       .select('*')
       .order('ProductID', { ascending: true })
 
-    if (error) console.error('Error fetching menu:', error)
-    else {
-      setMenu(
-        data.map(item => ({
-          id: item.ProductID,
-          name: item.ProductName,
-          price: item.ProductPrice,
-          img: item.ProductImageURL,
-          category: item.Category || 'Flavor',
-          recipe: item.Recipe || []
-        }))
-      )
+    if (productError) {
+      console.error('Error fetching menu:', productError)
+      setLoadingMenu(false)
+      return
     }
+
+    const { data: recipeData, error: recipeError } = await supabase
+      .from('Recipe')
+      .select(`
+        RecipeID,
+        ProductID,
+        InventoryID,
+        QuantityUsed,
+        Inventory:InventoryID (
+          InventoryID,
+          ItemName,
+          UnitMeasurement
+        )
+      `)
+
+    if (recipeError) {
+      console.error('Error fetching recipes:', recipeError)
+      setLoadingMenu(false)
+      return
+    }
+
+    const recipeMap = {}
+
+    ;(recipeData || []).forEach(row => {
+      if (!recipeMap[row.ProductID]) {
+        recipeMap[row.ProductID] = []
+      }
+
+      recipeMap[row.ProductID].push({
+        id: row.InventoryID,
+        name: row.Inventory?.ItemName || 'Unknown Ingredient',
+        unit: row.Inventory?.UnitMeasurement || '',
+        amount: parseFloat(row.QuantityUsed) || 0
+      })
+    })
+
+    const formattedMenu = (productData || []).map(item => ({
+      id: item.ProductID,
+      name: item.ProductName,
+      price: item.ProductPrice,
+      img: item.ProductImageURL,
+      category: item.Category || 'Flavor',
+      recipe: recipeMap[item.ProductID] || []
+    }))
+
+    setMenu(formattedMenu)
     setLoadingMenu(false)
   }
 
@@ -104,9 +144,10 @@ export function usePOSLogic() {
       .eq('Category', 'Ingredients')
       .order('ItemName', { ascending: true })
 
-    if (error) console.error('Inventory Fetch Error:', error)
-    else {
-      const processedInventory = data.map(item => ({
+    if (error) {
+      console.error('Inventory Fetch Error:', error)
+    } else {
+      const processedInventory = (data || []).map(item => ({
         ...item,
         isExpired: item.Expiry ? new Date(item.Expiry) < new Date() : false
       }))
@@ -194,13 +235,14 @@ export function usePOSLogic() {
       return {
         id: order.OrderID,
         customer: order.CustomerName,
-        items: items,
+        items,
         status: order.Status,
         total: order.TotalAmount,
         employeeId: order.EmployeeID,
         date: new Date(order.OrderDateTime).toLocaleString()
       }
     })
+
     setOrders(formatted)
   }
 
@@ -348,8 +390,8 @@ export function usePOSLogic() {
     }
 
     setLoading(true)
+
     try {
-      // --- FINAL STOCK CHECK BEFORE CHECKOUT ---
       const totalNeeded = {}
 
       cart.forEach(cartItem => {
@@ -425,7 +467,6 @@ export function usePOSLogic() {
         Status: 'Completed'
       }])
 
-      // --- DEDUCT / AUTO-ARCHIVE WHEN STOCK REACHES 0 ---
       for (const id in totalNeeded) {
         const stockItem = inventory.find(inv => inv.InventoryID === parseInt(id))
         if (!stockItem) continue
@@ -433,7 +474,6 @@ export function usePOSLogic() {
         const newQty = stockItem.Quantity - totalNeeded[id].amount
 
         if (newQty <= 0) {
-          // Archive first
           const { error: archiveError } = await supabase.from('InventoryArchive').insert([{
             EmployeeID: currentUser?.EmployeeID || null,
             ArchivedDate: new Date().toISOString(),
@@ -445,7 +485,6 @@ export function usePOSLogic() {
             throw new Error(`Failed to archive ${stockItem.ItemName}.`)
           }
 
-          // Then remove from active inventory
           const { error: deleteError } = await supabase
             .from('Inventory')
             .delete()
@@ -480,7 +519,8 @@ export function usePOSLogic() {
         }
       }
 
-      fetchInventory()
+      await fetchInventory()
+      await fetchCurrentOrders()
 
       const newLocalOrder = {
         id: newOrderID,
@@ -492,7 +532,12 @@ export function usePOSLogic() {
         date: new Date().toLocaleString()
       }
 
-      setOrders(prev => [newLocalOrder, ...prev])
+      setOrders(prev => {
+        const exists = prev.some(o => o.id === newLocalOrder.id)
+        if (exists) return prev
+        return [newLocalOrder, ...prev]
+      })
+
       setShowPaymentModal(false)
       setReceiptPrinted(false)
       setShowReceiptModal(true)
@@ -615,22 +660,59 @@ export function usePOSLogic() {
         ProductName: newItemName,
         ProductPrice: parseFloat(newItemPrice),
         ProductImageURL: publicUrl,
-        Category: newItemCategory,
-        Recipe: newItemRecipe
+        Category: newItemCategory
       }
+
+      let productId = editItemId
 
       if (isEditing) {
-        const { error } = await supabase.from('Product').update(productData).eq('ProductID', editItemId)
-        if (error) throw error
-        setNotification({ message: 'Item Updated Successfully!', type: 'success' })
+        const { error: productError } = await supabase
+          .from('Product')
+          .update(productData)
+          .eq('ProductID', editItemId)
+
+        if (productError) throw productError
+
+        const { error: deleteRecipeError } = await supabase
+          .from('Recipe')
+          .delete()
+          .eq('ProductID', editItemId)
+
+        if (deleteRecipeError) throw deleteRecipeError
+
+        productId = editItemId
       } else {
-        const { error } = await supabase.from('Product').insert([productData])
-        if (error) throw error
-        setNotification({ message: 'Item Added Successfully!', type: 'success' })
+        const { data: insertedProduct, error: insertError } = await supabase
+          .from('Product')
+          .insert([productData])
+          .select()
+          .single()
+
+        if (insertError) throw insertError
+        productId = insertedProduct.ProductID
       }
 
+      if (newItemRecipe.length > 0) {
+        const recipeRows = newItemRecipe.map(ingredient => ({
+          ProductID: productId,
+          InventoryID: ingredient.id,
+          QuantityUsed: parseFloat(ingredient.amount)
+        }))
+
+        const { error: recipeInsertError } = await supabase
+          .from('Recipe')
+          .insert(recipeRows)
+
+        if (recipeInsertError) throw recipeInsertError
+      }
+
+      setNotification({
+        message: isEditing ? 'Item Updated Successfully!' : 'Item Added Successfully!',
+        type: 'success'
+      })
+
       resetForm()
-      fetchMenu()
+      await fetchMenu()
     } catch (error) {
       setNotification({ message: 'Error saving item: ' + error.message, type: 'error' })
     } finally {
@@ -663,11 +745,31 @@ export function usePOSLogic() {
 
   const handleDeleteItem = async (id) => {
     if (!window.confirm('Delete this item?')) return
+
     setLoading(true)
-    await supabase.from('Product').delete().eq('ProductID', id)
-    setNotification({ message: 'Deleted', type: 'success' })
-    fetchMenu()
-    setLoading(false)
+
+    try {
+      const { error: recipeDeleteError } = await supabase
+        .from('Recipe')
+        .delete()
+        .eq('ProductID', id)
+
+      if (recipeDeleteError) throw recipeDeleteError
+
+      const { error: productDeleteError } = await supabase
+        .from('Product')
+        .delete()
+        .eq('ProductID', id)
+
+      if (productDeleteError) throw productDeleteError
+
+      setNotification({ message: 'Deleted', type: 'success' })
+      await fetchMenu()
+    } catch (error) {
+      setNotification({ message: 'Error deleting item: ' + error.message, type: 'error' })
+    } finally {
+      setLoading(false)
+    }
   }
 
   // --- STYLES & UI CONSTANTS ---

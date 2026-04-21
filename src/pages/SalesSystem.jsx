@@ -41,7 +41,7 @@ function SalesSystem() {
 
   // Pagination
   const [currentPage, setCurrentPage] = useState(1)
-  const itemsPerPage = 5
+  const itemsPerPage = 8
 
   // Notification
   const [notification, setNotification] = useState({ message: '', type: 'success' })
@@ -106,12 +106,28 @@ function SalesSystem() {
         enteredBy: item.AdminHandled || item.Employee?.User?.FirstName || 'System' // Displays the handler
       }))
 
-// 1. Filter out the POS Orders from the manual tracking table
-      const manualTransactions = formattedData.filter(t => !t.desc.includes('POS Order'))
+      // Format Orders to match transaction format
+      const formattedOrders = (orderData || []).map(order => ({
+        id: `ORD-${order.OrderID}`,
+        date: new Date(order.OrderDateTime).toLocaleString('en-US', { 
+            month: 'short', day: '2-digit', year: 'numeric', 
+            hour: '2-digit', minute: '2-digit', hour12: true 
+        }).toUpperCase(),
+        dateUpdated: '---',
+        rawDate: order.OrderDateTime,
+        desc: `POS Order - ${order.CustomerName}`,
+        amount: order.TotalAmount,
+        type: 'Income',
+        status: 'Completed',
+        enteredBy: order.EmployeeID || 'POS'
+      }))
 
-      // 2. Set the states using the filtered list instead of the full list
-      setTransactions(manualTransactions)
-      setFilteredTransactions(manualTransactions)
+      // 1. Combine all transactions (manual + POS orders)
+      const allTransactions = [...formattedData, ...formattedOrders].sort((a, b) => new Date(b.rawDate) - new Date(a.rawDate))
+
+      // 2. Set the states using the combined list
+      setTransactions(allTransactions)
+      setFilteredTransactions(allTransactions)
       
       setOrders(orderData || [])
 

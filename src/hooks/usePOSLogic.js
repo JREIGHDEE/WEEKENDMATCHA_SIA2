@@ -68,6 +68,7 @@ export function usePOSLogic() {
 
       fetchMenu()
       fetchInventory()
+      fetchCurrentOrders()
       fetchRecentTransactions()
       setLoading(false)
     }
@@ -115,8 +116,8 @@ export function usePOSLogic() {
 
   const fetchRecentTransactions = async () => {
     const today = new Date()
-    const startOfDay = new Date(today.setHours(0, 0, 0, 0)).toISOString()
-    const endOfDay = new Date(today.setHours(23, 59, 59, 999)).toISOString()
+    const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 0, 0, 0, 0).toISOString()
+    const endOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 59, 999).toISOString()
 
     const { data, error } = await supabase
       .from('Order')
@@ -143,6 +144,64 @@ export function usePOSLogic() {
       }))
       setCompletedOrders(formatted)
     }
+  }
+
+  const fetchCurrentOrders = async () => {
+    const { data, error } = await supabase
+      .from('Order')
+      .select('*')
+      .neq('Status', 'COMPLETED')
+      .order('OrderDateTime', { ascending: false })
+
+    if (error) {
+      console.error('Error fetching current orders:', error)
+      return
+    }
+
+    const { data: orderItems, error: itemsError } = await supabase
+      .from('OrderItem')
+      .select('*')
+
+    if (itemsError) {
+      console.error('Error fetching order items:', itemsError)
+      return
+    }
+
+    const { data: products, error: productsError } = await supabase
+      .from('Product')
+      .select('ProductID, ProductName')
+
+    if (productsError) {
+      console.error('Error fetching products:', productsError)
+      return
+    }
+
+    const productMap = {}
+    products.forEach(p => {
+      productMap[p.ProductID] = p.ProductName
+    })
+
+    const formatted = data.map(order => {
+      const items = orderItems
+        .filter(oi => oi.OrderID === order.OrderID)
+        .map(oi => ({
+          name: productMap[oi.ProductID] || `Product ${oi.ProductID}`,
+          qty: oi.Quantity,
+          price: oi.PriceAtTimeOfOrder,
+          sweetness: 'N/A'
+        }))
+
+      return {
+        id: order.OrderID,
+        customer: order.CustomerName,
+        items: items,
+        status: order.Status,
+        total: order.TotalAmount,
+        employeeId: order.EmployeeID,
+        date: new Date(order.OrderDateTime).toLocaleString()
+      }
+    })
+    setOrders(formatted)
   }
 
   // --- CHECK STOCK BEFORE ADDING TO CART ---
@@ -452,7 +511,6 @@ export function usePOSLogic() {
 
   const updateStatus = async (status) => {
     if (status === 'COMPLETED') {
-      setShowStatusModal(false)
       setShowCompleteConfirm(true)
     } else {
       await supabase.from('Order').update({ Status: status }).eq('OrderID', selectedOrder.id)
@@ -468,6 +526,11 @@ export function usePOSLogic() {
       setOrders(prev => prev.filter(o => o.id !== selectedOrder.id))
       fetchRecentTransactions()
     }
+    setShowCompleteConfirm(false)
+    setShowStatusModal(false)
+  }
+
+  const handleCancelCompletion = () => {
     setShowCompleteConfirm(false)
   }
 
@@ -729,7 +792,9 @@ export function usePOSLogic() {
       handleStatusClick,
       updateStatus,
       confirmCompletion,
+      handleCancelCompletion,
       fetchRecentTransactions,
+      fetchCurrentOrders,
       handleAdminLoginSubmit,
       handleImageUpload,
       handleAddIngredientToRecipe,
@@ -752,6 +817,8 @@ export function usePOSLogic() {
       setNewItemPrice,
       setShowOptionsModal,
       setShowPaymentModal,
+      setShowStatusModal,
+      setShowCompleteConfirm,
       setShowAdminLogin,
       setShowManageMenu,
       setShowRecentModal,

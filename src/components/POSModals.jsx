@@ -154,7 +154,7 @@ export default function POSModals({ state, actions, ui, PaginationControls }) {
                 <button onClick={() => actions.updateStatus('COMPLETED')} style={{ width: "220px", padding: "15px", background: colors.statusGreen, color: "white", border: "none", borderRadius: "12px", fontWeight: "bold", cursor: "pointer", fontSize: "14px" }}>COMPLETED</button>
                 <button onClick={() => actions.updateStatus('IN PROGRESS')} style={{ width: "220px", padding: "15px", background: colors.statusYellow, color: "white", border: "none", borderRadius: "12px", fontWeight: "bold", cursor: "pointer", fontSize: "14px" }}>IN PROGRESS</button>
                 <button onClick={() => actions.updateStatus('NOT IN PROGRESS')} style={{ width: "220px", padding: "15px", background: colors.statusRed, color: "white", border: "none", borderRadius: "12px", fontWeight: "bold", cursor: "pointer", fontSize: "14px" }}>NOT IN PROGRESS</button>
-                <button onClick={() => handleCancelClick(() => actions.setShowStatusModal(false))} style={{ marginTop: "10px", background: "none", border: "none", color: "#999", cursor: "pointer", textDecoration: "underline" }}>Cancel</button>
+                <button onClick={() => actions.setShowStatusModal(false)} style={{ marginTop: "10px", background: "none", border: "none", color: "#999", cursor: "pointer", textDecoration: "underline" }}>Cancel</button>
             </div>
         </div>
       )}
@@ -165,7 +165,7 @@ export default function POSModals({ state, actions, ui, PaginationControls }) {
                 <h2 style={{color:"#5a6955", margin:0, fontSize: "24px", textAlign: "left"}}>Complete Order?</h2>
                 <p style={{fontSize:"14px", color:"#666", lineHeight: "1.5", textAlign: "left"}}>Are you sure you want to complete this order? This action cannot be undone.<br/>Please review the details before continuing.</p>
                 <div style={{ display: "flex", justifyContent: "flex-end", marginTop: "15px", gap: "20px" }}>
-                    <button onClick={() => handleCancelClick(() => actions.setShowCompleteConfirm(false))} style={{ background: "none", border: "none", color: colors.redBtn, fontWeight: "bold", cursor: "pointer", fontSize: "14px" }}>Cancel</button>
+                    <button onClick={actions.handleCancelCompletion} style={{ background: "none", border: "none", color: colors.redBtn, fontWeight: "bold", cursor: "pointer", fontSize: "14px" }}>Cancel</button>
                     <button onClick={actions.confirmCompletion} style={{ background: "none", border: "none", color: colors.darkBtn, fontWeight: "bold", cursor: "pointer", fontSize: "14px" }}>Confirm</button>
                 </div>
             </div>

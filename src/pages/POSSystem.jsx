@@ -63,9 +63,23 @@ function POSSystem() {
         <div style={{ marginTop: "auto", padding: "30px", cursor: "pointer", display: "flex", alignItems: "center", gap: "10px", fontSize: "16px" }} onClick={() => { supabase.auth.signOut(); navigate('/') }}><span>↪</span> Log Out</div>
       </div>
 
-      {/* MAIN CONTENT */}
+{/* MAIN CONTENT */}
       <div style={{ flex: 1, padding: "20px 30px", display: "flex", flexDirection: "column" }}>
-        <h1 style={{ color: "#5a6955", margin: "0 0 15px 0", fontSize: "28px" }}>Point of Sale System</h1>
+        
+        {/* HEADER ROW (Title and Button perfectly aligned) */}
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
+            <h1 style={{ color: "#5a6955", margin: 0, fontSize: "28px" }}>Point of Sale System</h1>
+            
+            {/* This button will only appear when the Current Orders tab is active */}
+            {state.activeTab === 'CurrentOrders' && (
+                <button 
+                  onClick={() => { actions.setRecentPage(1); actions.setShowRecentModal(true) }} 
+                  style={{ background: "#3b5998", color: "white", border: "none", padding: "10px 20px", borderRadius: "20px", fontWeight: "bold", fontSize: "12px", cursor: "pointer", boxShadow: "0 2px 5px rgba(0,0,0,0.2)" }}
+                >
+                  VIEW RECENT TRANSACTIONS
+                </button>
+            )}
+        </div>
 
         {/* VIEW: POS */}
         {state.activeTab === 'POS' && (
@@ -116,31 +130,40 @@ function POSSystem() {
 
         {/* VIEW: CURRENT ORDERS */}
         {state.activeTab === 'CurrentOrders' && (
-            <div style={{ flex: 1, background: colors.white, borderRadius: "20px", padding: "0", display: "flex", flexDirection: "column", boxShadow: "0 4px 10px rgba(0,0,0,0.05)", overflow: "hidden" }}>
-                <div style={{ padding: "20px", display: "flex", justifyContent: "flex-end", alignItems: "center" }}>
-                    {/* <button onClick={() => { actions.fetchRecentTransactions(); actions.setNotification({ message: 'Data refreshed', type: 'success' }) }} style={{ background: "#FF9800", color: "white", border: "none", padding: "10px 20px", borderRadius: "20px", fontWeight: "bold", fontSize: "12px", cursor: "pointer" }}>REFRESH</button> */}
-                    <button onClick={() => { actions.setRecentPage(1); actions.setShowRecentModal(true) }} style={{ background: "#3b5998", color: "white", border: "none", padding: "10px 20px", borderRadius: "20px", fontWeight: "bold", fontSize: "12px", cursor: "pointer" }}>VIEW RECENT TRANSACTIONS</button>
-                </div>
-                <div style={{ flex: 1, overflowY: "auto", padding: "0 20px" }}>
-                    <table style={{ width: "100%", borderCollapse: "collapse" }}>
-                        <thead style={{ background: "#6B7C65", color: "white", borderRadius: "10px 10px 0 0" }}>
-                            <tr><th style={{ padding: "15px", textAlign: "left", width: "25%" }}>Name</th><th style={{ padding: "15px", textAlign: "left", width: "40%" }}>Orders</th><th style={{ padding: "15px", textAlign: "center", width: "15%" }}>Transaction ID</th><th style={{ padding: "15px", textAlign: "center", width: "20%" }}>Status</th></tr>
-                        </thead>
-                        <tbody>
-                            {paginate(state.orders, state.orderPage, state.ordersPerPage).map(order => (
-                                <tr key={order.id} style={{ borderBottom: "1px solid #ddd", height: "80px", verticalAlign: "middle" }}>
-                                    <td style={{ padding: "10px 15px", fontWeight: "bold", color: "#333" }}>{order.customer.toUpperCase()}</td>
-                                    <td style={{ padding: "10px 15px", color: "#333", fontSize: "13px", lineHeight: "1.6" }}>
-                                        {order.items.map((item, idx) => (<div key={idx}><span style={{ fontWeight: "bold" }}>{item.name}</span> ({item.sweetness}) <span style={{ fontWeight: "bold" }}>x{item.qty}</span></div>))}
-                                    </td>
-                                    <td style={{ textAlign: "center", fontWeight: "bold", color: "#666" }}>{order.id}</td>
-                                    <td style={{ textAlign: "center" }}><button onClick={() => actions.handleStatusClick(order)} style={{ padding: "8px 20px", borderRadius: "20px", border: "none", background: order.status === 'NOT IN PROGRESS' ? colors.statusRed : (order.status === 'IN PROGRESS' ? colors.statusYellow : colors.statusGreen), color: "white", fontWeight: "bold", fontSize: "11px", cursor: "pointer", boxShadow: "0 2px 5px rgba(0,0,0,0.2)" }}>{order.status}</button></td>
+            <div style={{ flex: 1, display: "flex", flexDirection: "column" }}>
+
+                <div style={{ flex: 1, background: colors.white, borderRadius: "15px", display: "flex", flexDirection: "column", boxShadow: "0 4px 10px rgba(0,0,0,0.1)", overflow: "hidden" }}>
+                    <div style={{ flex: 1, overflowY: "auto" }}>
+                        <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                            <thead style={{ position: "sticky", top: 0, background: colors.green, color: "white", zIndex: 1 }}>
+                                <tr>
+                                    <th style={{ padding: "15px", textAlign: "left", width: "25%", paddingLeft: "25px" }}>Name</th>
+                                    <th style={{ padding: "15px", textAlign: "left", width: "40%" }}>Orders</th>
+                                    <th style={{ padding: "15px", textAlign: "center", width: "15%" }}>Transaction ID</th>
+                                    <th style={{ padding: "15px", textAlign: "center", width: "20%", paddingRight: "25px" }}>Status</th>
                                 </tr>
-                            ))}
-                        </tbody>
-                    </table>
+                            </thead>
+                            <tbody>
+                                {paginate(state.orders, state.orderPage, state.ordersPerPage).map(order => (
+                                    <tr key={order.id} style={{ borderBottom: "1px solid #ddd", height: "80px", verticalAlign: "middle" }}>
+                                        <td style={{ padding: "10px 15px", fontWeight: "bold", color: "#333", paddingLeft: "25px" }}>{order.customer.toUpperCase()}</td>
+                                        <td style={{ padding: "10px 15px", color: "#333", fontSize: "13px", lineHeight: "1.6" }}>
+                                            {order.items.map((item, idx) => (<div key={idx}><span style={{ fontWeight: "bold" }}>{item.name}</span> ({item.sweetness}) <span style={{ fontWeight: "bold" }}>x{item.qty}</span></div>))}
+                                        </td>
+                                        <td style={{ textAlign: "center", fontWeight: "bold", color: "#666" }}>{order.id}</td>
+                                        <td style={{ textAlign: "center", paddingRight: "25px" }}>
+                                            <button onClick={() => actions.handleStatusClick(order)} style={{ padding: "8px 20px", borderRadius: "20px", border: "none", background: order.status === 'NOT IN PROGRESS' ? colors.statusRed : (order.status === 'IN PROGRESS' ? colors.statusYellow : colors.statusGreen), color: "white", fontWeight: "bold", fontSize: "11px", cursor: "pointer", boxShadow: "0 2px 5px rgba(0,0,0,0.2)" }}>{order.status}</button>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                    {/* Pagination kept nicely at the bottom with a little top border to separate it */}
+                    <div style={{ padding: "10px 0", borderTop: "1px solid #eee", background: "white" }}>
+                        <PaginationControls total={state.orders.length} page={state.orderPage} setPage={actions.setOrderPage} perPage={state.ordersPerPage} />
+                    </div>
                 </div>
-                <PaginationControls total={state.orders.length} page={state.orderPage} setPage={actions.setOrderPage} perPage={state.ordersPerPage} />
             </div>
         )}
       </div>

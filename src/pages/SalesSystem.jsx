@@ -83,8 +83,6 @@ function SalesSystem() {
         console.error("Error fetching data:", finError || orderError)
     } else {
       // Process Transactions
-// Inside fetchData -> formattedData mapping
-
       const formattedData = finData.map(item => ({
         id: `F${String(item.RecordID).padStart(3, '0')}`,
         // Original Transaction Date Format
@@ -195,7 +193,6 @@ function SalesSystem() {
             if (t.type === 'Expense') {
                 yearlyExpense += (parseFloat(t.amount) || 0)
             } else if (t.type === 'Income') {
-                // ADD THIS LINE:
                 yearlyIncome += (parseFloat(t.amount) || 0)
             }
         }
@@ -244,7 +241,6 @@ function SalesSystem() {
               if (t.type === 'Expense') {
                   fExpenses += (parseFloat(t.amount) || 0)
               } else if (t.type === 'Income') {
-                  // ADD THIS LINE:
                   fSales += (parseFloat(t.amount) || 0)
               }
           }
@@ -260,9 +256,20 @@ function SalesSystem() {
     if (searchTerm) {
       const lowerTerm = searchTerm.toLowerCase()
       result = result.filter(t => {
-        if (filterCategory === 'Description') return t.desc.toLowerCase().includes(lowerTerm)
-        else if (filterCategory === 'ID') return t.id.toLowerCase().includes(lowerTerm)
-        else if (filterCategory === 'All') return t.desc.toLowerCase().includes(lowerTerm) || t.id.toLowerCase().includes(lowerTerm)
+        const matchID = t.id?.toLowerCase().includes(lowerTerm) || false
+        const matchDate = t.date?.toLowerCase().includes(lowerTerm) || false
+        const matchDesc = t.desc?.toLowerCase().includes(lowerTerm) || false
+        const matchAmount = t.amount?.toString().toLowerCase().includes(lowerTerm) || false
+        const matchType = t.type?.toLowerCase().includes(lowerTerm) || false
+        const matchAdmin = t.enteredBy?.toLowerCase().includes(lowerTerm) || false
+
+        if (filterCategory === 'Desc') return matchDesc
+        else if (filterCategory === 'ID') return matchID
+        else if (filterCategory === 'Date') return matchDate
+        else if (filterCategory === 'Amount') return matchAmount
+        else if (filterCategory === 'Type') return matchType
+        else if (filterCategory === 'Admin') return matchAdmin
+        else if (filterCategory === 'All') return matchID || matchDate || matchDesc || matchAmount || matchType || matchAdmin
         else return false
       })
     }
@@ -297,26 +304,23 @@ function SalesSystem() {
   const requiredStyle = { color: "#D9534F" }
 
   // --- CRUD ACTIONS ---
-const prepareAddSale = async () => { 
-    const { data: { user } } = await supabase.auth.getUser()
-    const { data: empData } = await supabase.from('Employee').select('User(FirstName)').eq('UserID', user.id).maybeSingle()
-    
-    // Create a local date object
-    const now = new Date();
-    
-    setSalesFormData({ 
-        type: 'Income', 
-        // Captures YYYY-MM-DD
-        date: now.toISOString().split('T')[0], 
-        // Captures HH:MM in 24-hour format
-        time: now.toTimeString().slice(0, 5), 
-        amount: '', 
-        enteredBy: empData?.User?.FirstName || 'Admin', 
-        description: '', 
-        status: 'Completed' 
-    })
-    setModals({ ...modals, add: true }) 
-}
+  const prepareAddSale = async () => { 
+      const { data: { user } } = await supabase.auth.getUser()
+      const { data: empData } = await supabase.from('Employee').select('User(FirstName)').eq('UserID', user.id).maybeSingle()
+      
+      const now = new Date();
+      
+      setSalesFormData({ 
+          type: 'Income', 
+          date: now.toISOString().split('T')[0], 
+          time: now.toTimeString().slice(0, 5), 
+          amount: '', 
+          enteredBy: empData?.User?.FirstName || 'Admin', 
+          description: '', 
+          status: 'Completed' 
+      })
+      setModals({ ...modals, add: true }) 
+  }
   const handleAddConfirmation = (e) => { e.preventDefault(); triggerConfirmation(executeAddSale, "Add Record", "Confirm adding this record?") }
   const executeAddSale = async () => {
       const { data: { user } } = await supabase.auth.getUser()
@@ -328,11 +332,8 @@ const prepareAddSale = async () => {
       else { setNotification({ message: "Added!", type: 'success' }); fetchData(); closeModal() }
   }
   
-const prepareUpdateSale = (id) => { 
-      // 1. Set the ID directly from the row click
+  const prepareUpdateSale = (id) => { 
       setSelectedId(id); 
-      
-      // 2. Find the transaction using that exact passed ID
       const t = transactions.find(x => x.id === id); 
       
       setSalesFormData({
@@ -347,44 +348,41 @@ const prepareUpdateSale = (id) => {
       setModals({...modals, update:true}) 
   }
 
-const handleUpdateConfirmation = (e) => { e.preventDefault(); triggerConfirmation(executeUpdateSale, "Update Record", "Confirm update?") }
+  const handleUpdateConfirmation = (e) => { e.preventDefault(); triggerConfirmation(executeUpdateSale, "Update Record", "Confirm update?") }
   
-const executeUpdateSale = async () => { 
-    const t = transactions.find(x => x.id === selectedId); 
-    const dbId = parseInt(t.id.replace('F','')); 
-    const newDateTime = new Date(`${salesFormData.date} ${salesFormData.time}`).toISOString();
+  const executeUpdateSale = async () => { 
+      const t = transactions.find(x => x.id === selectedId); 
+      const dbId = parseInt(t.id.replace('F','')); 
+      const newDateTime = new Date(`${salesFormData.date} ${salesFormData.time}`).toISOString();
 
-    const { error } = await supabase.from('FinancialRecord')
-        .update({ 
-            Amount: parseFloat(salesFormData.amount), 
-            Description: salesFormData.description, 
-            RecordType: salesFormData.type,
-            TransactionDate: newDateTime,
-            // New: Update the "Admin" name to whoever is currently logged in
-            AdminHandled: salesFormData.enteredBy,
-            // New: Update the timestamp
-            DateUpdated: new Date().toISOString()
-        })
-        .eq('RecordID', dbId); 
-    
-    if (error) {
-        setNotification({ message: "Error updating: " + error.message, type: 'error' });
-    } else { 
-        setNotification({ message: "Record Updated!", type: 'success' }); 
-        fetchData(); 
-        closeModal(); 
-    }
-}
+      const { error } = await supabase.from('FinancialRecord')
+          .update({ 
+              Amount: parseFloat(salesFormData.amount), 
+              Description: salesFormData.description, 
+              RecordType: salesFormData.type,
+              TransactionDate: newDateTime,
+              AdminHandled: salesFormData.enteredBy,
+              DateUpdated: new Date().toISOString()
+          })
+          .eq('RecordID', dbId); 
+      
+      if (error) {
+          setNotification({ message: "Error updating: " + error.message, type: 'error' });
+      } else { 
+          setNotification({ message: "Record Updated!", type: 'success' }); 
+          fetchData(); 
+          closeModal(); 
+      }
+  }
 
-const prepareArchiveSale = (id) => {
-    // 1. Set the ID directly from the row click
-    setSelectedId(id);
-    setModals({...modals, archive:true})
+  const prepareArchiveSale = (id) => {
+      setSelectedId(id);
+      setModals({...modals, archive:true})
   }
 
   const handleArchiveConfirmation = () => triggerConfirmation(executeArchiveSale, "Archive", "Confirm archive?")
   
-const executeArchiveSale = async () => { 
+  const executeArchiveSale = async () => { 
       const t = transactions.find(x => x.id === selectedId); 
       const dbId = parseInt(t.id.replace('F','')); 
 
@@ -394,7 +392,6 @@ const executeArchiveSale = async () => {
         return
       }
 
-      // STEP 1: Insert into Log
       const { error: logError } = await supabase.from('FinancialArchiveLog').insert([{
           RecordID: dbId,
           UserID: user.id,
@@ -407,7 +404,6 @@ const executeArchiveSale = async () => {
         return
       }
 
-      // STEP 2: Update Status to 'Archived'
       const { error: updateError } = await supabase
           .from('FinancialRecord')
           .update({ Status: 'Archived' })
@@ -417,7 +413,7 @@ const executeArchiveSale = async () => {
           setNotification({ message: "Update Error: " + updateError.message, type: 'error' });
       } else { 
           setNotification({ message: "Record Archived!", type: 'success' }); 
-          fetchData(); // This will refresh the table and the row WILL disappear
+          fetchData(); 
           closeModal(); 
       }
   };
@@ -444,42 +440,6 @@ const executeArchiveSale = async () => {
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "15px" }}>
           <h1 style={{ margin: 0, fontSize: "28px", color: colors.darkGreen }}>Sales Management</h1>
           <button style={{...btnStyle, background: colors.purple}} onClick={() => navigate('/sales-reports')}>VIEW REPORT</button>
-        </div>
-
-        {/* SEARCH & ACTIONS BAR */}
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
-          {/* Search Input */}
-          <div style={{ position: "relative" }} ref={searchContainerRef}>
-            <input 
-              placeholder={`🔍 Search by ${filterCategory}...`} 
-              style={{ padding: "8px", borderRadius: "20px", border: "1px solid #ccc", width: "300px" }} 
-              value={searchTerm} 
-              onChange={(e) => setSearchTerm(e.target.value)} 
-              onFocus={() => setShowFilterMenu(true)}
-            />
-            {showFilterMenu && (
-              <div style={{ position: "absolute", top: "110%", left: 0, background: "white", padding: "15px", borderRadius: "15px", boxShadow: "0 4px 15px rgba(0,0,0,0.2)", zIndex: 50, border: "1px solid #ddd", width: "380px" }}>
-                <p style={{ margin: "0 0 10px 0", fontSize: "14px", fontWeight: "bold", color: "#555" }}>Filter by Category:</p>
-                <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
-                  {['All', 'ID', 'Description'].map(cat => (
-                    <button 
-                      key={cat} 
-                      style={{ padding: "5px 15px", borderRadius: "20px", border: "1px solid #666", background: filterCategory === cat ? colors.green : "white", color: filterCategory === cat ? "white" : "black", cursor: "pointer", fontSize: "12px", fontWeight: "bold" }} 
-                      onClick={() => { setFilterCategory(cat); setShowFilterMenu(false) }}
-                    >
-                      {cat.toUpperCase()}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Action Buttons */}
-          <div style={{ display: "flex", gap: "10px" }}>
-            <button style={{...btnStyle, background: colors.darkGreen}} onClick={prepareAddSale}>ADD</button>
-            <button style={{...btnStyle, background: colors.blue}} onClick={() => setModals({...modals, archiveLog: true})}>ARCHIVE LOGS</button>
-          </div>
         </div>
 
         {/* METRICS PANEL */}
@@ -524,13 +484,49 @@ const executeArchiveSale = async () => {
             </div>
         </div>
 
+        {/* SEARCH & ACTIONS BAR (MOVED HERE) */}
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
+          {/* Search Input */}
+          <div style={{ position: "relative" }} ref={searchContainerRef}>
+            <input 
+              placeholder={`🔍 Search by ${filterCategory}...`} 
+              style={{ padding: "8px", borderRadius: "20px", border: "1px solid #ccc", width: "300px" }} 
+              value={searchTerm} 
+              onChange={(e) => setSearchTerm(e.target.value)} 
+              onFocus={() => setShowFilterMenu(true)}
+            />
+            {showFilterMenu && (
+              <div style={{ position: "absolute", bottom: "110%", left: 0, background: "white", padding: "15px", borderRadius: "15px", boxShadow: "0 4px 15px rgba(0,0,0,0.2)", zIndex: 50, border: "1px solid #ddd", width: "380px" }}>
+                <p style={{ margin: "0 0 10px 0", fontSize: "14px", fontWeight: "bold", color: "#555" }}>Filter by Category:</p>
+                <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+                  {/* UPDATED FILTER CATEGORIES */}
+                  {['All', 'ID', 'Date', 'Desc', 'Amount', 'Type', 'Admin'].map(cat => (
+                    <button 
+                      key={cat} 
+                      style={{ padding: "5px 15px", borderRadius: "20px", border: "1px solid #666", background: filterCategory === cat ? colors.green : "white", color: filterCategory === cat ? "white" : "black", cursor: "pointer", fontSize: "12px", fontWeight: "bold" }} 
+                      onClick={() => { setFilterCategory(cat); setShowFilterMenu(false) }}
+                    >
+                      {cat.toUpperCase()}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Action Buttons */}
+          <div style={{ display: "flex", gap: "10px" }}>
+            <button style={{...btnStyle, background: colors.darkGreen}} onClick={prepareAddSale}>ADD</button>
+            <button style={{...btnStyle, background: colors.blue}} onClick={() => setModals({...modals, archiveLog: true})}>ARCHIVE LOGS</button>
+          </div>
+        </div>
+
         {/* TABLE */}
         <div style={{ background: "white", borderRadius: "15px", boxShadow: "0 4px 10px rgba(0,0,0,0.1)", display: "flex", flexDirection: "column", flex: "0 1 auto", maxHeight: "500px", minHeight: "500px", marginBottom: "40px", overflow: "hidden" }}>
             <div style={{ flex: 1, overflowY: "auto" }}>
                 <table style={{ width: "100%", borderCollapse: "collapse" }}>
                   <thead style={{ position: "sticky", top: 0, background: colors.green, color: "white", zIndex: 1 }}>
                     <tr>
-                      {/* Removed the Select th */}
                       <th style={{ width: "120px", padding: "15px" }}>Record ID</th>
                       <th style={{ width: "200px" }}>Date Entered</th>
                       <th style={{ width: "200px" }}>Date Updated</th>
@@ -538,14 +534,12 @@ const executeArchiveSale = async () => {
                       <th style={{ width: "150px" }}>Amount</th>
                       <th style={{ width: "120px" }}>Type</th>
                       <th style={{ width: "120px" }}>Admin</th> 
-                      {/* Added Actions th */}
                       <th style={{ width: "120px", paddingRight: "15px" }}>Actions</th>
                     </tr>
                   </thead>
                   <tbody>
                     {paginate(filteredTransactions.filter(t => t.status !== 'Archived'), currentPage, itemsPerPage).map(t => (
                       <tr key={t.id} style={{ borderBottom: "1px solid #eee", textAlign: "center", height: "50px", fontSize: "13px" }}>
-                        {/* Removed the radio button td */}
                         <td style={{ width: "120px" }}>{t.id}</td>
                         <td style={{ width: "200px" }}>{t.date}</td>
                         <td style={{ width: "200px", color: t.dateUpdated === '---' ? '#aaa' : 'inherit' }}>{t.dateUpdated}</td>
@@ -553,10 +547,8 @@ const executeArchiveSale = async () => {
                         <td style={{ width: "150px", fontWeight: "bold" }}>₱{parseFloat(t.amount).toLocaleString(undefined, {minimumFractionDigits: 2})}</td>
                         <td style={{ width: "120px", color: t.type === 'Income' ? colors.green : colors.red, fontWeight: "bold" }}>{t.type}</td>
                         <td style={{ width: "120px", fontWeight: "bold", color: colors.darkGreen }}>{t.enteredBy}</td>
-                        {/* Added Actions td */}
                         <td style={{ width: "120px", paddingRight: "15px" }}>
                           <div style={{ display: "flex", gap: "8px", justifyContent: "center" }}>
-                            {/* Update Button (Pencil Icon) */}
                             <button 
                               onClick={() => prepareUpdateSale(t.id)} 
                               style={{ padding: "6px 10px", background: colors.yellow, color: "white", border: "none", borderRadius: "5px", cursor: "pointer", fontSize: "12px" }}
@@ -564,7 +556,6 @@ const executeArchiveSale = async () => {
                             >
                               Update
                             </button>
-                            {/* Archive Button (Trash Icon) */}
                             <button 
                               onClick={() => prepareArchiveSale(t.id)} 
                               style={{ padding: "6px 10px", background: colors.red, color: "white", border: "none", borderRadius: "5px", cursor: "pointer", fontSize: "12px" }}

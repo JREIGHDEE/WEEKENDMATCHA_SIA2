@@ -491,7 +491,7 @@ export function usePOSLogic() {
         OrderID: newOrderID,
         ProductID: item.id,
         Quantity: item.qty,
-        PriceAtTimeOfOrder: item.price
+        PriceAtTimeOfOrder: item.price,
       }))
 
       const { error: itemsError } = await supabase.from('OrderItem').insert(itemsData)

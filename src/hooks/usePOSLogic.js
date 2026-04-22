@@ -228,13 +228,13 @@ export function usePOSLogic() {
     })
 
     const formatted = data.map(order => {
-      const items = orderItems
+const items = orderItems
         .filter(oi => oi.OrderID === order.OrderID)
         .map(oi => ({
           name: productMap[oi.ProductID] || `Product ${oi.ProductID}`,
           qty: oi.Quantity,
           price: oi.PriceAtTimeOfOrder,
-          sweetness: 'N/A'
+          sweetness: oi.Sweetness || 'N/A'
         }))
 
       return {
@@ -486,6 +486,7 @@ export function usePOSLogic() {
         ProductID: item.id,
         Quantity: item.qty,
         PriceAtTimeOfOrder: item.price,
+        Sweetness: item.sweetness || 'N/A'
       }))
 
       const { error: itemsError } = await supabase.from('OrderItem').insert(itemsData)

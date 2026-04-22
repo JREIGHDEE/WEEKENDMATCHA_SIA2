@@ -17,11 +17,16 @@ import Sidebar from '../components/Sidebar';
 
 function InventorySystem() {
   const navigate = useNavigate();
-  
+
   // --- DATA HOOK ---
-  const { 
-    inventory, archiveLogs, loading, expiringCount, 
-    lowStockCount, fetchInventory, fetchArchiveLogs 
+  const {
+    inventory,
+    archiveLogs,
+    loading,
+    expiringCount,
+    lowStockCount,
+    fetchInventory,
+    fetchArchiveLogs
   } = useInventoryData();
 
   // --- UI STATE ---
@@ -33,7 +38,15 @@ function InventorySystem() {
   const [currentPage, setCurrentPage] = useState(1);
   const [archivePage, setArchivePage] = useState(1);
   const [notification, setNotification] = useState({ message: '', type: 'success' });
-  const [modals, setModals] = useState({ add: false, confirmAdd: false, update: false, archive: false, viewLog: false });
+  const [modals, setModals] = useState({
+    add: false,
+    confirmAdd: false,
+    update: false,
+    confirmUpdate: false,
+    archive: false,
+    confirmArchive: false,
+    viewLog: false
+  });
   const [archiveReason, setArchiveReason] = useState('');
   const searchContainerRef = useRef(null);
   const itemsPerPage = 7;
@@ -46,7 +59,8 @@ function InventorySystem() {
     UnitMeasurement: 'grams',
     UnitPrice: '',
     ReorderThreshold: '',
-    Expiry: ''
+    Expiry: '',
+    StockIn: ''
   };
   const [formData, setFormData] = useState(initialFormState);
 
@@ -75,7 +89,6 @@ function InventorySystem() {
     setCurrentPage(1);
   }, [searchTerm, filterCategory, inventory]);
 
-  // Handle outside clicks for search filter
   useEffect(() => {
     const handleClick = (e) => {
       if (searchContainerRef.current && !searchContainerRef.current.contains(e.target)) {
@@ -91,9 +104,17 @@ function InventorySystem() {
   const handleInputChange = (e) => {
     setFormData(prev => ({ ...prev, [e.target.name]: e.target.value }));
   };
-  
+
   const closeModal = () => {
-    setModals({ add: false, confirmAdd: false, update: false, archive: false, viewLog: false });
+    setModals({
+      add: false,
+      confirmAdd: false,
+      update: false,
+      confirmUpdate: false,
+      archive: false,
+      confirmArchive: false,
+      viewLog: false
+    });
     setFormData(initialFormState);
     setArchiveReason('');
     setSelectedId(null);
@@ -107,7 +128,7 @@ function InventorySystem() {
       return;
     }
 
-    setModals({ ...modals, add: false, confirmAdd: true });
+    setModals(prev => ({ ...prev, add: false, confirmAdd: true }));
   };
 
   const executeAddItem = async () => {
@@ -121,7 +142,7 @@ function InventorySystem() {
 
     if (error) {
       setNotification({ message: 'Error: ' + error.message, type: 'error' });
-    } else { 
+    } else {
       setNotification({ message: 'Item Added Successfully!', type: 'success' });
       closeModal();
       fetchInventory();
@@ -134,17 +155,21 @@ function InventorySystem() {
     if (!item) return;
 
     setFormData(item);
-    setModals({ ...modals, update: true });
+    setModals(prev => ({ ...prev, update: true }));
   };
 
-  const prepareArchive = (id) => {
-    setSelectedId(id);
-    setModals({ ...modals, archive: true });
-  };
-
-  const executeUpdate = async (e) => {
+  const handleUpdateSubmit = (e) => {
     e.preventDefault();
 
+    if (!formData.ItemName || !formData.Category || !formData.ReorderThreshold) {
+      setNotification({ message: 'Please fill in all required fields.', type: 'error' });
+      return;
+    }
+
+    setModals(prev => ({ ...prev, update: false, confirmUpdate: true }));
+  };
+
+  const executeUpdate = async () => {
     const { error } = await supabase
       .from('Inventory')
       .update({
@@ -156,63 +181,112 @@ function InventorySystem() {
 
     if (error) {
       setNotification({ message: 'Error: ' + error.message, type: 'error' });
-    } else { 
+    } else {
       setNotification({ message: 'Item Updated Successfully!', type: 'success' });
       closeModal();
       fetchInventory();
     }
   };
 
+  const prepareArchive = (id) => {
+    setSelectedId(id);
+    const item = inventory.find(i => i.InventoryID === id);
+    if (!item) return;
+
+    setFormData(item);
+    setModals(prev => ({ ...prev, archive: true }));
+  };
+
+  const handleArchiveSubmit = () => {
+    if (!archiveReason.trim()) {
+      setNotification({ message: 'Please provide a reason.', type: 'error' });
+      return;
+    }
+
+    setModals(prev => ({
+      ...prev,
+      archive: false,
+      confirmArchive: true
+    }));
+  };
+
   const executeArchive = async () => {
-    if (!archiveReason) {
-      return setNotification({ message: 'Please provide a reason.', type: 'error' });
-    }
+    try {
+      if (!archiveReason.trim()) {
+        setNotification({ message: 'Please provide a reason.', type: 'error' });
+        return;
+      }
 
-    const itemToArchive = inventory.find(i => i.InventoryID === selectedId);
-    
-    const { data: { user } } = await supabase.auth.getUser();
-    let employeeID = null;
+      const itemToArchive = inventory.find(i => i.InventoryID === selectedId);
+      if (!itemToArchive) {
+        setNotification({ message: 'Selected item not found.', type: 'error' });
+        return;
+      }
 
-    if (user) {
-      const { data: empData } = await supabase
-        .from('Employee')
-        .select('EmployeeID')
-        .eq('UserID', user.id)
-        .maybeSingle();
+      const { data: { user } } = await supabase.auth.getUser();
+      let employeeID = null;
 
-      if (empData) employeeID = empData.EmployeeID;
-    }
+      if (user) {
+        const { data: empData, error: empError } = await supabase
+          .from('Employee')
+          .select('EmployeeID')
+          .eq('UserID', user.id)
+          .maybeSingle();
 
-    const { error: archiveError } = await supabase.from('InventoryArchive').insert([{
-      EmployeeID: employeeID,
-      ArchivedDate: new Date(),
-      Reason: `[${itemToArchive.Category}] ${itemToArchive.ItemName} - ${archiveReason}`
-    }]);
+        if (empError) {
+          setNotification({ message: 'Error finding employee: ' + empError.message, type: 'error' });
+          return;
+        }
 
-    if (!archiveError) {
-      await supabase.from('Inventory').delete().eq('InventoryID', selectedId);
+        if (empData) employeeID = empData.EmployeeID;
+      }
+
+      const { error: archiveError } = await supabase.from('InventoryArchive').insert([{
+        EmployeeID: employeeID,
+        ArchivedDate: new Date().toISOString(),
+        Reason: `[${itemToArchive.Category}] ${itemToArchive.ItemName} - ${archiveReason}`
+      }]);
+
+      if (archiveError) {
+        setNotification({ message: 'Archive failed: ' + archiveError.message, type: 'error' });
+        return;
+      }
+
+      const { error: deleteError } = await supabase
+        .from('Inventory')
+        .delete()
+        .eq('InventoryID', selectedId);
+
+      if (deleteError) {
+        setNotification({ message: 'Delete failed after archive: ' + deleteError.message, type: 'error' });
+        return;
+      }
+
       setNotification({ message: 'Item Archived Successfully.', type: 'success' });
-      fetchInventory();
+      await fetchInventory();
+      await fetchArchiveLogs();
       closeModal();
+    } catch (error) {
+      setNotification({ message: 'Archive failed: ' + error.message, type: 'error' });
     }
   };
 
   const paginate = (items, page, perPage) => items.slice((page - 1) * perPage, page * perPage);
 
+  const selectedItem = inventory.find(i => i.InventoryID === selectedId) || null;
+
   return (
     <div style={{ display: 'flex', height: '100vh', width: '100vw', overflow: 'hidden', fontFamily: 'sans-serif' }}>
       <Sidebar />
 
-      {/* MAIN CONTENT */}
       <div style={{ flex: 1, background: styles.colors.beige, padding: '30px', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
         <h1 style={{ margin: 0, fontSize: '28px', color: styles.colors.darkGreen, marginBottom: '20px' }}>
           Inventory Management
         </h1>
 
-        <AlertBanners expiringCount={expiringCount} lowStockCount={lowStockCount} />
+<AlertBanners inventory={inventory} />
 
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '20px' }}>
-          {/* SEARCH */}
           <div style={{ position: 'relative' }} ref={searchContainerRef}>
             <input
               placeholder={`🔍 Search by ${filterCategory}...`}
@@ -265,11 +339,10 @@ function InventorySystem() {
             )}
           </div>
 
-          {/* ACTIONS */}
           <div style={{ display: 'flex', gap: '10px' }}>
             <button
               style={{ ...styles.btnStyle, background: styles.colors.darkGreen }}
-              onClick={() => setModals({ ...modals, add: true })}
+              onClick={() => setModals(prev => ({ ...prev, add: true }))}
             >
               ADD
             </button>
@@ -278,7 +351,7 @@ function InventorySystem() {
               style={{ ...styles.btnStyle, background: styles.colors.blue }}
               onClick={() => {
                 fetchArchiveLogs();
-                setModals({ ...modals, viewLog: true });
+                setModals(prev => ({ ...prev, viewLog: true }));
               }}
             >
               ARCHIVE LOGS
@@ -286,7 +359,6 @@ function InventorySystem() {
           </div>
         </div>
 
-        {/* TABLE SECTION */}
         <div
           style={{
             flex: 1,
@@ -313,13 +385,15 @@ function InventorySystem() {
         </div>
       </div>
 
-      {/* ALL MODALS */}
       <InventoryModals
         modals={modals}
         closeModal={closeModal}
         formData={formData}
+        selectedItem={selectedItem}
         handleInputChange={handleInputChange}
         handleAddSubmit={handleAddSubmit}
+        handleUpdateSubmit={handleUpdateSubmit}
+        handleArchiveSubmit={handleArchiveSubmit}
         executeUpdate={executeUpdate}
         executeAddItem={executeAddItem}
         setModals={setModals}

@@ -23,21 +23,22 @@ export function InventoryTable({ items, loading, prepareUpdate, prepareArchive }
           }}
         >
           <tr>
-            <th style={{ width: '100px', padding: '15px' }}>ID</th>
-            <th style={{ textAlign: 'left', paddingLeft: '20px' }}>Item Name</th>
-            <th style={{ width: '120px' }}>Category</th>
+            <th style={{ width: '90px', padding: '15px' }}>ID</th>
+            <th style={{ textAlign: 'left', paddingLeft: '20px', width: '180px' }}>Item Name</th>
+            <th style={{ width: '110px' }}>Category</th>
             <th style={{ width: '120px' }}>Stock</th>
-            <th style={{ width: '120px' }}>Unit Price</th>
-            <th style={{ width: '150px' }}>Expiry Date</th>
-            <th style={{ width: '150px' }}>Status</th>
-            <th style={{ width: '120px', paddingRight: '15px' }}>Actions</th>
+            <th style={{ width: '110px' }}>Unit Price</th>
+            <th style={{ width: '130px' }}>Stock In</th>
+            <th style={{ width: '130px' }}>Expiry Date</th>
+            <th style={{ width: '120px' }}>Status</th>
+            <th style={{ width: '140px', paddingRight: '15px' }}>Actions</th>
           </tr>
         </thead>
 
         <tbody>
           {items.length === 0 ? (
             <tr>
-              <td colSpan="8" style={{ textAlign: 'center', padding: '30px' }}>
+              <td colSpan="9" style={{ textAlign: 'center', padding: '30px' }}>
                 No items found.
               </td>
             </tr>
@@ -67,15 +68,15 @@ export function InventoryTable({ items, loading, prepareUpdate, prepareArchive }
                     fontSize: '13px'
                   }}
                 >
-                  <td style={{ width: '100px' }}>
+                  <td style={{ width: '90px' }}>
                     INV-{String(item.InventoryID).padStart(3, '0')}
                   </td>
 
-                  <td style={{ textAlign: 'left', paddingLeft: '20px', fontWeight: 'bold' }}>
+                  <td style={{ textAlign: 'left', paddingLeft: '20px', fontWeight: 'bold', width: '180px' }}>
                     {item.ItemName}
                   </td>
 
-                  <td style={{ width: '120px', fontWeight: 'bold' }}>
+                  <td style={{ width: '110px', fontWeight: 'bold' }}>
                     {item.Category}
                   </td>
 
@@ -89,13 +90,17 @@ export function InventoryTable({ items, loading, prepareUpdate, prepareArchive }
                     {item.Quantity} {item.UnitMeasurement}
                   </td>
 
-                  <td style={{ width: '120px', fontWeight: 'bold' }}>
+                  <td style={{ width: '110px', fontWeight: 'bold' }}>
                     ₱{parseFloat(item.UnitPrice).toFixed(2)}
+                  </td>
+
+                  <td style={{ width: '130px', fontWeight: 'bold' }}>
+                    {item.StockIn ? new Date(item.StockIn).toLocaleDateString() : 'N/A'}
                   </td>
 
                   <td
                     style={{
-                      width: '150px',
+                      width: '130px',
                       fontWeight: 'bold',
                       color: isExpired ? styles.colors.red : 'inherit'
                     }}
@@ -103,11 +108,11 @@ export function InventoryTable({ items, loading, prepareUpdate, prepareArchive }
                     {item.Expiry ? new Date(item.Expiry).toLocaleDateString() : 'N/A'}
                   </td>
 
-                  <td style={{ width: '150px', fontWeight: 'bold', color: statusColor }}>
+                  <td style={{ width: '120px', fontWeight: 'bold', color: statusColor }}>
                     {statusText}
                   </td>
 
-                  <td style={{ width: '120px', paddingRight: '15px' }}>
+                  <td style={{ width: '140px', paddingRight: '15px' }}>
                     <div style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
                       <button
                         onClick={() => prepareUpdate(item.InventoryID)}

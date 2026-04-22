@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import * as styles from '../../constants/inventoryStyles';
 import { PaginationControls } from '../PaginationControls';
 import CancelConfirmationModal from '../CancelConfirmationModal';
+import ArchiveModal from '../ArchiveModal';
 
 export const InventoryModals = ({
   modals,
@@ -294,33 +295,20 @@ export const InventoryModals = ({
         </div>
       )}
 
+{/* UNIVERSAL ARCHIVE MODAL */}
       {modals.archive && (
-        <div style={styles.modalOverlay}>
-          <div style={styles.modalContent}>
-            <h2 style={{ color: styles.colors.red }}>Archive Record</h2>
-            <label style={styles.labelStyle}>Reason</label>
-            <textarea
-              style={{ ...styles.inputStyle, height: '80px' }}
-              value={archiveReason}
-              onChange={e => setArchiveReason(e.target.value)}
-              placeholder="e.g. Discontinued product"
-            />
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
-              <button
-                onClick={() => handleCancelClick(closeModal)}
-                style={{ ...styles.btnStyle, background: '#ccc', color: '#333' }}
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleArchiveSubmit}
-                style={{ ...styles.btnStyle, background: styles.colors.darkGreen }}
-              >
-                Next
-              </button>
-            </div>
-          </div>
-        </div>
+        <ArchiveModal 
+          archiveTitle="Archive Inventory Item"
+          archiveReason={archiveReason}
+          setArchiveReason={setArchiveReason}
+          triggerConfirmation={handleArchiveSubmit} 
+          executeArchive={executeArchive}
+          setModals={setModals}
+          modals={modals}
+          colors={styles.colors}
+          btnStyle={styles.btnStyle}
+          inputStyle={styles.inputStyle}
+        />
       )}
 
       {modals.confirmArchive && (

@@ -1,7 +1,8 @@
 import React, { useState } from 'react'
 import CancelConfirmationModal from './CancelConfirmationModal'
 
-function ArchiveModal({ archiveReason, setArchiveReason, triggerConfirmation, executeArchive, setModals, modals, colors, btnStyle, inputStyle }) {
+// ADDED archiveTitle to the props
+function ArchiveModal({ archiveTitle, archiveReason, setArchiveReason, triggerConfirmation, executeArchive, setModals, modals, colors, btnStyle, inputStyle }) {
   const [showCancelConfirm, setShowCancelConfirm] = useState(false)
   const modalOverlay = { position: "fixed", top: 0, left: 0, width: "100%", height: "100%", background: "rgba(0,0,0,0.6)", display: "flex", justifyContent: "center", alignItems: "center", zIndex: 1000 }
   const modalContent = { background: "white", padding: "25px", borderRadius: "15px", width: "550px", maxHeight: "90vh", overflowY: "auto", boxShadow: "0 10px 25px rgba(0,0,0,0.3)" }
@@ -23,7 +24,9 @@ function ArchiveModal({ archiveReason, setArchiveReason, triggerConfirmation, ex
     <>
       <div style={modalOverlay}>
         <div style={modalContent}>
-          <h2 style={{ color: colors.red, marginTop: 0 }}>Archive Employee</h2>
+          {/* CHANGED the hardcoded text to use the new prop */}
+          <h2 style={{ color: colors.red, marginTop: 0 }}>{archiveTitle || "Archive"}</h2>
+          
           <label style={{ fontSize: "12px", fontWeight: "bold", display: "inline-flex", alignItems: "center", gap: "4px", marginBottom: "8px" }}>Reason<span style={{ color: "#D9534F" }}>*</span></label>
           <textarea 
             style={{ ...inputStyle, height: "100px", resize: "none" }} 

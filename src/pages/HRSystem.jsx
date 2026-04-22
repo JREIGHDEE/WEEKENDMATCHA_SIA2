@@ -347,6 +347,7 @@ function HRSystem() {
 
         {modals.archive && (
           <ArchiveModal 
+            archiveTitle="Archive Employee"
             archiveReason={archiveReason}
             setArchiveReason={setArchiveReason}
             triggerConfirmation={triggerConfirmationAction}

@@ -5,6 +5,7 @@ import logo from '../assets/wm-logo.svg'
 import { Notification } from '../components/Notification'
 import CancelConfirmationModal from '../components/CancelConfirmationModal'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
+import ArchiveModal from '../components/ArchiveModal' 
 
 // --- IMPORTED SEPARATED FILES ---
 import { PaginationControls } from '../components/PaginationControls'
@@ -608,7 +609,18 @@ function SalesSystem() {
         </form></div></div>
       )}
       {modals.archive && (
-        <div style={modalOverlay}><div style={modalContent}><h2 style={{color:colors.red}}>Archive Record</h2><label style={{ fontSize: "13px", fontWeight: "bold", display: "inline-flex", alignItems: "center", gap: "4px", marginBottom: "8px" }}>Reason<span style={{ color: "#D9534F" }}>*</span></label><textarea style={{...formInput, height:"100px"}} placeholder="Reason..." value={archiveReason} onChange={e=>setArchiveReason(e.target.value)} /><div style={{display:"flex", justifyContent:"flex-end", gap:"10px"}}><button onClick={() => handleCancelClick(closeModal)} style={{...btnStyle, background:"#ccc", color:"#333"}}>Cancel</button><button onClick={handleArchiveConfirmation} style={{...btnStyle, background:colors.red}}>Confirm</button></div></div></div>
+        <ArchiveModal 
+          archiveTitle="Archive Financial Record"
+          archiveReason={archiveReason}
+          setArchiveReason={setArchiveReason}
+          triggerConfirmation={() => handleArchiveConfirmation()} // We pass your custom sales confirmation handler here
+          executeArchive={executeArchiveSale}
+          setModals={setModals}
+          modals={modals}
+          colors={colors}
+          btnStyle={btnStyle}
+          inputStyle={formInput} // Mapping Sales formInput to the modal's inputStyle
+        />
       )}
       {modals.archiveLog && (
         <div style={modalOverlay}><div style={{...modalContent, width:"900px"}}><h2 style={{color:colors.blue}}>Archive Log</h2><div style={{height:"400px", overflow:"auto"}}><table style={{width:"100%"}}><thead style={{background:colors.blue, color:"white"}}><tr><th>ID</th><th>Reason</th><th>By</th><th>Date Archived</th><th>Auto-Delete Date</th></tr></thead><tbody>{archiveLogs.map(l => {

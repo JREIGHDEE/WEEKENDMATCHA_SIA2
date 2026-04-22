@@ -5,7 +5,6 @@ import { useNavigate } from 'react-router-dom'
 export function usePOSLogic() {
   const navigate = useNavigate()
   
-  // --- STATE ---
   const [activeTab, setActiveTab] = useState('POS') 
   const [currentUser, setCurrentUser] = useState(null)
   const [menu, setMenu] = useState([]) 
@@ -24,7 +23,6 @@ export function usePOSLogic() {
   const [cashReceived, setCashReceived] = useState('')
   const [isDiscounted, setIsDiscounted] = useState(false)
   
-  // NEW PAYMENT STATES
   const [paymentMethod, setPaymentMethod] = useState('Cash')
   const [referenceNumber, setReferenceNumber] = useState('')
   const [customPaymentMethod, setCustomPaymentMethod] = useState('')
@@ -55,7 +53,6 @@ export function usePOSLogic() {
   const [orderPage, setOrderPage] = useState(1); const ordersPerPage = 6
   const [recentPage, setRecentPage] = useState(1); const recentPerPage = 5
 
-  // --- FETCH DATA ON LOAD ---
   useEffect(() => {
     async function fetchData() {
       const { data: { user } } = await supabase.auth.getUser()
@@ -148,6 +145,7 @@ export function usePOSLogic() {
       .from('Inventory')
       .select('*')
       .eq('Category', 'Ingredients')
+      .eq('IsArchived', false)
       .order('ItemName', { ascending: true })
 
     if (error) {
@@ -253,7 +251,6 @@ export function usePOSLogic() {
     setOrders(formatted)
   }
 
-  // --- CHECK STOCK BEFORE ADDING TO CART ---
   const canAddToCart = (cartItem, qtyToAdd = 1) => {
     if (!cartItem.recipe || !Array.isArray(cartItem.recipe) || cartItem.recipe.length === 0) {
       return true
@@ -279,7 +276,6 @@ export function usePOSLogic() {
     return true
   }
 
-  // --- LOGIC FUNCTIONS ---
   const handleItemClick = (item) => {
     if (item.category === 'Powder') {
       directAddToCart(item)
@@ -398,32 +394,30 @@ export function usePOSLogic() {
       return setNotification({ message: 'Customer Name is required!', type: 'error' })
     }
 
-    // Dynamic Payment Validation
-    let finalMethod = paymentMethod;
+    let finalMethod = paymentMethod
     if (paymentMethod === 'Others') {
-        if (!customPaymentMethod.trim()) {
-            return setNotification({ message: 'Please specify the custom payment method.', type: 'error' })
-        }
-        finalMethod = customPaymentMethod;
+      if (!customPaymentMethod.trim()) {
+        return setNotification({ message: 'Please specify the custom payment method.', type: 'error' })
+      }
+      finalMethod = customPaymentMethod
     }
 
     if (paymentMethod !== 'Cash' && !referenceNumber.trim()) {
-        return setNotification({ message: 'Reference Number is required for digital payments.', type: 'error' })
+      return setNotification({ message: 'Reference Number is required for digital payments.', type: 'error' })
     }
 
-    let amountGiven = 0;
-    let changeGiven = 0;
+    let amountGiven = 0
+    let changeGiven = 0
 
     if (paymentMethod === 'Cash') {
-        if (getChange() < 0) {
-            return setNotification({ message: 'Insufficient Cash!', type: 'error' })
-        }
-        amountGiven = parseFloat(cashReceived) || 0;
-        changeGiven = getChange();
+      if (getChange() < 0) {
+        return setNotification({ message: 'Insufficient Cash!', type: 'error' })
+      }
+      amountGiven = parseFloat(cashReceived) || 0
+      changeGiven = getChange()
     } else {
-        // Digital payments are exact amount
-        amountGiven = getFinalTotal();
-        changeGiven = 0;
+      amountGiven = getFinalTotal()
+      changeGiven = 0
     }
 
     setLoading(true)
@@ -512,34 +506,36 @@ export function usePOSLogic() {
 
         const newQty = stockItem.Quantity - totalNeeded[id].amount
 
-if (newQty <= 0) {
-  const { error: archiveError } = await supabase.from('InventoryArchive').insert([{
-    EmployeeID: currentUser?.EmployeeID || null,
-    ArchivedDate: new Date().toISOString(),
-    Reason: `[AUTO] ${stockItem.ItemName} reached 0 stock after POS Order #${newOrderID}`
-  }])
+        if (newQty <= 0) {
+          const { error: archiveError } = await supabase.from('InventoryArchive').insert([{
+            EmployeeID: currentUser?.EmployeeID || null,
+            ArchivedDate: new Date().toISOString(),
+            Reason: `[AUTO] ${stockItem.ItemName} reached 0 stock after POS Order #${newOrderID}`
+          }])
 
-  if (archiveError) {
-    console.error(`Error archiving ${stockItem.ItemName}:`, archiveError)
-    throw new Error(`Failed to archive ${stockItem.ItemName}.`)
-  }
+          if (archiveError) {
+            console.error(`Error archiving ${stockItem.ItemName}:`, archiveError)
+            throw new Error(`Failed to archive ${stockItem.ItemName}.`)
+          }
 
-  // 🔥 FIX: DO NOT DELETE → just set to 0
-  const { error: updateZeroError } = await supabase
-    .from('Inventory')
-    .update({ Quantity: 0 })
-    .eq('InventoryID', id)
+          const { error: softArchiveError } = await supabase
+            .from('Inventory')
+            .update({
+              Quantity: 0,
+              IsArchived: true,
+              ArchivedAt: new Date().toISOString()
+            })
+            .eq('InventoryID', id)
 
-  if (updateZeroError) {
-    console.error(`Error updating ${stockItem.ItemName}:`, updateZeroError)
-    throw new Error(`Failed to update ${stockItem.ItemName} to zero.`)
-  }
+          if (softArchiveError) {
+            console.error(`Error updating ${stockItem.ItemName}:`, softArchiveError)
+            throw new Error(`Failed to archive ${stockItem.ItemName}.`)
+          }
 
-  setNotification({
-    message: `${stockItem.ItemName} reached 0 stock`,
-    type: 'warning'
-  })
-
+          setNotification({
+            message: `${stockItem.ItemName} is now out of stock`,
+            type: 'warning'
+          })
         } else {
           const { error: updateError } = await supabase
             .from('Inventory')
@@ -813,7 +809,6 @@ if (newQty <= 0) {
     }
   }
 
-  // --- STYLES & UI CONSTANTS ---
   const colors = {
     green: '#6B7C65',
     beige: '#E8DCC6',

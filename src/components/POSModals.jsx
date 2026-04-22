@@ -4,6 +4,8 @@ import CancelConfirmationModal from './CancelConfirmationModal'
 export default function POSModals({ state, actions, ui, PaginationControls }) {
   const { colors, uiStyles, paginate, showCancelConfirm, handleCancelClick, handleCancelConfirm, handleCancelCancel } = ui;
 
+  const isCashInsufficient = state.paymentMethod === 'Cash' && actions.getChange() < 0;
+
   return (
     <>
       {/* SWEETNESS OPTIONS MODAL */}
@@ -50,7 +52,14 @@ export default function POSModals({ state, actions, ui, PaginationControls }) {
         <div style={uiStyles.modalOverlay}>
             <div style={uiStyles.modalContent}>
                 <h2 style={{ textAlign: "center", color: "#6B7C65", marginTop: 0, fontSize: "24px" }}>Process Payment</h2>
-                <div><label style={{fontWeight: "bold", fontSize: "14px", display: "inline-flex", alignItems: "center", gap: "4px"}}>Name of Customer<span style={{ color: "#D9534F" }}>*</span></label><input style={uiStyles.inputStyle} value={state.customerName} onChange={(e) => actions.setCustomerName(e.target.value)} /></div>
+                
+                {/* 1. Customer Name */}
+                <div>
+                    <label style={{fontWeight: "bold", fontSize: "14px", display: "inline-flex", alignItems: "center", gap: "4px"}}>Name of Customer<span style={{ color: "#D9534F" }}>*</span></label>
+                    <input style={uiStyles.inputStyle} value={state.customerName} onChange={(e) => actions.setCustomerName(e.target.value)} />
+                </div>
+                
+                {/* 2. Total Amount */}
                 <div>
                     <label style={{fontWeight: "bold", fontSize: "14px"}}>Total Amount</label>
                     <div style={{ ...uiStyles.inputStyle, background: "#f0f0f0", display: "flex", justifyContent: "flex-end", alignItems: "center", gap: "10px" }}>
@@ -61,19 +70,56 @@ export default function POSModals({ state, actions, ui, PaginationControls }) {
                         Apply Discount for Senior Citizen and PWD (20%) <input type="checkbox" checked={state.isDiscounted} onChange={(e) => actions.setIsDiscounted(e.target.checked)} style={{ marginLeft: "5px", transform: "scale(1.2)" }} />
                     </div>
                 </div>
-                <div><label style={{fontWeight: "bold", fontSize: "14px", display: "inline-flex", alignItems: "center", gap: "4px"}}>Cash Received<span style={{ color: "#D9534F" }}>*</span></label><input type="number" style={uiStyles.inputStyle} value={state.cashReceived} onChange={(e) => actions.setCashReceived(e.target.value)} placeholder="₱0.00" /></div>
-                <div style={{ textAlign: "center" }}>
-                    <div style={{ fontWeight: "bold", fontSize: "14px" }}>Change :</div>
-                    {actions.getChange() < 0 ? <div style={{ color: colors.blueText, fontWeight: "bold", fontSize: "18px" }}>Insufficient Amount</div> : <div style={{ color: "black", fontWeight: "bold", fontSize: "18px" }}>₱{actions.getChange().toFixed(2)}</div>}
+
+                {/* 3. Payment Method Selection */}
+                <div>
+                    <label style={{fontWeight: "bold", fontSize: "14px", display: "inline-flex", alignItems: "center", gap: "4px"}}>Payment Method<span style={{ color: "#D9534F" }}>*</span></label>
+                    <select style={uiStyles.inputStyle} value={state.paymentMethod} onChange={(e) => actions.setPaymentMethod(e.target.value)}>
+                        <option value="Cash">Cash</option>
+                        <option value="GCash">GCash</option>
+                        <option value="Maya">Maya</option>
+                        <option value="BPI">BPI</option>
+                        <option value="Others">Others (Specify)</option>
+                    </select>
                 </div>
+
+                {/* 4. Conditional Inputs Based on Method */}
+                {state.paymentMethod === 'Others' && (
+                    <div>
+                        <label style={{fontWeight: "bold", fontSize: "14px", display: "inline-flex", alignItems: "center", gap: "4px"}}>Specify Method<span style={{ color: "#D9534F" }}>*</span></label>
+                        <input placeholder="e.g., UnionBank, PayPal" style={uiStyles.inputStyle} value={state.customPaymentMethod} onChange={(e) => actions.setCustomPaymentMethod(e.target.value)} />
+                    </div>
+                )}
+
+                {state.paymentMethod !== 'Cash' && (
+                    <div>
+                        <label style={{fontWeight: "bold", fontSize: "14px", display: "inline-flex", alignItems: "center", gap: "4px"}}>Reference Number<span style={{ color: "#D9534F" }}>*</span></label>
+                        <input placeholder="Enter Transaction Ref Number" style={uiStyles.inputStyle} value={state.referenceNumber} onChange={(e) => actions.setReferenceNumber(e.target.value)} />
+                    </div>
+                )}
+
+                {state.paymentMethod === 'Cash' && (
+                    <>
+                        <div>
+                            <label style={{fontWeight: "bold", fontSize: "14px", display: "inline-flex", alignItems: "center", gap: "4px"}}>Cash Received<span style={{ color: "#D9534F" }}>*</span></label>
+                            <input type="number" style={uiStyles.inputStyle} value={state.cashReceived} onChange={(e) => actions.setCashReceived(e.target.value)} placeholder="₱0.00" />
+                        </div>
+                        <div style={{ textAlign: "center" }}>
+                            <div style={{ fontWeight: "bold", fontSize: "14px" }}>Change :</div>
+                            {actions.getChange() < 0 ? <div style={{ color: colors.blueText, fontWeight: "bold", fontSize: "18px" }}>Insufficient Amount</div> : <div style={{ color: "black", fontWeight: "bold", fontSize: "18px" }}>₱{actions.getChange().toFixed(2)}</div>}
+                        </div>
+                    </>
+                )}
+                
                 <div style={{ display: "flex", gap: "10px", marginTop: "10px" }}>
                     <button onClick={() => handleCancelClick(() => actions.setShowPaymentModal(false))} style={{ flex: 1, padding: "12px", background: colors.redBtn, color: "white", border: "none", borderRadius: "10px", fontWeight: "bold", cursor: "pointer" }}>Cancel Order</button>
-                    <button onClick={actions.handleConfirmPayment} disabled={actions.getChange() < 0} style={{ flex: 1, padding: "12px", background: actions.getChange() < 0 ? "#ccc" : colors.darkBtn, color: "white", border: "none", borderRadius: "10px", fontWeight: "bold", cursor: actions.getChange() < 0 ? "default" : "pointer" }}>Confirm</button>
+                    <button onClick={actions.handleConfirmPayment} disabled={isCashInsufficient} style={{ flex: 1, padding: "12px", background: isCashInsufficient ? "#ccc" : colors.darkBtn, color: "white", border: "none", borderRadius: "10px", fontWeight: "bold", cursor: isCashInsufficient ? "default" : "pointer" }}>Confirm</button>
                 </div>
             </div>
         </div>
       )}
 
+     {/* RECEIPT MODAL */}
      {state.showReceiptModal && (
         <div style={uiStyles.modalOverlay}>
             <style>
@@ -129,8 +175,16 @@ export default function POSModals({ state, actions, ui, PaginationControls }) {
                   
                   {state.isDiscounted && <div style={{display:"flex", justifyContent:"space-between", color: colors.discountRed, fontStyle:"italic", marginBottom:"5px", fontWeight: "bold"}}><span>Discount Applied</span><span>-₱{actions.getDiscountAmount().toFixed(2)}</span></div>}
                   <div style={{display:"flex", justifyContent:"space-between", fontWeight:"bold", marginBottom:"5px"}}><span>Total:</span><span>₱{actions.getFinalTotal().toFixed(2)}</span></div>
-                  <div style={{display:"flex", justifyContent:"space-between", marginBottom:"2px", fontWeight: "bold"}}><span>Cash Paid:</span><span>₱{parseFloat(state.cashReceived).toFixed(2)}</span></div>
-                  <div style={{display:"flex", justifyContent:"space-between", marginBottom:"20px", fontWeight: "bold"}}><span>Change:</span><span>₱{actions.getChange().toFixed(2)}</span></div>
+                  
+                  {/* DYNAMIC PAYMENT PRINTOUT */}
+                  <div style={{display:"flex", justifyContent:"space-between", marginBottom:"2px", fontWeight: "bold"}}><span>Payment Method:</span><span>{state.paymentMethod === 'Others' ? state.customPaymentMethod : state.paymentMethod}</span></div>
+                  
+                  {state.paymentMethod !== 'Cash' && (
+                     <div style={{display:"flex", justifyContent:"space-between", marginBottom:"2px", fontWeight: "bold", fontSize:"12px"}}><span>Ref No:</span><span>{state.referenceNumber}</span></div>
+                  )}
+
+                  <div style={{display:"flex", justifyContent:"space-between", marginBottom:"2px", fontWeight: "bold", marginTop: "5px"}}><span>Amount Paid:</span><span>₱{state.paymentMethod === 'Cash' ? parseFloat(state.cashReceived).toFixed(2) : actions.getFinalTotal().toFixed(2)}</span></div>
+                  <div style={{display:"flex", justifyContent:"space-between", marginBottom:"20px", fontWeight: "bold"}}><span>Change:</span><span>₱{state.paymentMethod === 'Cash' ? actions.getChange().toFixed(2) : "0.00"}</span></div>
                   
                   <div style={{marginTop: "10px", fontStyle:"italic", fontWeight: "bold"}}>Thank you for your purchase!</div>
                 </div>
@@ -258,19 +312,36 @@ export default function POSModals({ state, actions, ui, PaginationControls }) {
         </div>
       )}
 
-      {/* RECENT TRANSACTIONS */}
+    {/* RECENT TRANSACTIONS */}
       {state.showRecentModal && (
         <div style={uiStyles.modalOverlay}>
-            <div style={{ background: "white", padding: "20px", borderRadius: "20px", width: "800px", display: "flex", flexDirection: "column", boxShadow: "0 10px 25px rgba(0,0,0,0.3)", height: "70vh" }}>
+            <div style={{ background: "white", padding: "20px", borderRadius: "20px", width: "850px", display: "flex", flexDirection: "column", boxShadow: "0 10px 25px rgba(0,0,0,0.3)", height: "70vh" }}>
                 <h2 style={{ color: "#5a6955", textAlign: "center", margin: "10px 0 20px 0", fontSize: "28px" }}>Recent Transactions</h2>
                 <div style={{ flex: 1, overflowY: "auto", border: "1px solid #ccc" }}>
                     <table style={{ width: "100%", borderCollapse: "collapse" }}>
                         <thead style={{ background: "#7E8E77", color: "white", position: "sticky", top: 0 }}>
-                            <tr><th style={{ padding: "12px" }}>Name</th><th style={{ padding: "12px" }}>Transaction ID</th><th style={{ padding: "12px" }}>EmployeeID</th><th style={{ padding: "12px" }}>Total Amount</th><th style={{ padding: "12px" }}>Date/Time</th></tr>
+                            <tr>
+                                <th style={{ padding: "12px" }}>Name</th>
+                                <th style={{ padding: "12px" }}>Transaction ID</th>
+                                <th style={{ padding: "12px" }}>EmployeeID</th>
+                                <th style={{ padding: "12px" }}>Total Amount</th>
+                                <th style={{ padding: "12px" }}>Payment</th> {/* <-- NEW HEADER */}
+                                <th style={{ padding: "12px" }}>Date/Time</th>
+                            </tr>
                         </thead>
                         <tbody>
-                            {state.completedOrders.length === 0 ? (<tr><td colSpan="5" style={{textAlign:"center", padding:"30px"}}>No completed transactions yet.</td></tr>) : (paginate(state.completedOrders, state.recentPage, state.recentPerPage).map(t => (
-                                <tr key={t.id} style={{ borderBottom: "1px solid #ddd", textAlign: "center", height: "50px", fontSize: "14px" }}><td style={{ fontWeight: "bold" }}>{t.customer.toUpperCase()}</td><td>{t.id}</td><td>{t.employeeId}</td><td style={{ fontWeight: "bold" }}>₱{t.total.toFixed(2)}</td><td>{t.date}</td></tr>
+                            {state.completedOrders.length === 0 ? (
+                                <tr><td colSpan="6" style={{textAlign:"center", padding:"30px"}}>No completed transactions yet.</td></tr>
+                            ) : (
+                                paginate(state.completedOrders, state.recentPage, state.recentPerPage).map(t => (
+                                <tr key={t.id} style={{ borderBottom: "1px solid #ddd", textAlign: "center", height: "50px", fontSize: "14px" }}>
+                                    <td style={{ fontWeight: "bold" }}>{t.customer.toUpperCase()}</td>
+                                    <td>{t.id}</td>
+                                    <td>{t.employeeId}</td>
+                                    <td style={{ fontWeight: "bold" }}>₱{t.total.toFixed(2)}</td>
+                                    <td style={{ fontWeight: "bold", color: "#5a6955" }}>{t.paymentMethod}</td> {/* <-- NEW DATA CELL */}
+                                    <td>{t.date}</td>
+                                </tr>
                             )))}
                         </tbody>
                     </table>

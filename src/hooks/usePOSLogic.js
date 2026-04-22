@@ -23,6 +23,12 @@ export function usePOSLogic() {
   const [customerName, setCustomerName] = useState('')
   const [cashReceived, setCashReceived] = useState('')
   const [isDiscounted, setIsDiscounted] = useState(false)
+  
+  // NEW PAYMENT STATES
+  const [paymentMethod, setPaymentMethod] = useState('Cash')
+  const [referenceNumber, setReferenceNumber] = useState('')
+  const [customPaymentMethod, setCustomPaymentMethod] = useState('')
+
   const [currentOrderId, setCurrentOrderId] = useState(null) 
   const [receiptPrinted, setReceiptPrinted] = useState(false) 
   const [orders, setOrders] = useState([]) 
@@ -175,6 +181,7 @@ export function usePOSLogic() {
         customer: t.CustomerName,
         employeeId: t.EmployeeID,
         total: t.TotalAmount,
+        paymentMethod: t.PaymentMethod || 'Cash',
         date: new Date(t.OrderDateTime).toLocaleString('en-US', {
           year: 'numeric',
           month: '2-digit',
@@ -360,6 +367,9 @@ export function usePOSLogic() {
       setCustomerName('')
       setCashReceived('')
       setIsDiscounted(false)
+      setPaymentMethod('Cash')
+      setReferenceNumber('')
+      setCustomPaymentMethod('')
       setShowPaymentModal(true)
     }
   }
@@ -377,6 +387,9 @@ export function usePOSLogic() {
     setCart([])
     setCustomerName('')
     setCashReceived('')
+    setPaymentMethod('Cash')
+    setReferenceNumber('')
+    setCustomPaymentMethod('')
     setShowReceiptModal(false)
   }
 
@@ -385,8 +398,32 @@ export function usePOSLogic() {
       return setNotification({ message: 'Customer Name is required!', type: 'error' })
     }
 
-    if (getChange() < 0) {
-      return setNotification({ message: 'Insufficient Cash!', type: 'error' })
+    // Dynamic Payment Validation
+    let finalMethod = paymentMethod;
+    if (paymentMethod === 'Others') {
+        if (!customPaymentMethod.trim()) {
+            return setNotification({ message: 'Please specify the custom payment method.', type: 'error' })
+        }
+        finalMethod = customPaymentMethod;
+    }
+
+    if (paymentMethod !== 'Cash' && !referenceNumber.trim()) {
+        return setNotification({ message: 'Reference Number is required for digital payments.', type: 'error' })
+    }
+
+    let amountGiven = 0;
+    let changeGiven = 0;
+
+    if (paymentMethod === 'Cash') {
+        if (getChange() < 0) {
+            return setNotification({ message: 'Insufficient Cash!', type: 'error' })
+        }
+        amountGiven = parseFloat(cashReceived) || 0;
+        changeGiven = getChange();
+    } else {
+        // Digital payments are exact amount
+        amountGiven = getFinalTotal();
+        changeGiven = 0;
     }
 
     setLoading(true)
@@ -431,9 +468,11 @@ export function usePOSLogic() {
         OrderDateTime: new Date().toISOString(),
         Status: 'IN PROGRESS',
         TotalAmount: getFinalTotal(),
-        AmountGiven: parseFloat(cashReceived),
-        ChangeGiven: getChange(),
-        DiscountAmount: getDiscountAmount()
+        AmountGiven: amountGiven,
+        ChangeGiven: changeGiven,
+        DiscountAmount: getDiscountAmount(),
+        PaymentMethod: finalMethod,
+        ReferenceNumber: paymentMethod !== 'Cash' ? referenceNumber : null
       }
 
       const { data: insertedOrder, error: orderError } = await supabase
@@ -463,7 +502,7 @@ export function usePOSLogic() {
         TransactionDate: new Date().toISOString(),
         RecordType: 'Income',
         Amount: getFinalTotal(),
-        Description: `POS Order #${newOrderID} - ${customerName}`,
+        Description: `POS Order #${newOrderID} - ${customerName} (${finalMethod})`,
         Status: 'Completed'
       }])
 
@@ -849,6 +888,9 @@ export function usePOSLogic() {
       customerName,
       cashReceived,
       isDiscounted,
+      paymentMethod,
+      referenceNumber,
+      customPaymentMethod,
       currentOrderId,
       receiptPrinted,
       orders,
@@ -911,6 +953,9 @@ export function usePOSLogic() {
       setCustomerName,
       setCashReceived,
       setIsDiscounted,
+      setPaymentMethod,
+      setReferenceNumber,
+      setCustomPaymentMethod,
       setSelectedSweetness,
       setSelectedIngAmount,
       setSelectedIngId,

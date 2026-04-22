@@ -512,32 +512,34 @@ export function usePOSLogic() {
 
         const newQty = stockItem.Quantity - totalNeeded[id].amount
 
-        if (newQty <= 0) {
-          const { error: archiveError } = await supabase.from('InventoryArchive').insert([{
-            EmployeeID: currentUser?.EmployeeID || null,
-            ArchivedDate: new Date().toISOString(),
-            Reason: `[AUTO] ${stockItem.ItemName} reached 0 stock after POS Order #${newOrderID}`
-          }])
+if (newQty <= 0) {
+  const { error: archiveError } = await supabase.from('InventoryArchive').insert([{
+    EmployeeID: currentUser?.EmployeeID || null,
+    ArchivedDate: new Date().toISOString(),
+    Reason: `[AUTO] ${stockItem.ItemName} reached 0 stock after POS Order #${newOrderID}`
+  }])
 
-          if (archiveError) {
-            console.error(`Error archiving ${stockItem.ItemName}:`, archiveError)
-            throw new Error(`Failed to archive ${stockItem.ItemName}.`)
-          }
+  if (archiveError) {
+    console.error(`Error archiving ${stockItem.ItemName}:`, archiveError)
+    throw new Error(`Failed to archive ${stockItem.ItemName}.`)
+  }
 
-          const { error: deleteError } = await supabase
-            .from('Inventory')
-            .delete()
-            .eq('InventoryID', id)
+  // 🔥 FIX: DO NOT DELETE → just set to 0
+  const { error: updateZeroError } = await supabase
+    .from('Inventory')
+    .update({ Quantity: 0 })
+    .eq('InventoryID', id)
 
-          if (deleteError) {
-            console.error(`Error deleting ${stockItem.ItemName}:`, deleteError)
-            throw new Error(`Failed to remove ${stockItem.ItemName} from inventory.`)
-          }
+  if (updateZeroError) {
+    console.error(`Error updating ${stockItem.ItemName}:`, updateZeroError)
+    throw new Error(`Failed to update ${stockItem.ItemName} to zero.`)
+  }
 
-          setNotification({
-            message: `${stockItem.ItemName} reached 0 stock and was archived automatically.`,
-            type: 'warning'
-          })
+  setNotification({
+    message: `${stockItem.ItemName} reached 0 stock`,
+    type: 'warning'
+  })
+
         } else {
           const { error: updateError } = await supabase
             .from('Inventory')

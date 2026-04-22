@@ -269,21 +269,8 @@ function HRSystem() {
           {/* Removed global View Attendance button since it requires a specific employee */}
         </div>
 
-        {/* STATUS TABS */}
-        <div style={{ display: "flex", gap: "10px", marginBottom: "20px" }}>
-          {['All', 'Active', 'Inactive', 'On Leave'].map(status => (
-            <button 
-              key={status} 
-              style={pillBtn(statusFilter === status, status)} 
-              onClick={() => setStatusFilter(status)}
-            >
-              {status.toUpperCase()}
-            </button>
-          ))}
-        </div>
-
         {/* SEARCH & ACTIONS BAR - ALIGNED IN ONE ROW */}
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px", gap: "20px" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0px", gap: "20px" }}>
           <div style={{ flex: 1 }}>
             <SearchFilterBar 
               searchTerm={searchTerm}
@@ -302,6 +289,19 @@ function HRSystem() {
             <button style={{...btnStyle, background: colors.darkGreen}} onClick={prepareAdd}>ADD</button>
             <button style={{...btnStyle, background: "#337AB7"}} onClick={openArchiveLogModal}>VIEW ARCHIVE LOG</button>
           </div>
+        </div>
+
+        {/* STATUS TABS - BELOW SEARCH */}
+        <div style={{ display: "flex", gap: "10px", marginBottom: "20px", marginTop: "10px" }}>
+          {['All', 'Active', 'Inactive', 'On Leave'].map(status => (
+            <button 
+              key={status} 
+              style={pillBtn(statusFilter === status, status)} 
+              onClick={() => setStatusFilter(status)}
+            >
+              {status.toUpperCase()}
+            </button>
+          ))}
         </div>
 
         <EmployeeTable 

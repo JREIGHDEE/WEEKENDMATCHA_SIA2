@@ -16,7 +16,7 @@ function SearchFilterBar({ searchTerm, setSearchTerm, filterCategory, setFilterC
         <div style={{ position: "absolute", top: "110%", left: 0, background: "white", padding: "15px", borderRadius: "15px", boxShadow: "0 4px 15px rgba(0,0,0,0.2)", zIndex: 50, border: "1px solid #ddd", width: "380px" }}>
           <p style={{ margin: "0 0 10px 0", fontSize: "14px", fontWeight: "bold", color: "#555" }}>Filter by Category:</p>
           <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
-            {['ID', 'Name', 'Role', 'Status', 'Date Hired'].map(cat => (
+            {['ID', 'Name', 'Role', 'Date Hired'].map(cat => (
               <button 
                 key={cat} 
                 style={pillBtn(filterCategory === cat)} 

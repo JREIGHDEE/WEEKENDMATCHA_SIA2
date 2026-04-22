@@ -11,8 +11,10 @@ export const useEmployeeFiltering = () => {
   const filterEmployees = useCallback((employees, searchTerm, filterCategory, statusFilter) => {
     let result = employees
     
-    // First apply status filter
-    if (statusFilter !== 'All') {
+    // First apply status filter - exclude archived (Inactive) by default when 'All' is selected
+    if (statusFilter === 'All') {
+      result = result.filter(e => e.EmployeeStatus !== 'Inactive')
+    } else {
       result = result.filter(e => e.EmployeeStatus === statusFilter)
     }
     
@@ -26,8 +28,6 @@ export const useEmployeeFiltering = () => {
           return e.EmployeeID?.toString().includes(lowerTerm)
         } else if (filterCategory === 'Role') {
           return e.User?.RoleName?.toLowerCase().includes(lowerTerm)
-        } else if (filterCategory === 'Status') {
-          return e.EmployeeStatus?.toLowerCase().includes(lowerTerm)
         } else if (filterCategory === 'Date Hired') {
           return e.DateHired?.includes(searchTerm) 
         }

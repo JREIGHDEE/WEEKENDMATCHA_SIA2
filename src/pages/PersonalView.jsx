@@ -98,9 +98,14 @@ function PersonalView() {
   }
 
   const sidebarItem = (name) => ({
-    padding: "15px 20px", cursor: "pointer", fontWeight: "bold",
-    background: activeTab === name ? "#5a6955" : "transparent",
-    borderRadius: activeTab === name ? "0 25px 25px 0" : "0"
+    padding: "10px", 
+    cursor: "pointer", 
+    fontWeight: "bold",
+    borderRadius: "8px",
+    marginBottom: "10px",
+    fontSize: "16px",
+    color: "white",
+    background: activeTab === name ? "#5a6955" : "transparent"
   })
 
   // --- PAGINATION HELPER ---
@@ -160,7 +165,7 @@ function PersonalView() {
             <ProfileCard employee={employee} colors={colors} />
 
             <div style={{ display: "flex", gap: "20px", flex: 1 }}>
-              <div style={{ flex: 1, background: colors.white, padding: "30px", borderRadius: "20px", boxShadow: "0 4px 10px rgba(0,0,0,0.05)" }}>
+              <div style={{ flex: 1, background: colors.white, padding: "30px", borderRadius: "15px", boxShadow: "0 4px 10px rgba(0,0,0,0.1)" }}>
                 <h2 style={{ color: "#5a6955", marginTop: 0, borderBottom: "1px solid #eee", paddingBottom: "10px" }}>Job Details</h2>
                 <div style={{ marginBottom: "20px" }}><label style={{display:"block", color:"#999", fontSize:"12px"}}>Date Hired</label><div style={{fontWeight:"bold", fontSize:"18px"}}>{employee?.DateHired}</div></div>
                 <div style={{ marginBottom: "20px" }}><label style={{display:"block", color:"#999", fontSize:"12px"}}>Employee ID</label><div style={{fontWeight:"bold", fontSize:"18px"}}>{employee?.EmployeeID}</div></div>
@@ -170,7 +175,7 @@ function PersonalView() {
                 <div style={{ marginBottom: "20px" }}><label style={{display:"block", color:"#999", fontSize:"12px"}}>Next Scheduled Shift</label><div style={{fontWeight:"bold", fontSize:"20px", color: colors.red}}>{employee?.NextShift || "Pending Assignment"}</div></div>
               </div>
 
-              <div style={{ flex: 1, background: colors.white, padding: "30px", borderRadius: "20px", boxShadow: "0 4px 10px rgba(0,0,0,0.05)" }}>
+              <div style={{ flex: 1, background: colors.white, padding: "30px", borderRadius: "15px", boxShadow: "0 4px 10px rgba(0,0,0,0.1)" }}>
                 <h2 style={{ color: "#5a6955", marginTop: 0, borderBottom: "1px solid #eee", paddingBottom: "10px" }}>Contact Information</h2>
                 <div style={{ marginBottom: "20px" }}><label style={{display:"block", color:"#999", fontSize:"12px"}}>Contact Number</label><div style={{fontWeight:"bold", fontSize:"18px"}}>{employee?.User?.ContactNumber}</div></div>
                 <div style={{ marginBottom: "20px" }}><label style={{display:"block", color:"#999", fontSize:"12px"}}>Email</label><div style={{fontWeight:"bold", fontSize:"18px"}}>{employee?.User?.Email}</div></div>
@@ -190,21 +195,18 @@ function PersonalView() {
             </div>
             
             {/* CONTAINER WITH FLEX to ensure pagination stays at bottom */}
-            <div style={{ background: colors.white, borderRadius: "20px", flex: 1, display: "flex", flexDirection: "column", padding: "20px", boxShadow: "0 4px 10px rgba(0,0,0,0.05)", minHeight: 0 }}>
-              
-              <AttendanceTable
-                attendanceLogs={attendanceLogs}
-                todayRecord={todayRecord}
-                canTimeIn={canTimeIn}
-                handleTimeIn={handleTimeIn}
-                handleTimeOut={handleTimeOut}
-                currentPage={currentPage}
-                setCurrentPage={setCurrentPage}
-                itemsPerPage={itemsPerPage}
-                colors={colors}
-                PaginationControls={PaginationControls}
-              />
-            </div>
+            <AttendanceTable
+              attendanceLogs={attendanceLogs}
+              todayRecord={todayRecord}
+              canTimeIn={canTimeIn}
+              handleTimeIn={handleTimeIn}
+              handleTimeOut={handleTimeOut}
+              currentPage={currentPage}
+              setCurrentPage={setCurrentPage}
+              itemsPerPage={itemsPerPage}
+              colors={colors}
+              PaginationControls={PaginationControls}
+            />
           </div>
         )}
 

@@ -107,7 +107,7 @@ export const archiveEmployee = async (employeeId, userID, reason) => {
 export const fetchArchiveLogs = async () => {
   const { data, error } = await supabase
     .from('ArchiveLog')
-    .select('*, EmployeeID, Employee(User(FirstName, LastName))')
+    .select('*, Employee(User(FirstName, LastName))')
     .order('ArchivedDate', { ascending: false })
   return { data, error }
 }

@@ -269,39 +269,46 @@ function HRSystem() {
           {/* Removed global View Attendance button since it requires a specific employee */}
         </div>
 
-        {/* SEARCH & ACTIONS BAR - ALIGNED IN ONE ROW */}
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0px", gap: "20px" }}>
-          <div style={{ flex: 1 }}>
-            <SearchFilterBar 
-              searchTerm={searchTerm}
-              setSearchTerm={setSearchTerm}
-              filterCategory={filterCategory}
-              setFilterCategory={setFilterCategory}
-              showFilterMenu={showFilterMenuState}
-              setShowFilterMenu={setShowFilterMenuState}
-              searchContainerRef={searchContainerRef}
-              colors={colors}
-            />
+{/* SEARCH, FILTERS, & ACTIONS - ALL IN ONE ROW */}
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "15px", gap: "20px" }}>
+          
+          {/* Left Side: Search Bar AND Status Filters */}
+          <div style={{ display: "flex", alignItems: "center", gap: "20px", flex: 1 }}>
+            
+            {/* Search Bar */}
+            <div style={{ width: "300px", marginTop: "15px" }}> 
+              <SearchFilterBar 
+                searchTerm={searchTerm}
+                setSearchTerm={setSearchTerm}
+                filterCategory={filterCategory}
+                setFilterCategory={setFilterCategory}
+                showFilterMenu={showFilterMenuState}
+                setShowFilterMenu={setShowFilterMenuState}
+                searchContainerRef={searchContainerRef}
+                colors={colors}
+              />
+            </div>
+
+            {/* Status Tabs (Moved here to sit next to the search bar) */}
+            <div style={{ display: "flex", gap: "10px" }}>
+              {['All', 'Active', 'Inactive', 'On Leave'].map(status => (
+                <button 
+                  key={status} 
+                  style={pillBtn(statusFilter === status, status)} 
+                  onClick={() => setStatusFilter(status)}
+                >
+                  {status.toUpperCase()}
+                </button>
+              ))}
+            </div>
+
           </div>
 
-          {/* Right Side: Action Buttons (Only Add and Archive Log remain) */}
+          {/* Right Side: Action Buttons */}
           <div style={{ display: "flex", gap: "10px", flexShrink: 0 }}>
             <button style={{...btnStyle, background: colors.darkGreen}} onClick={prepareAdd}>ADD</button>
             <button style={{...btnStyle, background: "#337AB7"}} onClick={openArchiveLogModal}>VIEW ARCHIVE LOG</button>
           </div>
-        </div>
-
-        {/* STATUS TABS - BELOW SEARCH */}
-        <div style={{ display: "flex", gap: "10px", marginBottom: "20px", marginTop: "10px" }}>
-          {['All', 'Active', 'Inactive', 'On Leave'].map(status => (
-            <button 
-              key={status} 
-              style={pillBtn(statusFilter === status, status)} 
-              onClick={() => setStatusFilter(status)}
-            >
-              {status.toUpperCase()}
-            </button>
-          ))}
         </div>
 
         <EmployeeTable 

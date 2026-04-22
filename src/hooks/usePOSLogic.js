@@ -53,6 +53,10 @@ export function usePOSLogic() {
   const [orderPage, setOrderPage] = useState(1); const ordersPerPage = 6
   const [recentPage, setRecentPage] = useState(1); const recentPerPage = 5
 
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [itemToDelete, setItemToDelete] = useState(null)
+  const [showReceiptWarning, setShowReceiptWarning] = useState(false)
+
   useEffect(() => {
     async function fetchData() {
       const { data: { user } } = await supabase.auth.getUser()
@@ -378,14 +382,22 @@ const items = orderItems
     }, 500)
   }
 
-  const handleCloseReceipt = () => {
-    if (!receiptPrinted && !window.confirm('Receipt has not been printed. Close anyway?')) return
+const handleCloseReceipt = () => {
+    if (!receiptPrinted) {
+      setShowReceiptWarning(true)
+      return
+    }
+    executeCloseReceipt()
+  }
+
+  const executeCloseReceipt = () => {
     setCart([])
     setCustomerName('')
     setCashReceived('')
     setPaymentMethod('Cash')
     setReferenceNumber('')
     setCustomPaymentMethod('')
+    setShowReceiptWarning(false)
     setShowReceiptModal(false)
   }
 
@@ -654,7 +666,15 @@ const items = orderItems
   }
 
   const handleAddIngredientToRecipe = () => {
-    if (!selectedIngId || !selectedIngAmount) return
+    // 1. Check if they selected an ingredient
+    if (!selectedIngId) {
+      return setNotification({ message: 'Please select an ingredient.', type: 'error' })
+    }
+    
+    // 2. Check if they entered a valid quantity (must not be empty, and must be greater than 0)
+    if (!selectedIngAmount || parseFloat(selectedIngAmount) <= 0) {
+      return setNotification({ message: 'Please enter a valid quantity.', type: 'error' })
+    }
 
     const ing = inventory.find(i => i.InventoryID === parseInt(selectedIngId))
     if (ing) {
@@ -781,23 +801,25 @@ const items = orderItems
     if (fileInputRef.current) fileInputRef.current.value = ''
   }
 
-  const handleDeleteItem = async (id) => {
-    if (!window.confirm('Delete this item?')) return
+  const handleDeleteItem = (id) => {
+    setItemToDelete(id)
+    setShowDeleteConfirm(true)
+  }
 
+  const executeDeleteItem = async () => {
     setLoading(true)
-
     try {
       const { error: recipeDeleteError } = await supabase
         .from('Recipe')
         .delete()
-        .eq('ProductID', id)
+        .eq('ProductID', itemToDelete)
 
       if (recipeDeleteError) throw recipeDeleteError
 
       const { error: productDeleteError } = await supabase
         .from('Product')
         .delete()
-        .eq('ProductID', id)
+        .eq('ProductID', itemToDelete)
 
       if (productDeleteError) throw productDeleteError
 
@@ -807,6 +829,8 @@ const items = orderItems
       setNotification({ message: 'Error deleting item: ' + error.message, type: 'error' })
     } finally {
       setLoading(false)
+      setShowDeleteConfirm(false)
+      setItemToDelete(null)
     }
   }
 
@@ -869,107 +893,40 @@ const items = orderItems
 
   return {
     state: {
-      activeTab,
-      currentUser,
-      menu,
-      loadingMenu,
-      selectedIngAmount,
-      inventory,
-      cart,
-      searchQuery,
-      loading,
-      showPaymentModal,
-      showReceiptModal,
-      showOptionsModal,
-      selectedItemForOptions,
-      selectedSweetness,
-      customerName,
-      cashReceived,
-      isDiscounted,
-      paymentMethod,
-      referenceNumber,
-      customPaymentMethod,
-      currentOrderId,
-      receiptPrinted,
-      orders,
-      selectedOrder,
-      showStatusModal,
-      showCompleteConfirm,
-      completedOrders,
-      showRecentModal,
-      showAdminLogin,
-      showManageMenu,
-      adminUser,
-      adminPass,
-      isEditing,
-      editItemId,
-      newItemName,
-      newItemPrice,
-      newItemCategory,
-      newItemFile,
-      previewUrl,
-      fileInputRef,
-      newItemRecipe,
-      selectedIngId,
-      notification,
-      orderPage,
-      recentPage,
-      ordersPerPage,
-      recentPerPage
+      activeTab, currentUser, menu, loadingMenu, selectedIngAmount, inventory, cart,
+      searchQuery, loading, showPaymentModal, showReceiptModal, showOptionsModal,
+      selectedItemForOptions, selectedSweetness, customerName, cashReceived,
+      isDiscounted, currentOrderId, receiptPrinted, orders, selectedOrder,
+      showStatusModal, showCompleteConfirm, completedOrders, showRecentModal,
+      showAdminLogin, showManageMenu, adminUser, adminPass, isEditing, editItemId,
+      newItemName, newItemPrice, newItemCategory, newItemFile, previewUrl,
+      fileInputRef, newItemRecipe, selectedIngId, notification, orderPage,
+      recentPage, ordersPerPage, recentPerPage,
+      
+      // --- NEW STATES ADDED HERE ---
+      showDeleteConfirm, 
+      itemToDelete,
+      showReceiptWarning
     },
     actions: {
-      setActiveTab,
-      handleItemClick,
-      confirmAddToCart,
-      increaseQty,
-      decreaseQty,
-      getSubtotal,
-      getDiscountAmount,
-      getFinalTotal,
-      getChange,
-      handleOpenPayment,
-      handlePrintReceipt,
-      handleCloseReceipt,
-      handleConfirmPayment,
-      handleStatusClick,
-      updateStatus,
-      confirmCompletion,
-      handleCancelCompletion,
-      fetchRecentTransactions,
-      fetchCurrentOrders,
-      handleAdminLoginSubmit,
-      handleImageUpload,
-      handleAddIngredientToRecipe,
-      removeIngredientFromRecipe,
-      handleSaveItem,
-      handleEditPrep,
-      resetForm,
-      handleDeleteItem,
-      setSearchQuery,
-      setOrderPage,
-      setRecentPage,
-      setCustomerName,
-      setCashReceived,
-      setIsDiscounted,
-      setPaymentMethod,
-      setReferenceNumber,
-      setCustomPaymentMethod,
-      setSelectedSweetness,
-      setSelectedIngAmount,
-      setSelectedIngId,
-      setNewItemCategory,
-      setNewItemName,
-      setNewItemPrice,
-      setShowOptionsModal,
-      setShowPaymentModal,
-      setShowStatusModal,
-      setShowCompleteConfirm,
-      setShowAdminLogin,
-      setShowManageMenu,
-      setShowRecentModal,
-      setAdminUser,
-      setAdminPass,
-      setNotification
+      setActiveTab, handleItemClick, confirmAddToCart, increaseQty, decreaseQty,
+      getSubtotal, getDiscountAmount, getFinalTotal, getChange, handleOpenPayment,
+      handlePrintReceipt, handleCloseReceipt, handleConfirmPayment, handleStatusClick,
+      updateStatus, confirmCompletion, handleCancelCompletion, fetchRecentTransactions,
+      fetchCurrentOrders, handleAdminLoginSubmit, handleImageUpload,
+      handleAddIngredientToRecipe, removeIngredientFromRecipe, handleSaveItem,
+      handleEditPrep, resetForm, handleDeleteItem, setSearchQuery, setOrderPage,
+      setRecentPage, setCustomerName, setCashReceived, setIsDiscounted,
+      setSelectedSweetness, setSelectedIngAmount, setSelectedIngId, setNewItemCategory,
+      setNewItemName, setNewItemPrice, setShowOptionsModal, setShowPaymentModal,
+      setShowStatusModal, setShowCompleteConfirm, setShowAdminLogin, setShowManageMenu,
+      setShowRecentModal, setAdminUser, setAdminPass, setNotification,
+      
+      // --- NEW ACTIONS ADDED HERE ---
+      executeDeleteItem,
+      executeCloseReceipt,
+      setShowDeleteConfirm,
+      setShowReceiptWarning
     },
     ui: { colors, uiStyles, paginate },
     navigate

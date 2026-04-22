@@ -213,14 +213,46 @@ export default function POSModals({ state, actions, ui, PaginationControls }) {
         </div>
       )}
 
+    {/* COMPLETE ORDER CONFIRM MODAL */}
       {state.showCompleteConfirm && (
         <div style={uiStyles.modalOverlay}>
-            <div style={{background: "white", padding: "40px", borderRadius: "25px", width: "350px", textAlign: "center", display: "flex", flexDirection: "column", gap: "15px", boxShadow: "0 10px 30px rgba(0,0,0,0.3)"}}>
-                <h2 style={{color:"#5a6955", margin:0, fontSize: "24px", textAlign: "left"}}>Complete Order?</h2>
-                <p style={{fontSize:"14px", color:"#666", lineHeight: "1.5", textAlign: "left"}}>Are you sure you want to complete this order? This action cannot be undone.<br/>Please review the details before continuing.</p>
-                <div style={{ display: "flex", justifyContent: "flex-end", marginTop: "15px", gap: "20px" }}>
-                    <button onClick={actions.handleCancelCompletion} style={{ background: "none", border: "none", color: colors.redBtn, fontWeight: "bold", cursor: "pointer", fontSize: "14px" }}>Cancel</button>
-                    <button onClick={actions.confirmCompletion} style={{ background: "none", border: "none", color: colors.darkBtn, fontWeight: "bold", cursor: "pointer", fontSize: "14px" }}>Confirm</button>
+            <div style={{ background: "white", padding: "30px", borderRadius: "15px", width: "350px", textAlign: "center", display: "flex", flexDirection: "column", gap: "10px", boxShadow: "0 10px 30px rgba(0,0,0,0.3)" }}>
+                <h2 style={{ color: "#333", margin: "0", fontSize: "22px" }}>Complete Order?</h2>
+                <p style={{ fontSize: "14px", color: "#666", lineHeight: "1.5", margin: "0 0 10px 0" }}>This action cannot be undone.<br/>Please review the details before continuing.</p>
+                <div style={{ display: "flex", justifyContent: "center", gap: "15px" }}>
+                    {/* Swapped: Cancel is now Grey, Confirm is Green */}
+                    <button onClick={actions.handleCancelCompletion} style={{ padding: "10px 20px", background: "#D9534F", color: "white", border: "none", borderRadius: "8px", fontWeight: "bold", cursor: "pointer", fontSize: "14px" }}>Cancel</button>
+                    <button onClick={actions.confirmCompletion} style={{ padding: "10px 20px", background: "#6B7C65", color: "white", border: "none", borderRadius: "8px", fontWeight: "bold", cursor: "pointer", fontSize: "14px" }}>Confirm</button>
+                </div>
+            </div>
+        </div>
+      )}
+
+      {/* DELETE ITEM CONFIRM MODAL */}
+      {state.showDeleteConfirm && (
+        <div style={{ ...uiStyles.modalOverlay, zIndex: 3000 }}>
+            <div style={{ background: "white", padding: "30px", borderRadius: "15px", width: "350px", textAlign: "center", display: "flex", flexDirection: "column", gap: "10px", boxShadow: "0 10px 30px rgba(0,0,0,0.3)" }}>
+                <h2 style={{ color: "#333", margin: "0", fontSize: "22px" }}>Delete this item?</h2>
+                <p style={{ fontSize: "14px", color: "#666", lineHeight: "1.5", margin: "0 0 10px 0" }}>This action cannot be undone.</p>
+                <div style={{ display: "flex", justifyContent: "center", gap: "15px" }}>
+                    {/* Swapped: Cancel is Grey, Delete is Red */}
+                    <button onClick={() => actions.setShowDeleteConfirm(false)} style={{ padding: "10px 20px", background: "#ccc", color: "#333", border: "none", borderRadius: "8px", fontWeight: "bold", cursor: "pointer", fontSize: "14px" }}>Cancel</button>
+                    <button onClick={actions.executeDeleteItem} style={{ padding: "10px 20px", background: "#D9534F", color: "white", border: "none", borderRadius: "8px", fontWeight: "bold", cursor: "pointer", fontSize: "14px" }}>Delete</button>
+                </div>
+            </div>
+        </div>
+      )}
+
+      {/* UNPRINTED RECEIPT WARNING MODAL */}
+      {state.showReceiptWarning && (
+        <div style={{ ...uiStyles.modalOverlay, zIndex: 3000 }}>
+            <div style={{ background: "white", padding: "30px", borderRadius: "15px", width: "350px", textAlign: "center", display: "flex", flexDirection: "column", gap: "10px", boxShadow: "0 10px 30px rgba(0,0,0,0.3)" }}>
+                <h2 style={{ color: "#333", margin: "0", fontSize: "22px" }}>Close Receipt?</h2>
+                <p style={{ fontSize: "14px", color: "#666", lineHeight: "1.5", margin: "0 0 10px 0" }}>Receipt has not been printed. Close anyway?</p>
+                <div style={{ display: "flex", justifyContent: "center", gap: "15px" }}>
+                    {/* Swapped: Stay is Grey, Close is Green */}
+                    <button onClick={() => actions.setShowReceiptWarning(false)} style={{ padding: "10px 20px", background: "#ccc", color: "#333", border: "none", borderRadius: "8px", fontWeight: "bold", cursor: "pointer", fontSize: "14px" }}>No, Stay</button>
+                    <button onClick={actions.executeCloseReceipt} style={{ padding: "10px 20px", background: "#6B7C65", color: "white", border: "none", borderRadius: "8px", fontWeight: "bold", cursor: "pointer", fontSize: "14px" }}>Yes, Close</button>
                 </div>
             </div>
         </div>

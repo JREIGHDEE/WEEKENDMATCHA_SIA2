@@ -466,7 +466,7 @@ export function usePOSLogic() {
         EmployeeID: currentUser?.EmployeeID || 1,
         CustomerName: customerName,
         OrderDateTime: new Date().toISOString(),
-        Status: 'IN PROGRESS',
+        Status: 'NOT IN PROGRESS',
         TotalAmount: getFinalTotal(),
         AmountGiven: amountGiven,
         ChangeGiven: changeGiven,

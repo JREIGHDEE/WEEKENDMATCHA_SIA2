@@ -37,6 +37,7 @@ function SalesSystem() {
   const [searchTerm, setSearchTerm] = useState('')
   const [filterCategory, setFilterCategory] = useState('All') 
   const [showFilterMenu, setShowFilterMenu] = useState(false)
+  const [filterButtonClicked, setFilterButtonClicked] = useState(false)
   const searchContainerRef = useRef(null)
 
   // Pagination
@@ -498,7 +499,7 @@ const executeArchiveSale = async () => {
                     <input type="date" style={inputStyle} value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} />
                     <span style={{ fontSize: "12px", marginRight: "5px", fontWeight: "bold" }}>To:</span>
                     <input type="date" style={inputStyle} value={dateTo} onChange={(e) => setDateTo(e.target.value)} />
-                    <button onClick={calculateGraphAndSidebar} style={{ padding: "5px 10px", background: "#aaa", color: "white", border: "none", borderRadius: "5px", cursor: "pointer", fontSize: "12px", fontWeight: "bold" }}>Apply Filter</button>
+                    <button onClick={() => { calculateGraphAndSidebar(); setFilterButtonClicked(true); }} style={{ padding: "5px 10px", background: filterButtonClicked ? "#aaa" : colors.green, color: "white", border: "none", borderRadius: "5px", cursor: "pointer", fontSize: "12px", fontWeight: "bold" }}>Apply Filter</button>
                 </div>
             </div>
             

@@ -210,66 +210,68 @@ function InventorySystem() {
     }));
   };
 
-  const executeArchive = async () => {
-    try {
-      if (!archiveReason.trim()) {
-        setNotification({ message: 'Please provide a reason.', type: 'error' });
-        return;
-      }
-
-      const itemToArchive = inventory.find(i => i.InventoryID === selectedId);
-      if (!itemToArchive) {
-        setNotification({ message: 'Selected item not found.', type: 'error' });
-        return;
-      }
-
-      const { data: { user } } = await supabase.auth.getUser();
-      let employeeID = null;
-
-      if (user) {
-        const { data: empData, error: empError } = await supabase
-          .from('Employee')
-          .select('EmployeeID')
-          .eq('UserID', user.id)
-          .maybeSingle();
-
-        if (empError) {
-          setNotification({ message: 'Error finding employee: ' + empError.message, type: 'error' });
-          return;
-        }
-
-        if (empData) employeeID = empData.EmployeeID;
-      }
-
-      const { error: archiveError } = await supabase.from('InventoryArchive').insert([{
-        EmployeeID: employeeID,
-        ArchivedDate: new Date().toISOString(),
-        Reason: `[${itemToArchive.Category}] ${itemToArchive.ItemName} - ${archiveReason}`
-      }]);
-
-      if (archiveError) {
-        setNotification({ message: 'Archive failed: ' + archiveError.message, type: 'error' });
-        return;
-      }
-
-      const { error: deleteError } = await supabase
-        .from('Inventory')
-        .delete()
-        .eq('InventoryID', selectedId);
-
-      if (deleteError) {
-        setNotification({ message: 'Delete failed after archive: ' + deleteError.message, type: 'error' });
-        return;
-      }
-
-      setNotification({ message: 'Item Archived Successfully.', type: 'success' });
-      await fetchInventory();
-      await fetchArchiveLogs();
-      closeModal();
-    } catch (error) {
-      setNotification({ message: 'Archive failed: ' + error.message, type: 'error' });
+const executeArchive = async () => {
+  try {
+    if (!archiveReason.trim()) {
+      setNotification({ message: 'Please provide a reason.', type: 'error' });
+      return;
     }
-  };
+
+    const itemToArchive = inventory.find(i => i.InventoryID === selectedId);
+    if (!itemToArchive) {
+      setNotification({ message: 'Selected item not found.', type: 'error' });
+      return;
+    }
+
+    const { data: { user } } = await supabase.auth.getUser();
+    let employeeID = null;
+
+    if (user) {
+      const { data: empData } = await supabase
+        .from('Employee')
+        .select('EmployeeID')
+        .eq('UserID', user.id)
+        .maybeSingle();
+
+      if (empData) employeeID = empData.EmployeeID;
+    }
+
+    // ✅ STILL SAVE TO ARCHIVE TABLE
+    const { error: archiveError } = await supabase.from('InventoryArchive').insert([{
+      EmployeeID: employeeID,
+      ArchivedDate: new Date().toISOString(),
+      Reason: `[${itemToArchive.Category}] ${itemToArchive.ItemName} - ${archiveReason}`
+    }]);
+
+    if (archiveError) {
+      setNotification({ message: 'Archive failed: ' + archiveError.message, type: 'error' });
+      return;
+    }
+
+    // 🔥 FIX: DO NOT DELETE → SOFT ARCHIVE
+    const { error: softArchiveError } = await supabase
+      .from('Inventory')
+      .update({
+        IsArchived: true,
+        ArchivedAt: new Date().toISOString()
+      })
+      .eq('InventoryID', selectedId);
+
+    if (softArchiveError) {
+      setNotification({ message: 'Archive update failed: ' + softArchiveError.message, type: 'error' });
+      return;
+    }
+
+    setNotification({ message: 'Item Archived Successfully.', type: 'success' });
+
+    await fetchInventory();
+    await fetchArchiveLogs();
+    closeModal();
+
+  } catch (error) {
+    setNotification({ message: 'Archive failed: ' + error.message, type: 'error' });
+  }
+};
 
   const paginate = (items, page, perPage) => items.slice((page - 1) * perPage, page * perPage);
 

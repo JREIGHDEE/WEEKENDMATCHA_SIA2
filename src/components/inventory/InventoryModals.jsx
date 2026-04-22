@@ -52,6 +52,11 @@ export const InventoryModals = ({
     marginBottom: '20px'
   };
 
+  const paginatedArchiveLogs = archiveLogs.slice(
+    (archivePage - 1) * 6,
+    archivePage * 6
+  );
+
   return (
     <>
       {(modals.add || modals.update) && (
@@ -348,19 +353,34 @@ export const InventoryModals = ({
 
       {modals.viewLog && (
         <div style={styles.modalOverlay}>
-          <div style={{ ...styles.modalContent, width: '700px' }}>
-            <h2 style={{ color: styles.colors.blue }}>Archive Log</h2>
+          <div style={{ ...styles.modalContent, width: '900px', maxWidth: '95vw' }}>
             <div
               style={{
-                maxHeight: '350px',
-                overflowY: 'auto',
-                border: '1px solid #eee',
-                borderRadius: '10px',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
                 marginBottom: '15px'
               }}
             >
+              <h2 style={{ color: styles.colors.blue, margin: 0 }}>Archive Log</h2>
+              <button
+                onClick={closeModal}
+                style={{ ...styles.btnStyle, background: '#ccc', color: '#333' }}
+              >
+                Close
+              </button>
+            </div>
+
+            <div
+              style={{
+                border: '1px solid #eee',
+                borderRadius: '10px',
+                marginBottom: '15px',
+                minHeight: '420px'
+              }}
+            >
               <table style={{ width: '100%', fontSize: '13px', borderCollapse: 'collapse' }}>
-                <thead style={{ background: styles.colors.blue, color: 'white', position: 'sticky', top: 0 }}>
+                <thead style={{ background: styles.colors.blue, color: 'white' }}>
                   <tr>
                     <th style={{ padding: '10px' }}>User</th>
                     <th>Details & Reason</th>
@@ -375,7 +395,7 @@ export const InventoryModals = ({
                       </td>
                     </tr>
                   ) : (
-                    archiveLogs.map(log => (
+                    paginatedArchiveLogs.map(log => (
                       <tr key={log.InvArchiveID} style={{ borderBottom: '1px solid #eee', height: '40px' }}>
                         <td style={{ padding: '10px', fontWeight: 'bold' }}>
                           {log.Employee?.User?.FirstName || 'System'}
@@ -388,13 +408,13 @@ export const InventoryModals = ({
                 </tbody>
               </table>
             </div>
-            <PaginationControls total={archiveLogs.length} page={archivePage} setPage={setArchivePage} perPage={6} />
-            <button
-              onClick={closeModal}
-              style={{ ...styles.btnStyle, background: '#ccc', color: '#333', float: 'right', marginTop: '10px' }}
-            >
-              Close
-            </button>
+
+            <PaginationControls
+              total={archiveLogs.length}
+              page={archivePage}
+              setPage={setArchivePage}
+              perPage={6}
+            />
           </div>
         </div>
       )}

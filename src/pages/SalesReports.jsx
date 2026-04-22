@@ -66,7 +66,12 @@ function SalesReports() {
             </div>
           </div>
 
-          <ReportTable history={state.reportHistory} loading={state.loading} colors={colors} />
+          <ReportTable 
+            history={state.reportHistory} 
+            loading={state.loading} 
+            colors={colors} 
+            onViewReport={actions.fetchReportDetails} 
+          />
         </div>
       </div>
 
@@ -161,6 +166,47 @@ function SalesReports() {
               <div style={{ display: "flex", gap: "10px", justifyContent: "center" }}>
                 <button type="button" onClick={() => actions.setShowConfirmModal(false)} style={{ ...btnStyle, background: "#ccc", color: "#333", flex: 1 }}>Cancel</button>
                 <button type="button" onClick={actions.handleConfirmSavePdf} style={{ ...btnStyle, background: colors.blue, flex: 1 }}>Confirm & Print</button>
+              </div>
+          </div>
+        </div>
+      )}
+
+      {/* VIEW PAST REPORT MODAL */}
+      {state.showViewModal && (
+        <div className="no-print" style={{ position: "fixed", top: 0, left: 0, width: "100%", height: "100%", background: "rgba(0,0,0,0.6)", display: "flex", justifyContent: "center", alignItems: "center", zIndex: 1000 }}>
+          <div style={{ background: "white", padding: "30px", borderRadius: "15px", width: "700px", maxHeight: "80vh", display: "flex", flexDirection: "column", boxShadow: "0 10px 25px rgba(0,0,0,0.3)" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
+                <h2 style={{ color: colors.darkGreen, margin: 0 }}>Historical Report Snapshot</h2>
+                <button onClick={() => actions.setShowViewModal(false)} style={{ background: "none", border: "none", fontSize: "20px", cursor: "pointer", color: "#888" }}>✖</button>
+              </div>
+              
+              <div style={{ overflowY: "auto", flex: 1 }}>
+                {state.selectedReportData && state.selectedReportData.length > 0 ? (
+                  <table style={{ width: "100%", borderCollapse: "collapse", textAlign: "left", fontSize: "13px" }}>
+                    <thead style={{ background: "#eee", position: "sticky", top: 0 }}>
+                      <tr>
+                        <th style={{ padding: "10px" }}>ID</th>
+                        <th style={{ padding: "10px" }}>Date</th>
+                        <th style={{ padding: "10px" }}>Description</th>
+                        <th style={{ padding: "10px" }}>Type</th>
+                        <th style={{ padding: "10px", textAlign: "right" }}>Amount</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {state.selectedReportData.map((record) => (
+                        <tr key={record.RecordID} style={{ borderBottom: "1px solid #ddd" }}>
+                          <td style={{ padding: "10px" }}>F{String(record.RecordID).padStart(3, '0')}</td>
+                          <td style={{ padding: "10px" }}>{new Date(record.TransactionDate).toLocaleDateString()}</td>
+                          <td style={{ padding: "10px" }}>{record.Description}</td>
+                          <td style={{ padding: "10px", color: record.RecordType === 'Income' ? 'green' : 'red', fontWeight: "bold" }}>{record.RecordType}</td>
+                          <td style={{ padding: "10px", textAlign: "right" }}>₱{parseFloat(record.Amount).toLocaleString(undefined, {minimumFractionDigits: 2})}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                ) : (
+                  <div style={{ textAlign: "center", padding: "40px", color: "#888" }}>No detailed records found for this report. (It may have been generated before the tracking update).</div>
+                )}
               </div>
           </div>
         </div>

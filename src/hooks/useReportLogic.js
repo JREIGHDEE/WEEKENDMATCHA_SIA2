@@ -8,6 +8,10 @@ export function useReportLogic(setNotification) {
   const [printData, setPrintData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  
+  // Modal and Data states for viewing historical snapshots
+  const [showViewModal, setShowViewModal] = useState(false);
+  const [selectedReportData, setSelectedReportData] = useState(null);
 
   // 1. Dynamic Form State
   const [reportForm, setReportForm] = useState({
@@ -15,8 +19,8 @@ export function useReportLogic(setNotification) {
     dailyDate: '',
     weeklyDate: '',
     monthlyDate: '',
-    rangeFrom: '',   // <-- ADD THIS
-    rangeTo: ''      // <-- ADD THIS
+    rangeFrom: '',   
+    rangeTo: ''      
   });
 
   // Stores the calculated start/end dates for the DB query
@@ -27,7 +31,7 @@ export function useReportLogic(setNotification) {
     const { data, error } = await supabase
       .from('Report')
       .select(`*, Employee(User(FirstName, LastName))`)
-      .order('DateGenerated', { ascending: false });
+      .order('ReportID', { ascending: false });
     if (!error) setReportHistory(data);
     setLoading(false);
   }
@@ -84,11 +88,13 @@ export function useReportLogic(setNotification) {
     return true;
   };
 
+  // --- EXECUTION STEP ---
   const handleConfirmSavePdf = async () => {
     setLoading(true);
     setShowConfirmModal(false);
 
     try {
+      // 1. Fetch exact range from Financial Records
       const { data: records, error: fetchErr } = await supabase
         .from('FinancialRecord')
         .select('*')
@@ -100,24 +106,48 @@ export function useReportLogic(setNotification) {
       if (fetchErr) throw fetchErr;
       setPrintData(records);
 
+      // 2. Identify User (With bulletproof fallback)
       const { data: { user } } = await supabase.auth.getUser();
-      let empId = 1;
+      let empId = null;
       if (user) {
          const { data: emp } = await supabase.from('Employee').select('EmployeeID').eq('UserID', user.id).maybeSingle();
          if (emp) empId = emp.EmployeeID;
       }
 
-      const { error: insertErr } = await supabase.from('Report').insert([{
+      if (!empId) {
+          const { data: fallbackEmp } = await supabase.from('Employee').select('EmployeeID').limit(1).single();
+          if (fallbackEmp) {
+              empId = fallbackEmp.EmployeeID;
+          } else {
+              throw new Error("No employees found in the database to assign this report to.");
+          }
+      }
+
+      // 3. Save Report AND Return the ID
+      const { data: insertedReport, error: insertErr } = await supabase.from('Report').insert([{
         EmployeeID: empId,
         ReportType: reportForm.reportType,
         DateGenerated: new Date().toISOString(),
+        TimeGenerated: new Date().toTimeString().split(' ')[0], // <-- ADDS EXACT HH:MM:SS TO NEW COLUMN
         DateRangeFrom: calculatedRange.from,
         DateRangeTo: calculatedRange.to,
         FilePath: 'Local Print'
-      }]);
+      }]).select().single();
 
       if(insertErr) throw insertErr;
 
+      // 4. Staple the records to the ReportDetails junction table
+      if (insertedReport && records.length > 0) {
+        const detailsPayload = records.map((record) => ({
+          ReportID: insertedReport.ReportID,
+          RecordID: record.RecordID
+        }));
+
+        const { error: detailsErr } = await supabase.from('ReportDetails').insert(detailsPayload);
+        if (detailsErr) console.error("Error saving report details:", detailsErr);
+      }
+
+      // 5. Trigger Print Dialog
       setTimeout(() => {
         window.print();
         
@@ -133,8 +163,36 @@ export function useReportLogic(setNotification) {
     }
   };
 
+  // --- RETRIEVAL STEP (View Past Snapshot) ---
+  const fetchReportDetails = async (reportId) => {
+    setLoading(true);
+    try {
+      // Fetch the junction table data AND the linked FinancialRecord data
+      const { data, error } = await supabase
+        .from('ReportDetails')
+        .select(`
+          RecordID,
+          FinancialRecord (*)
+        `)
+        .eq('ReportID', reportId);
+
+      if (error) throw error;
+
+      // Clean up the data array so it's just a flat list of records
+      const cleanRecords = data.map(item => item.FinancialRecord);
+      
+      setSelectedReportData(cleanRecords);
+      setShowViewModal(true);
+    } catch (err) {
+      if (setNotification) setNotification({ message: "Error loading details: " + err.message, type: 'error' });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // 6. Ensure all new states and functions are exported!
   return {
-    state: { showGenerateModal, showConfirmModal, reportHistory, printData, loading, searchTerm, reportForm, calculatedRange },
-    actions: { setShowGenerateModal, setShowConfirmModal, setSearchTerm, setReportForm, handleConfirmSavePdf, fetchReportHistory, prepareReport }
+    state: { showGenerateModal, showConfirmModal, showViewModal, selectedReportData, reportHistory, printData, loading, searchTerm, reportForm, calculatedRange },
+    actions: { setShowGenerateModal, setShowConfirmModal, setShowViewModal, setSearchTerm, setReportForm, handleConfirmSavePdf, fetchReportHistory, prepareReport, fetchReportDetails }
   };
 }

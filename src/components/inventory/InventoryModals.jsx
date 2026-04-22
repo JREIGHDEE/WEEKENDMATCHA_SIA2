@@ -7,8 +7,11 @@ export const InventoryModals = ({
   modals,
   closeModal,
   formData,
+  selectedItem,
   handleInputChange,
   handleAddSubmit,
+  handleUpdateSubmit,
+  handleArchiveSubmit,
   executeUpdate,
   executeAddItem,
   setModals,
@@ -40,9 +43,22 @@ export const InventoryModals = ({
     setPendingCloseAction(null);
   };
 
+  const summaryBoxStyle = {
+    textAlign: 'left',
+    background: '#f9f9f9',
+    padding: '15px',
+    borderRadius: '10px',
+    fontSize: '14px',
+    marginBottom: '20px'
+  };
+
+  const paginatedArchiveLogs = archiveLogs.slice(
+    (archivePage - 1) * 6,
+    archivePage * 6
+  );
+
   return (
     <>
-      {/* ADD / UPDATE MODAL */}
       {(modals.add || modals.update) && (
         <div style={styles.modalOverlay}>
           <div style={styles.modalContent}>
@@ -66,8 +82,7 @@ export const InventoryModals = ({
               {modals.add ? 'Add New Item' : 'Update Item'}
             </h2>
 
-            <form onSubmit={modals.add ? handleAddSubmit : executeUpdate}>
-              {/* Item Name - Editable in Update */}
+            <form onSubmit={modals.add ? handleAddSubmit : handleUpdateSubmit}>
               <label style={{ ...styles.labelStyle, display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
                 Item Name<span style={{ color: '#D9534F' }}>*</span>
               </label>
@@ -80,7 +95,6 @@ export const InventoryModals = ({
               />
 
               <div style={{ display: 'flex', gap: '15px' }}>
-                {/* Category - Editable in Update */}
                 <div style={{ flex: 1 }}>
                   <label style={{ ...styles.labelStyle, display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
                     Category<span style={{ color: '#D9534F' }}>*</span>
@@ -98,7 +112,6 @@ export const InventoryModals = ({
                   </select>
                 </div>
 
-                {/* Unit Measurement - DISABLED in Update */}
                 <div style={{ flex: 1 }}>
                   <label style={{ ...styles.labelStyle, display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
                     Unit Measurement<span style={{ color: '#D9534F' }}>*</span>
@@ -125,7 +138,6 @@ export const InventoryModals = ({
               </div>
 
               <div style={{ display: 'flex', gap: '15px' }}>
-                {/* Quantity - DISABLED in Update */}
                 <div style={{ flex: 1 }}>
                   <label style={{ ...styles.labelStyle, display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
                     Quantity<span style={{ color: '#D9534F' }}>*</span>
@@ -147,7 +159,6 @@ export const InventoryModals = ({
                   />
                 </div>
 
-                {/* Unit Price - DISABLED in Update */}
                 <div style={{ flex: 1 }}>
                   <label style={{ ...styles.labelStyle, display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
                     Unit Price (₱)<span style={{ color: '#D9534F' }}>*</span>
@@ -171,7 +182,6 @@ export const InventoryModals = ({
               </div>
 
               <div style={{ display: 'flex', gap: '15px' }}>
-                {/* Low Alert Threshold - Editable in Update */}
                 <div style={{ flex: 1 }}>
                   <label style={{ ...styles.labelStyle, display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
                     Low Alert Threshold<span style={{ color: '#D9534F' }}>*</span>
@@ -186,7 +196,6 @@ export const InventoryModals = ({
                   />
                 </div>
 
-                {/* Expiry Date - DISABLED in Update */}
                 <div style={{ flex: 1 }}>
                   <label style={{ ...styles.labelStyle, display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
                     Expiry Date<span style={{ color: '#D9534F' }}>*</span>
@@ -228,21 +237,11 @@ export const InventoryModals = ({
         </div>
       )}
 
-      {/* CONFIRM ADD MODAL */}
       {modals.confirmAdd && (
         <div style={{ ...styles.modalOverlay, zIndex: 1100 }}>
           <div style={{ ...styles.modalContent, width: '400px', textAlign: 'center' }}>
             <h2 style={{ color: styles.colors.darkGreen }}>Confirm Addition</h2>
-            <div
-              style={{
-                textAlign: 'left',
-                background: '#f9f9f9',
-                padding: '15px',
-                borderRadius: '10px',
-                fontSize: '14px',
-                marginBottom: '20px'
-              }}
-            >
+            <div style={summaryBoxStyle}>
               <p><b>Name:</b> {formData.ItemName}</p>
               <p><b>Category:</b> {formData.Category}</p>
               <p><b>Quantity:</b> {formData.Quantity} {formData.UnitMeasurement}</p>
@@ -251,7 +250,7 @@ export const InventoryModals = ({
             </div>
             <div style={{ display: 'flex', justifyContent: 'center', gap: '15px' }}>
               <button
-                onClick={() => setModals({ ...modals, confirmAdd: false, add: true })}
+                onClick={() => setModals(prev => ({ ...prev, confirmAdd: false, add: true }))}
                 style={{ ...styles.btnStyle, background: '#ccc', color: '#333' }}
               >
                 Edit
@@ -267,12 +266,38 @@ export const InventoryModals = ({
         </div>
       )}
 
-      {/* ARCHIVE MODAL */}
+      {modals.confirmUpdate && (
+        <div style={{ ...styles.modalOverlay, zIndex: 1100 }}>
+          <div style={{ ...styles.modalContent, width: '420px', textAlign: 'center' }}>
+            <h2 style={{ color: styles.colors.darkGreen }}>Confirm Update</h2>
+            <div style={summaryBoxStyle}>
+              <p><b>Name:</b> {formData.ItemName}</p>
+              <p><b>Category:</b> {formData.Category}</p>
+              <p><b>Quantity:</b> {formData.Quantity} {formData.UnitMeasurement}</p>
+              <p><b>Low Alert Threshold:</b> {formData.ReorderThreshold}</p>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'center', gap: '15px' }}>
+              <button
+                onClick={() => setModals(prev => ({ ...prev, confirmUpdate: false, update: true }))}
+                style={{ ...styles.btnStyle, background: '#ccc', color: '#333' }}
+              >
+                Edit
+              </button>
+              <button
+                onClick={executeUpdate}
+                style={{ ...styles.btnStyle, background: styles.colors.darkGreen }}
+              >
+                Confirm & Update
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {modals.archive && (
         <div style={styles.modalOverlay}>
           <div style={styles.modalContent}>
-            <h2 style={{ color: styles.colors.red }}>Archive Item</h2>
-            <p>Are you sure you want to remove this item?</p>
+            <h2 style={{ color: styles.colors.red }}>Archive Record</h2>
             <label style={styles.labelStyle}>Reason</label>
             <textarea
               style={{ ...styles.inputStyle, height: '80px' }}
@@ -288,32 +313,74 @@ export const InventoryModals = ({
                 Cancel
               </button>
               <button
-                onClick={executeArchive}
-                style={{ ...styles.btnStyle, background: styles.colors.red }}
+                onClick={handleArchiveSubmit}
+                style={{ ...styles.btnStyle, background: styles.colors.darkGreen }}
               >
-                Confirm Archive
+                Next
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* LOGS MODAL */}
+      {modals.confirmArchive && (
+        <div style={{ ...styles.modalOverlay, zIndex: 1100 }}>
+          <div style={{ ...styles.modalContent, width: '420px', textAlign: 'center' }}>
+            <h2 style={{ color: styles.colors.darkGreen }}>Confirm Archive</h2>
+            <div style={summaryBoxStyle}>
+              <p><b>Name:</b> {selectedItem?.ItemName || formData.ItemName}</p>
+              <p><b>Category:</b> {selectedItem?.Category || formData.Category}</p>
+              <p><b>Quantity:</b> {selectedItem?.Quantity || formData.Quantity} {selectedItem?.UnitMeasurement || formData.UnitMeasurement}</p>
+              <p><b>Reason:</b> {archiveReason}</p>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'center', gap: '15px' }}>
+              <button
+                onClick={() => setModals(prev => ({ ...prev, confirmArchive: false, archive: true }))}
+                style={{ ...styles.btnStyle, background: '#ccc', color: '#333' }}
+              >
+                Edit
+              </button>
+              <button
+                onClick={executeArchive}
+                style={{ ...styles.btnStyle, background: styles.colors.darkGreen }}
+              >
+                Confirm & Archive
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {modals.viewLog && (
         <div style={styles.modalOverlay}>
-          <div style={{ ...styles.modalContent, width: '700px' }}>
-            <h2 style={{ color: styles.colors.blue }}>Archive Log</h2>
+          <div style={{ ...styles.modalContent, width: '900px', maxWidth: '95vw' }}>
             <div
               style={{
-                maxHeight: '350px',
-                overflowY: 'auto',
-                border: '1px solid #eee',
-                borderRadius: '10px',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
                 marginBottom: '15px'
               }}
             >
+              <h2 style={{ color: styles.colors.blue, margin: 0 }}>Archive Log</h2>
+              <button
+                onClick={closeModal}
+                style={{ ...styles.btnStyle, background: '#ccc', color: '#333' }}
+              >
+                Close
+              </button>
+            </div>
+
+            <div
+              style={{
+                border: '1px solid #eee',
+                borderRadius: '10px',
+                marginBottom: '15px',
+                minHeight: '420px'
+              }}
+            >
               <table style={{ width: '100%', fontSize: '13px', borderCollapse: 'collapse' }}>
-                <thead style={{ background: styles.colors.blue, color: 'white', position: 'sticky', top: 0 }}>
+                <thead style={{ background: styles.colors.blue, color: 'white' }}>
                   <tr>
                     <th style={{ padding: '10px' }}>User</th>
                     <th>Details & Reason</th>
@@ -328,7 +395,7 @@ export const InventoryModals = ({
                       </td>
                     </tr>
                   ) : (
-                    archiveLogs.map(log => (
+                    paginatedArchiveLogs.map(log => (
                       <tr key={log.InvArchiveID} style={{ borderBottom: '1px solid #eee', height: '40px' }}>
                         <td style={{ padding: '10px', fontWeight: 'bold' }}>
                           {log.Employee?.User?.FirstName || 'System'}
@@ -341,13 +408,13 @@ export const InventoryModals = ({
                 </tbody>
               </table>
             </div>
-            <PaginationControls total={archiveLogs.length} page={archivePage} setPage={setArchivePage} perPage={6} />
-            <button
-              onClick={closeModal}
-              style={{ ...styles.btnStyle, background: '#ccc', color: '#333', float: 'right', marginTop: '10px' }}
-            >
-              Close
-            </button>
+
+            <PaginationControls
+              total={archiveLogs.length}
+              page={archivePage}
+              setPage={setArchivePage}
+              perPage={6}
+            />
           </div>
         </div>
       )}

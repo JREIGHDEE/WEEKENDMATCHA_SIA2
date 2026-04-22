@@ -82,13 +82,39 @@ export function usePOSLogic() {
     fetchData()
   }, [navigate])
 
-  async function fetchMenu() {
-    setLoadingMenu(true)
+async function fetchMenu() {
+  setLoadingMenu(true)
 
-    const { data: productData, error: productError } = await supabase
+  const { data: productData, error: productError } = await supabase
+    .from('Product')
+    .select('*')
+    .eq('IsArchived', false)
+    .order('ProductID', { ascending: true })
+
+const handleDeleteItem = async (id) => {
+  if (!window.confirm('Archive this item?')) return
+
+  setLoading(true)
+
+  try {
+    const { error } = await supabase
       .from('Product')
-      .select('*')
-      .order('ProductID', { ascending: true })
+      .update({
+        IsArchived: true,
+        ArchivedAt: new Date().toISOString()
+      })
+      .eq('ProductID', id)
+
+    if (error) throw error
+
+    setNotification({ message: 'Item archived successfully.', type: 'success' })
+    await fetchMenu()
+  } catch (error) {
+    setNotification({ message: 'Error archiving item: ' + error.message, type: 'error' })
+  } finally {
+    setLoading(false)
+  }
+}
 
     if (productError) {
       console.error('Error fetching menu:', productError)
@@ -806,33 +832,29 @@ const handleCloseReceipt = () => {
     setShowDeleteConfirm(true)
   }
 
-  const executeDeleteItem = async () => {
-    setLoading(true)
-    try {
-      const { error: recipeDeleteError } = await supabase
-        .from('Recipe')
-        .delete()
-        .eq('ProductID', itemToDelete)
+const executeDeleteItem = async () => {
+  setLoading(true)
+  try {
+    const { error } = await supabase
+      .from('Product')
+      .update({
+        IsArchived: true,
+        ArchivedAt: new Date().toISOString()
+      })
+      .eq('ProductID', itemToDelete)
 
-      if (recipeDeleteError) throw recipeDeleteError
+    if (error) throw error
 
-      const { error: productDeleteError } = await supabase
-        .from('Product')
-        .delete()
-        .eq('ProductID', itemToDelete)
-
-      if (productDeleteError) throw productDeleteError
-
-      setNotification({ message: 'Deleted', type: 'success' })
-      await fetchMenu()
-    } catch (error) {
-      setNotification({ message: 'Error deleting item: ' + error.message, type: 'error' })
-    } finally {
-      setLoading(false)
-      setShowDeleteConfirm(false)
-      setItemToDelete(null)
-    }
+    setNotification({ message: 'Item archived successfully.', type: 'success' })
+    await fetchMenu()
+  } catch (error) {
+    setNotification({ message: 'Error archiving item: ' + error.message, type: 'error' })
+  } finally {
+    setLoading(false)
+    setShowDeleteConfirm(false)
+    setItemToDelete(null)
   }
+}
 
   const colors = {
     green: '#6B7C65',
@@ -920,13 +942,13 @@ const handleCloseReceipt = () => {
       setSelectedSweetness, setSelectedIngAmount, setSelectedIngId, setNewItemCategory,
       setNewItemName, setNewItemPrice, setShowOptionsModal, setShowPaymentModal,
       setShowStatusModal, setShowCompleteConfirm, setShowAdminLogin, setShowManageMenu,
-      setShowRecentModal, setAdminUser, setAdminPass, setNotification,
+      setShowRecentModal, setAdminUser, setAdminPass, setNotification, executeDeleteItem,
       
-      // --- NEW ACTIONS ADDED HERE ---
-      executeDeleteItem,
-      executeCloseReceipt,
-      setShowDeleteConfirm,
-      setShowReceiptWarning
+// --- NEW ACTIONS ADDED HERE ---
+    executeCloseReceipt,
+    executeDeleteItem,
+    setShowDeleteConfirm,
+    setShowReceiptWarning
     },
     ui: { colors, uiStyles, paginate },
     navigate

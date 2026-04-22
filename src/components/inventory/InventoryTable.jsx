@@ -11,7 +11,7 @@ export function InventoryTable({ items, loading, prepareUpdate, prepareArchive }
   }
 
   return (
-    <div style={{ flex: 1, overflowY: 'auto' }}>
+    <div style={{ flex: 1 }}>
       <table style={{ width: '100%', borderCollapse: 'collapse' }}>
         <thead
           style={{

@@ -49,7 +49,7 @@ function InventorySystem() {
   });
   const [archiveReason, setArchiveReason] = useState('');
   const searchContainerRef = useRef(null);
-  const itemsPerPage = 7;
+  const itemsPerPage = 9;
 
   // --- FORM STATE ---
   const initialFormState = {

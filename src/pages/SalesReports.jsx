@@ -14,15 +14,59 @@ function SalesReports() {
   const formInputStyle = { padding: "12px", borderRadius: "8px", border: "1px solid #ccc", width: "100%", outline: "none", boxSizing: "border-box", fontSize: "14px" };
   const labelStyle = { fontWeight: "bold", fontSize: "14px", color: "#555", marginBottom: "8px", display: "block" };
 
+// --- NEW: PDF DOWNLOAD FUNCTION ---
+  const downloadSnapshotPDF = () => {
+    if (!state.selectedReportData || state.selectedReportData.length === 0) return;
+
+    const doc = new jsPDF();
+
+    // 1. Add Title
+    doc.setFontSize(18);
+    doc.setTextColor(90, 105, 85); // WM Dark Green
+    doc.text('Historical Report Snapshot', 14, 22);
+    
+    doc.setFontSize(11);
+    doc.setTextColor(100);
+    doc.text(`Generated on: ${new Date().toLocaleDateString()}`, 14, 30);
+
+    // 2. Prepare Table Data
+    const tableColumns = ["ID", "Date", "Description", "Type", "Amount"];
+    const tableRows = state.selectedReportData.map(record => [
+      `F${String(record.RecordID).padStart(3, '0')}`,
+      new Date(record.TransactionDate).toLocaleDateString(),
+      record.Description,
+      record.RecordType,
+      `PHP ${parseFloat(record.Amount).toLocaleString(undefined, {minimumFractionDigits: 2})}`
+    ]);
+
+    // 3. Generate Table
+    doc.autoTable({
+      head: [tableColumns],
+      body: tableRows,
+      startY: 40,
+      theme: 'striped',
+      headStyles: { fillColor: [90, 105, 85] }, 
+      didParseCell: function(data) {
+        if (data.section === 'body' && data.column.index === 3) {
+            if (data.cell.raw === 'Income') data.cell.styles.textColor = [40, 167, 69];
+            if (data.cell.raw === 'Expense') data.cell.styles.textColor = [220, 53, 69];
+        }
+      }
+    });
+
+    // 4. Save file
+    doc.save(`WM_Report_Snapshot_${new Date().getTime()}.pdf`);
+  };
+
   return (
     <div style={{ display: "flex", height: "100vh", width: "100vw", background: colors.beige }}>
       
 {/* 1. PRINT & SCREEN CSS STYLESHEET */}
       <style>
         {`
-          /* Hide the printable report on the normal computer screen */
+          /* Hide the printable reports on the normal computer screen */
           @media screen {
-            #printable-report {
+            #printable-report, #printable-snapshot {
               display: none;
             }
           }
@@ -30,8 +74,10 @@ function SalesReports() {
           /* Format perfectly for the PDF/Printer */
           @media print {
             body * { visibility: hidden; }
-            #printable-report, #printable-report * { visibility: visible; }
-            #printable-report {
+            #printable-report, #printable-report *,
+            #printable-snapshot, #printable-snapshot * { visibility: visible; }
+            
+            #printable-report, #printable-snapshot {
               display: block; /* Overrides the screen 'none' */
               position: absolute;
               left: 0;
@@ -171,14 +217,27 @@ function SalesReports() {
         </div>
       )}
 
-      {/* VIEW PAST REPORT MODAL */}
+{/* VIEW PAST REPORT MODAL */}
       {state.showViewModal && (
         <div className="no-print" style={{ position: "fixed", top: 0, left: 0, width: "100%", height: "100%", background: "rgba(0,0,0,0.6)", display: "flex", justifyContent: "center", alignItems: "center", zIndex: 1000 }}>
           <div style={{ background: "white", padding: "30px", borderRadius: "15px", width: "700px", maxHeight: "80vh", display: "flex", flexDirection: "column", boxShadow: "0 10px 25px rgba(0,0,0,0.3)" }}>
+              
+              {/* --- CHANGED HEADER SECTION --- */}
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
                 <h2 style={{ color: colors.darkGreen, margin: 0 }}>Historical Report Snapshot</h2>
-                <button onClick={() => actions.setShowViewModal(false)} style={{ background: "none", border: "none", fontSize: "20px", cursor: "pointer", color: "#888" }}>✖</button>
+                
+                {/* Button Container */}
+                <div style={{ display: "flex", gap: "15px", alignItems: "center" }}>
+                  <button 
+                     onClick={() => window.print()} /* Note: Replace window.print() with your actual PDF generation action if you have one, e.g., actions.generatePDF */
+                     style={{ background: "#3b5998", color: "white", border: "none", padding: "8px 15px", borderRadius: "8px", fontWeight: "bold", cursor: "pointer", fontSize: "13px", boxShadow: "0 2px 5px rgba(0,0,0,0.2)" }}
+                  >
+                     ⬇ Download PDF
+                  </button>
+                  <button onClick={() => actions.setShowViewModal(false)} style={{ background: "none", border: "none", fontSize: "20px", cursor: "pointer", color: "#888" }}>✖</button>
+                </div>
               </div>
+              {/* --- END CHANGED HEADER SECTION --- */}
               
               <div style={{ overflowY: "auto", flex: 1 }}>
                 {state.selectedReportData && state.selectedReportData.length > 0 ? (
@@ -248,6 +307,50 @@ function SalesReports() {
                 <td colSpan="4" style={{ padding: "20px 10px", textAlign: "right" }}>TOTAL BALANCE:</td>
                 <td style={{ padding: "20px 10px", textAlign: "right" }}>
                   ₱{state.printData.reduce((sum, record) => {
+                    return record.RecordType === 'Income' ? sum + parseFloat(record.Amount) : sum - parseFloat(record.Amount);
+                  }, 0).toLocaleString(undefined, {minimumFractionDigits: 2})}
+                </td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      )}
+
+      {/* HIDDEN PRINTABLE SNAPSHOT AREA */}
+      {state.showViewModal && state.selectedReportData && state.selectedReportData.length > 0 && (
+        <div id="printable-snapshot">
+          <div style={{ textAlign: "center", marginBottom: "30px", borderBottom: "3px solid #333", paddingBottom: "20px" }}>
+            <h1 style={{ margin: "0 0 10px 0", fontSize: "28px" }}>WeekendMatcha</h1>
+            <h2 style={{ margin: "0 0 10px 0", color: "#555" }}>HISTORICAL REPORT SNAPSHOT</h2>
+            <p style={{ margin: "5px 0", fontSize: "14px", color: "#666" }}>Retrieved On: {new Date().toLocaleString()}</p>
+          </div>
+          
+          <table style={{ width: "100%", borderCollapse: "collapse", textAlign: "left", fontSize: "14px" }}>
+            <thead>
+              <tr style={{ background: "#eee", borderBottom: "2px solid #333" }}>
+                <th style={{ padding: "12px 10px" }}>Record ID</th>
+                <th style={{ padding: "12px 10px" }}>Date</th>
+                <th style={{ padding: "12px 10px" }}>Description</th>
+                <th style={{ padding: "12px 10px" }}>Type</th>
+                <th style={{ padding: "12px 10px", textAlign: "right" }}>Amount</th>
+              </tr>
+            </thead>
+            <tbody>
+              {state.selectedReportData.map((record) => (
+                <tr key={record.RecordID} style={{ borderBottom: "1px solid #ddd" }}>
+                  <td style={{ padding: "10px" }}>F{String(record.RecordID).padStart(3, '0')}</td>
+                  <td style={{ padding: "10px" }}>{new Date(record.TransactionDate).toLocaleDateString()}</td>
+                  <td style={{ padding: "10px" }}>{record.Description}</td>
+                  <td style={{ padding: "10px", fontWeight: "bold", color: record.RecordType === 'Income' ? 'green' : 'red' }}>{record.RecordType}</td>
+                  <td style={{ padding: "10px", textAlign: "right" }}>₱{parseFloat(record.Amount).toLocaleString(undefined, {minimumFractionDigits: 2})}</td>
+                </tr>
+              ))}
+            </tbody>
+            <tfoot>
+              <tr style={{ borderTop: "3px solid #333", fontWeight: "bold", fontSize: "18px" }}>
+                <td colSpan="4" style={{ padding: "20px 10px", textAlign: "right" }}>TOTAL BALANCE:</td>
+                <td style={{ padding: "20px 10px", textAlign: "right" }}>
+                  ₱{state.selectedReportData.reduce((sum, record) => {
                     return record.RecordType === 'Income' ? sum + parseFloat(record.Amount) : sum - parseFloat(record.Amount);
                   }, 0).toLocaleString(undefined, {minimumFractionDigits: 2})}
                 </td>

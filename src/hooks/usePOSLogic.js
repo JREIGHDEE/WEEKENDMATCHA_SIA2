@@ -227,7 +227,7 @@ const handleDeleteItem = async (id) => {
       .from('Order')
       .select('*')
       .neq('Status', 'COMPLETED')
-      .order('OrderDateTime', { ascending: false })
+      .order('OrderDateTime', { ascending: true })
 
     if (error) {
       console.error('Error fetching current orders:', error)
@@ -925,6 +925,9 @@ const executeDeleteItem = async () => {
       fileInputRef, newItemRecipe, selectedIngId, notification, orderPage,
       recentPage, ordersPerPage, recentPerPage,
       
+      // --- PAYMENT STATES ---
+      paymentMethod, referenceNumber, customPaymentMethod,
+      
       // --- NEW STATES ADDED HERE ---
       showDeleteConfirm, 
       itemToDelete,
@@ -944,11 +947,14 @@ const executeDeleteItem = async () => {
       setShowStatusModal, setShowCompleteConfirm, setShowAdminLogin, setShowManageMenu,
       setShowRecentModal, setAdminUser, setAdminPass, setNotification, executeDeleteItem,
       
-// --- NEW ACTIONS ADDED HERE ---
-    executeCloseReceipt,
-    executeDeleteItem,
-    setShowDeleteConfirm,
-    setShowReceiptWarning
+      // --- PAYMENT ACTIONS ---
+      setPaymentMethod, setReferenceNumber, setCustomPaymentMethod,
+      
+      // --- NEW ACTIONS ADDED HERE ---
+      executeCloseReceipt,
+      executeDeleteItem,
+      setShowDeleteConfirm,
+      setShowReceiptWarning
     },
     ui: { colors, uiStyles, paginate },
     navigate

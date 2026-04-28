@@ -1,43 +1,35 @@
 import { useEffect, useState, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
-import logo from '../assets/wm-logo.svg';
 import { Notification } from '../components/Notification';
 
-// Modular Imports
 import { useInventoryData } from '../hooks/useInventoryData';
 import { PaginationControls } from '../components/PaginationControls';
 import * as styles from '../constants/inventoryStyles';
 
-// Sub-Component Imports
 import { AlertBanners } from '../components/inventory/AlertBanners';
 import { InventoryTable } from '../components/inventory/InventoryTable';
 import { InventoryModals } from '../components/inventory/InventoryModals';
 import Sidebar from '../components/Sidebar';
 
 function InventorySystem() {
-  const navigate = useNavigate();
+  const { inventory, loading, fetchInventory } = useInventoryData();
 
-  // --- DATA HOOK ---
-  const {
-    inventory,
-    archiveLogs,
-    loading,
-    expiringCount,
-    lowStockCount,
-    fetchInventory,
-    fetchArchiveLogs
-  } = useInventoryData();
+  const rowRefs = useRef({});
+  const searchContainerRef = useRef(null);
 
-  // --- UI STATE ---
   const [filteredInventory, setFilteredInventory] = useState([]);
   const [selectedId, setSelectedId] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterCategory, setFilterCategory] = useState('All');
   const [showFilterMenu, setShowFilterMenu] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
-  const [archivePage, setArchivePage] = useState(1);
   const [notification, setNotification] = useState({ message: '', type: 'success' });
+  const [sortExpiryAsc, setSortExpiryAsc] = useState(false);
+
+  const [stockInQuantity, setStockInQuantity] = useState('');
+  const [stockInPrice, setStockInPrice] = useState('');
+  const [stockInExpiry, setStockInExpiry] = useState('');
+
   const [modals, setModals] = useState({
     add: false,
     confirmAdd: false,
@@ -45,13 +37,11 @@ function InventorySystem() {
     confirmUpdate: false,
     archive: false,
     confirmArchive: false,
-    viewLog: false
+    stockIn: false
   });
-  const [archiveReason, setArchiveReason] = useState('');
-  const searchContainerRef = useRef(null);
-  const itemsPerPage = 9;
 
-  // --- FORM STATE ---
+  const itemsPerPage = 8;
+
   const initialFormState = {
     ItemName: '',
     Category: 'Ingredients',
@@ -62,20 +52,35 @@ function InventorySystem() {
     Expiry: '',
     StockIn: ''
   };
+
   const [formData, setFormData] = useState(initialFormState);
 
-  // --- FILTER LOGIC ---
+  const scrollToItem = (id) => {
+    const el = rowRefs.current[id];
+
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      el.style.backgroundColor = '#fff3cd';
+
+      setTimeout(() => {
+        el.style.backgroundColor = '';
+      }, 2000);
+    }
+  };
+
   useEffect(() => {
-    let result = inventory;
+    let result = [...inventory];
     const lowerTerm = searchTerm.toLowerCase();
 
     if (searchTerm) {
       result = result.filter(item => {
-        const check = (val) => (val ? String(val).toLowerCase().includes(lowerTerm) : false);
+        const check = val =>
+          val ? String(val).toLowerCase().includes(lowerTerm) : false;
 
         if (filterCategory === 'All') {
           return check(item.ItemName) || check(item.Category) || check(item.InventoryID);
         }
+
         if (filterCategory === 'ID') return check(item.InventoryID);
         if (filterCategory === 'Item Name') return check(item.ItemName);
         if (filterCategory === 'Category') return check(item.Category);
@@ -85,12 +90,20 @@ function InventorySystem() {
       });
     }
 
+    if (sortExpiryAsc) {
+      result.sort((a, b) => {
+        if (!a.Expiry) return 1;
+        if (!b.Expiry) return -1;
+        return new Date(a.Expiry) - new Date(b.Expiry);
+      });
+    }
+
     setFilteredInventory(result);
     setCurrentPage(1);
-  }, [searchTerm, filterCategory, inventory]);
+  }, [searchTerm, filterCategory, inventory, sortExpiryAsc]);
 
   useEffect(() => {
-    const handleClick = (e) => {
+    const handleClick = e => {
       if (searchContainerRef.current && !searchContainerRef.current.contains(e.target)) {
         setShowFilterMenu(false);
       }
@@ -100,8 +113,7 @@ function InventorySystem() {
     return () => document.removeEventListener('mousedown', handleClick);
   }, []);
 
-  // --- ACTION HANDLERS ---
-  const handleInputChange = (e) => {
+  const handleInputChange = e => {
     setFormData(prev => ({ ...prev, [e.target.name]: e.target.value }));
   };
 
@@ -113,14 +125,17 @@ function InventorySystem() {
       confirmUpdate: false,
       archive: false,
       confirmArchive: false,
-      viewLog: false
+      stockIn: false
     });
+
     setFormData(initialFormState);
-    setArchiveReason('');
     setSelectedId(null);
+    setStockInQuantity('');
+    setStockInPrice('');
+    setStockInExpiry('');
   };
 
-  const handleAddSubmit = (e) => {
+  const handleAddSubmit = e => {
     e.preventDefault();
 
     if (!formData.ItemName || !formData.Quantity || !formData.UnitPrice || !formData.Expiry) {
@@ -132,25 +147,54 @@ function InventorySystem() {
   };
 
   const executeAddItem = async () => {
-    const { error } = await supabase.from('Inventory').insert([{
-      ...formData,
-      Quantity: parseFloat(formData.Quantity),
-      UnitPrice: parseFloat(formData.UnitPrice),
-      ReorderThreshold: parseInt(formData.ReorderThreshold),
-      StockIn: new Date().toISOString()
-    }]);
+    const { data: insertedItem, error: itemError } = await supabase
+      .from('Inventory')
+      .insert([
+        {
+          ItemName: formData.ItemName,
+          Category: formData.Category,
+          UnitMeasurement: formData.UnitMeasurement,
+          Quantity: parseFloat(formData.Quantity),
+          UnitPrice: parseFloat(formData.UnitPrice),
+          ReorderThreshold: parseInt(formData.ReorderThreshold),
+          StockIn: new Date().toISOString(),
+          Expiry: formData.Expiry,
+          IsArchived: false,
+          ArchivedAt: null
+        }
+      ])
+      .select()
+      .single();
 
-    if (error) {
-      setNotification({ message: 'Error: ' + error.message, type: 'error' });
-    } else {
-      setNotification({ message: 'Item Added Successfully!', type: 'success' });
-      closeModal();
-      fetchInventory();
+    if (itemError) {
+      setNotification({ message: 'Error: ' + itemError.message, type: 'error' });
+      return;
     }
+
+    const { error: batchError } = await supabase.from('InventoryBatch').insert([
+      {
+        InventoryID: insertedItem.InventoryID,
+        Quantity: parseFloat(formData.Quantity),
+        UnitPrice: parseFloat(formData.UnitPrice),
+        StockInDate: new Date().toISOString(),
+        Expiry: formData.Expiry,
+        IsArchived: false
+      }
+    ]);
+
+    if (batchError) {
+      setNotification({ message: 'Batch error: ' + batchError.message, type: 'error' });
+      return;
+    }
+
+    setNotification({ message: 'Item Added Successfully!', type: 'success' });
+    closeModal();
+    fetchInventory();
   };
 
-  const prepareUpdate = (id) => {
+  const prepareUpdate = id => {
     setSelectedId(id);
+
     const item = inventory.find(i => i.InventoryID === id);
     if (!item) return;
 
@@ -158,7 +202,7 @@ function InventorySystem() {
     setModals(prev => ({ ...prev, update: true }));
   };
 
-  const handleUpdateSubmit = (e) => {
+  const handleUpdateSubmit = e => {
     e.preventDefault();
 
     if (!formData.ItemName || !formData.Category || !formData.ReorderThreshold) {
@@ -175,7 +219,7 @@ function InventorySystem() {
       .update({
         ItemName: formData.ItemName,
         Category: formData.Category,
-        ReorderThreshold: parseInt(formData.ReorderThreshold),
+        ReorderThreshold: parseInt(formData.ReorderThreshold)
       })
       .eq('InventoryID', selectedId);
 
@@ -188,68 +232,18 @@ function InventorySystem() {
     }
   };
 
-  const prepareArchive = (id) => {
+  const prepareArchive = id => {
     setSelectedId(id);
+
     const item = inventory.find(i => i.InventoryID === id);
     if (!item) return;
 
     setFormData(item);
-    setModals(prev => ({ ...prev, archive: true }));
+    setModals(prev => ({ ...prev, confirmArchive: true }));
   };
 
-  const handleArchiveSubmit = () => {
-    if (!archiveReason.trim()) {
-      setNotification({ message: 'Please provide a reason.', type: 'error' });
-      return;
-    }
-
-    setModals(prev => ({
-      ...prev,
-      archive: false,
-      confirmArchive: true
-    }));
-  };
-
-const executeArchive = async () => {
-  try {
-    if (!archiveReason.trim()) {
-      setNotification({ message: 'Please provide a reason.', type: 'error' });
-      return;
-    }
-
-    const itemToArchive = inventory.find(i => i.InventoryID === selectedId);
-    if (!itemToArchive) {
-      setNotification({ message: 'Selected item not found.', type: 'error' });
-      return;
-    }
-
-    const { data: { user } } = await supabase.auth.getUser();
-    let employeeID = null;
-
-    if (user) {
-      const { data: empData } = await supabase
-        .from('Employee')
-        .select('EmployeeID')
-        .eq('UserID', user.id)
-        .maybeSingle();
-
-      if (empData) employeeID = empData.EmployeeID;
-    }
-
-    // ✅ STILL SAVE TO ARCHIVE TABLE
-    const { error: archiveError } = await supabase.from('InventoryArchive').insert([{
-      EmployeeID: employeeID,
-      ArchivedDate: new Date().toISOString(),
-      Reason: `[${itemToArchive.Category}] ${itemToArchive.ItemName} - ${archiveReason}`
-    }]);
-
-    if (archiveError) {
-      setNotification({ message: 'Archive failed: ' + archiveError.message, type: 'error' });
-      return;
-    }
-
-    // 🔥 FIX: DO NOT DELETE → SOFT ARCHIVE
-    const { error: softArchiveError } = await supabase
+  const executeArchive = async () => {
+    const { error } = await supabase
       .from('Inventory')
       .update({
         IsArchived: true,
@@ -257,23 +251,56 @@ const executeArchive = async () => {
       })
       .eq('InventoryID', selectedId);
 
-    if (softArchiveError) {
-      setNotification({ message: 'Archive update failed: ' + softArchiveError.message, type: 'error' });
+    if (error) {
+      setNotification({ message: 'Delete failed: ' + error.message, type: 'error' });
       return;
     }
 
-    setNotification({ message: 'Item Archived Successfully.', type: 'success' });
-
-    await fetchInventory();
-    await fetchArchiveLogs();
+    setNotification({ message: 'Item Deleted Successfully.', type: 'success' });
     closeModal();
+    fetchInventory();
+  };
 
-  } catch (error) {
-    setNotification({ message: 'Archive failed: ' + error.message, type: 'error' });
-  }
-};
+  const prepareStockIn = id => {
+    setSelectedId(id);
 
-  const paginate = (items, page, perPage) => items.slice((page - 1) * perPage, page * perPage);
+    const item = inventory.find(i => i.InventoryID === id);
+    if (!item) return;
+
+    setFormData(item);
+    setModals(prev => ({ ...prev, stockIn: true }));
+  };
+
+  const executeStockIn = async () => {
+    if (!selectedId || !stockInQuantity || !stockInPrice || !stockInExpiry) {
+      setNotification({ message: 'Please fill in all stock-in fields.', type: 'error' });
+      return;
+    }
+
+    const { error } = await supabase.from('InventoryBatch').insert([
+      {
+        InventoryID: selectedId,
+        Quantity: parseFloat(stockInQuantity),
+        UnitPrice: parseFloat(stockInPrice),
+        StockInDate: new Date().toISOString(),
+        Expiry: stockInExpiry,
+        IsArchived: false
+      }
+    ]);
+
+    if (error) {
+      setNotification({ message: 'Stock-in failed: ' + error.message, type: 'error' });
+      return;
+    }
+
+    setNotification({ message: 'Stock added successfully!', type: 'success' });
+    closeModal();
+    fetchInventory();
+  };
+
+  const paginate = (items, page, perPage) => {
+    return items.slice((page - 1) * perPage, page * perPage);
+  };
 
   const selectedItem = inventory.find(i => i.InventoryID === selectedId) || null;
 
@@ -286,7 +313,7 @@ const executeArchive = async () => {
           Inventory Management
         </h1>
 
-<AlertBanners inventory={inventory} />
+        <AlertBanners inventory={inventory} onItemClick={scrollToItem} />
 
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '20px' }}>
           <div style={{ position: 'relative' }} ref={searchContainerRef}>
@@ -301,7 +328,7 @@ const executeArchive = async () => {
                 boxShadow: '0 2px 5px rgba(0,0,0,0.05)'
               }}
               value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+              onChange={e => setSearchTerm(e.target.value)}
               onFocus={() => setShowFilterMenu(true)}
             />
 
@@ -323,6 +350,7 @@ const executeArchive = async () => {
                 <p style={{ margin: '0 0 10px 0', fontSize: '12px', fontWeight: 'bold', color: '#888', textTransform: 'uppercase' }}>
                   Filter by Category
                 </p>
+
                 <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
                   {['All', 'ID', 'Item Name', 'Category', 'Price'].map(cat => (
                     <button
@@ -341,24 +369,12 @@ const executeArchive = async () => {
             )}
           </div>
 
-          <div style={{ display: 'flex', gap: '10px' }}>
-            <button
-              style={{ ...styles.btnStyle, background: styles.colors.darkGreen }}
-              onClick={() => setModals(prev => ({ ...prev, add: true }))}
-            >
-              ADD
-            </button>
-
-            <button
-              style={{ ...styles.btnStyle, background: styles.colors.blue }}
-              onClick={() => {
-                fetchArchiveLogs();
-                setModals(prev => ({ ...prev, viewLog: true }));
-              }}
-            >
-              ARCHIVE LOGS
-            </button>
-          </div>
+          <button
+            style={{ ...styles.btnStyle, background: styles.colors.blue }}
+            onClick={() => setModals(prev => ({ ...prev, add: true }))}
+          >
+            ADD
+          </button>
         </div>
 
         <div
@@ -376,8 +392,13 @@ const executeArchive = async () => {
             items={paginate(filteredInventory, currentPage, itemsPerPage)}
             prepareUpdate={prepareUpdate}
             prepareArchive={prepareArchive}
+            prepareStockIn={prepareStockIn}
             loading={loading}
+            sortExpiryAsc={sortExpiryAsc}
+            setSortExpiryAsc={setSortExpiryAsc}
+            rowRefs={rowRefs}
           />
+
           <PaginationControls
             total={filteredInventory.length}
             page={currentPage}
@@ -395,17 +416,63 @@ const executeArchive = async () => {
         handleInputChange={handleInputChange}
         handleAddSubmit={handleAddSubmit}
         handleUpdateSubmit={handleUpdateSubmit}
-        handleArchiveSubmit={handleArchiveSubmit}
         executeUpdate={executeUpdate}
         executeAddItem={executeAddItem}
         setModals={setModals}
         executeArchive={executeArchive}
-        archiveReason={archiveReason}
-        setArchiveReason={setArchiveReason}
-        archiveLogs={archiveLogs}
-        archivePage={archivePage}
-        setArchivePage={setArchivePage}
       />
+
+      {modals.stockIn && (
+        <div style={styles.modalOverlay}>
+          <div style={styles.modalContent}>
+            <h2 style={{ color: styles.colors.darkGreen, marginTop: 0 }}>
+              Stock In: {formData.ItemName}
+            </h2>
+
+            <label style={styles.labelStyle}>Quantity</label>
+            <input
+              type="number"
+              step="0.01"
+              value={stockInQuantity}
+              onChange={e => setStockInQuantity(e.target.value)}
+              style={styles.inputStyle}
+            />
+
+            <label style={styles.labelStyle}>Unit Price</label>
+            <input
+              type="number"
+              step="0.01"
+              value={stockInPrice}
+              onChange={e => setStockInPrice(e.target.value)}
+              style={styles.inputStyle}
+            />
+
+            <label style={styles.labelStyle}>Expiry Date</label>
+            <input
+              type="date"
+              value={stockInExpiry}
+              onChange={e => setStockInExpiry(e.target.value)}
+              style={styles.inputStyle}
+            />
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '20px' }}>
+              <button
+                onClick={closeModal}
+                style={{ ...styles.btnStyle, background: '#ccc', color: '#333' }}
+              >
+                Cancel
+              </button>
+
+              <button
+                onClick={executeStockIn}
+                style={{ ...styles.btnStyle, background: styles.colors.darkGreen }}
+              >
+                Confirm Stock In
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <Notification
         message={notification.message}

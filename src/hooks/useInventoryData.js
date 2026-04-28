@@ -3,7 +3,6 @@ import { supabase } from '../supabaseClient';
 
 export function useInventoryData() {
   const [inventory, setInventory] = useState([]);
-  const [archiveLogs, setArchiveLogs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [expiringCount, setExpiringCount] = useState(0);
   const [lowStockCount, setLowStockCount] = useState(0);
@@ -11,71 +10,99 @@ export function useInventoryData() {
   const fetchInventory = async () => {
     setLoading(true);
 
-    const { data, error } = await supabase
+    const { data: items, error: itemError } = await supabase
       .from('Inventory')
       .select('*')
       .eq('IsArchived', false)
       .order('InventoryID', { ascending: false });
 
-    if (!error) {
-      const safeData = data || [];
-      setInventory(safeData);
+    const { data: batches, error: batchError } = await supabase
+      .from('InventoryBatch')
+      .select('*')
+      .eq('IsArchived', false)
+      .order('Expiry', { ascending: true });
 
-      setLowStockCount(
-        safeData.filter(item => item.Quantity <= item.ReorderThreshold).length
+    if (itemError || batchError) {
+      console.error('Inventory fetch error:', itemError || batchError);
+      setLoading(false);
+      return;
+    }
+
+    const safeItems = items || [];
+    const safeBatches = batches || [];
+
+    const processed = safeItems.map(item => {
+      const itemBatches = safeBatches.filter(
+        batch =>
+          batch.InventoryID === item.InventoryID &&
+          Number(batch.Quantity) > 0
       );
 
-      const today = new Date();
-      const eCount = safeData.filter(item => {
-        if (!item.Expiry) return false;
-        const diffTime = new Date(item.Expiry) - today;
-        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-        return diffDays <= 30 && diffDays >= 0;
-      }).length;
+      const totalQuantity = itemBatches.reduce(
+        (sum, batch) => sum + Number(batch.Quantity || 0),
+        0
+      );
 
-      setExpiringCount(eCount);
-    } else {
-      console.error('Error fetching inventory:', error);
-    }
+      const nearestBatch = itemBatches[0];
 
+      return {
+        ...item,
+        Quantity: totalQuantity,
+        UnitPrice: nearestBatch?.UnitPrice || item.UnitPrice || 0,
+        StockIn: nearestBatch?.StockInDate || item.StockIn || null,
+        Expiry: nearestBatch?.Expiry || item.Expiry || null,
+        Batches: itemBatches
+      };
+    });
+
+    setInventory(processed);
+
+    setLowStockCount(
+      processed.filter(
+        item => Number(item.Quantity) <= Number(item.ReorderThreshold)
+      ).length
+    );
+
+    const today = new Date();
+
+    const eCount = processed.filter(item => {
+      if (!item.Expiry) return false;
+
+      const diffTime = new Date(item.Expiry) - today;
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+      return diffDays <= 30 && diffDays >= 0;
+    }).length;
+
+    setExpiringCount(eCount);
     setLoading(false);
-  };
-
-  const fetchArchiveLogs = async () => {
-    const { data, error } = await supabase
-      .from('InventoryArchive')
-      .select(`*, Employee (User (FirstName, LastName))`)
-      .order('ArchivedDate', { ascending: false });
-
-    if (!error) {
-      setArchiveLogs(data || []);
-    } else {
-      console.error('Error fetching archive logs:', error);
-    }
   };
 
   useEffect(() => {
     fetchInventory();
 
-    const subscription = supabase
-      .channel('inventory-changes')
+    const inventoryChannel = supabase
+      .channel('inventory-and-batch-changes')
       .on(
         'postgres_changes',
         { event: '*', table: 'Inventory', schema: 'public' },
         fetchInventory
       )
+      .on(
+        'postgres_changes',
+        { event: '*', table: 'InventoryBatch', schema: 'public' },
+        fetchInventory
+      )
       .subscribe();
 
-    return () => supabase.removeChannel(subscription);
+    return () => supabase.removeChannel(inventoryChannel);
   }, []);
 
   return {
     inventory,
-    archiveLogs,
     loading,
     expiringCount,
     lowStockCount,
-    fetchInventory,
-    fetchArchiveLogs
+    fetchInventory
   };
 }

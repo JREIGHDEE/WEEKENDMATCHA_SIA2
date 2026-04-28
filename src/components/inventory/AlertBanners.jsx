@@ -1,7 +1,7 @@
 import React from 'react';
 import * as styles from '../../constants/inventoryStyles';
 
-export const AlertBanners = ({ inventory = [] }) => {
+export const AlertBanners = ({ inventory = [], onItemClick }) => {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
@@ -10,12 +10,10 @@ export const AlertBanners = ({ inventory = [] }) => {
   const lowStockItems = [];
 
   inventory.forEach(item => {
-    // LOW STOCK
-    if (item.Quantity <= item.ReorderThreshold) {
+    if (Number(item.Quantity) <= Number(item.ReorderThreshold)) {
       lowStockItems.push(item);
     }
 
-    // EXPIRY
     if (item.Expiry) {
       const expiryDate = new Date(item.Expiry);
       expiryDate.setHours(0, 0, 0, 0);
@@ -31,7 +29,7 @@ export const AlertBanners = ({ inventory = [] }) => {
     }
   });
 
-  const bannerStyle = (color) => ({
+  const bannerStyle = color => ({
     flex: 1,
     background: color,
     color: 'white',
@@ -39,17 +37,26 @@ export const AlertBanners = ({ inventory = [] }) => {
     borderRadius: '10px'
   });
 
-  const renderItems = (items) => {
+  const renderItems = items => {
     return items.slice(0, 3).map(item => (
-      <div key={item.InventoryID} style={{ fontSize: '13px' }}>
+      <div
+        key={item.InventoryID}
+        onClick={() => onItemClick && onItemClick(item.InventoryID)}
+        style={{
+          fontSize: '13px',
+          cursor: 'pointer',
+          textDecoration: 'underline',
+          marginTop: '4px'
+        }}
+        title="Click to view item"
+      >
         • {item.ItemName}
       </div>
     ));
   };
 
   return (
-    <div style={{ display: "flex", gap: "20px", marginBottom: "20px" }}>
-
+    <div style={{ display: 'flex', gap: '20px', marginBottom: '20px' }}>
       {expiredItems.length > 0 && (
         <div style={bannerStyle(styles.colors.red)}>
           ⛔ <b>{expiredItems.length} Expired Item(s)</b>
@@ -70,7 +77,6 @@ export const AlertBanners = ({ inventory = [] }) => {
           {renderItems(lowStockItems)}
         </div>
       )}
-
     </div>
   );
 };

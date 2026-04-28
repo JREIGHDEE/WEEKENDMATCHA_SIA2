@@ -1,7 +1,16 @@
 import React from 'react';
 import * as styles from '../../constants/inventoryStyles';
 
-export function InventoryTable({ items, loading, prepareUpdate, prepareArchive }) {
+export function InventoryTable({
+  items,
+  loading,
+  prepareUpdate,
+  prepareArchive,
+  prepareStockIn,
+  sortExpiryAsc,
+  setSortExpiryAsc,
+  rowRefs
+}) {
   if (loading) {
     return (
       <div style={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
@@ -29,9 +38,29 @@ export function InventoryTable({ items, loading, prepareUpdate, prepareArchive }
             <th style={{ width: '120px' }}>Stock</th>
             <th style={{ width: '110px' }}>Unit Price</th>
             <th style={{ width: '130px' }}>Stock In</th>
-            <th style={{ width: '130px' }}>Expiry Date</th>
+
+            <th style={{ width: '130px' }}>
+              Expiry Date
+              <button
+                type="button"
+                onClick={() => setSortExpiryAsc(prev => !prev)}
+                style={{
+                  marginLeft: '6px',
+                  background: 'transparent',
+                  border: 'none',
+                  color: 'white',
+                  cursor: 'pointer',
+                  fontWeight: 'bold',
+                  fontSize: '13px'
+                }}
+                title="Sort by nearest expiry"
+              >
+                {sortExpiryAsc ? '▲' : '▼'}
+              </button>
+            </th>
+
             <th style={{ width: '120px' }}>Status</th>
-            <th style={{ width: '140px', paddingRight: '15px' }}>Actions</th>
+            <th style={{ width: '180px', paddingRight: '15px' }}>Actions</th>
           </tr>
         </thead>
 
@@ -61,6 +90,11 @@ export function InventoryTable({ items, loading, prepareUpdate, prepareArchive }
               return (
                 <tr
                   key={item.InventoryID}
+                  ref={el => {
+                    if (rowRefs?.current) {
+                      rowRefs.current[item.InventoryID] = el;
+                    }
+                  }}
                   style={{
                     borderBottom: '1px solid #eee',
                     textAlign: 'center',
@@ -91,7 +125,7 @@ export function InventoryTable({ items, loading, prepareUpdate, prepareArchive }
                   </td>
 
                   <td style={{ width: '110px', fontWeight: 'bold' }}>
-                    ₱{parseFloat(item.UnitPrice).toFixed(2)}
+                    ₱{parseFloat(item.UnitPrice || 0).toFixed(2)}
                   </td>
 
                   <td style={{ width: '130px', fontWeight: 'bold' }}>
@@ -112,8 +146,23 @@ export function InventoryTable({ items, loading, prepareUpdate, prepareArchive }
                     {statusText}
                   </td>
 
-                  <td style={{ width: '140px', paddingRight: '15px' }}>
+                  <td style={{ width: '180px', paddingRight: '15px' }}>
                     <div style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
+                      <button
+                        onClick={() => prepareStockIn(item.InventoryID)}
+                        style={{
+                          padding: '6px 10px',
+                          background: styles.colors.green,
+                          color: 'white',
+                          border: 'none',
+                          borderRadius: '5px',
+                          cursor: 'pointer',
+                          fontSize: '12px'
+                        }}
+                      >
+                        Stock In
+                      </button>
+
                       <button
                         onClick={() => prepareUpdate(item.InventoryID)}
                         style={{
@@ -125,7 +174,6 @@ export function InventoryTable({ items, loading, prepareUpdate, prepareArchive }
                           cursor: 'pointer',
                           fontSize: '12px'
                         }}
-                        title="Update Item"
                       >
                         Update
                       </button>
@@ -141,9 +189,8 @@ export function InventoryTable({ items, loading, prepareUpdate, prepareArchive }
                           cursor: 'pointer',
                           fontSize: '12px'
                         }}
-                        title="Archive Item"
                       >
-                        Archive
+                        Delete
                       </button>
                     </div>
                   </td>

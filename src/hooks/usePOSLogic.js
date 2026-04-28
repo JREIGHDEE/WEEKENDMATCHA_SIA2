@@ -4,25 +4,25 @@ import { useNavigate } from 'react-router-dom'
 
 export function usePOSLogic() {
   const navigate = useNavigate()
-  
-  const [activeTab, setActiveTab] = useState('POS') 
+
+  const [activeTab, setActiveTab] = useState('POS')
   const [currentUser, setCurrentUser] = useState(null)
-  const [menu, setMenu] = useState([]) 
+  const [menu, setMenu] = useState([])
   const [loadingMenu, setLoadingMenu] = useState(true)
-  const [selectedIngAmount, setSelectedIngAmount] = useState('') 
+  const [selectedIngAmount, setSelectedIngAmount] = useState('')
   const [inventory, setInventory] = useState([])
   const [cart, setCart] = useState([])
   const [searchQuery, setSearchQuery] = useState('')
   const [loading, setLoading] = useState(true)
   const [showPaymentModal, setShowPaymentModal] = useState(false)
   const [showReceiptModal, setShowReceiptModal] = useState(false)
-  const [showOptionsModal, setShowOptionsModal] = useState(false) 
+  const [showOptionsModal, setShowOptionsModal] = useState(false)
   const [selectedItemForOptions, setSelectedItemForOptions] = useState(null)
-  const [selectedSweetness, setSelectedSweetness] = useState('Balanced') 
+  const [selectedSweetness, setSelectedSweetness] = useState('Balanced')
   const [customerName, setCustomerName] = useState('')
   const [cashReceived, setCashReceived] = useState('')
   const [isDiscounted, setIsDiscounted] = useState(false)
-  
+
   const [paymentMethod, setPaymentMethod] = useState('Cash')
   const [referenceNumber, setReferenceNumber] = useState('')
   const [customPaymentMethod, setCustomPaymentMethod] = useState('')
@@ -33,34 +33,36 @@ export function usePOSLogic() {
   const [posPin, setPosPin] = useState('')
   const [posPINLoading, setPosPINLoading] = useState(false)
   const [posPINError, setPosPINError] = useState('')
-  const [posTimeInOutMode, setPosTimeInOutMode] = useState('in') // 'in' or 'out'
-  const [posEmployeeTimedIn, setPosEmployeeTimedIn] = useState(false) // Track if currently timed in
+  const [posTimeInOutMode, setPosTimeInOutMode] = useState('in')
+  const [posEmployeeTimedIn, setPosEmployeeTimedIn] = useState(false)
 
-  const [currentOrderId, setCurrentOrderId] = useState(null) 
-  const [receiptPrinted, setReceiptPrinted] = useState(false) 
-  const [orders, setOrders] = useState([]) 
+  const [currentOrderId, setCurrentOrderId] = useState(null)
+  const [receiptPrinted, setReceiptPrinted] = useState(false)
+  const [orders, setOrders] = useState([])
   const [selectedOrder, setSelectedOrder] = useState(null)
   const [showStatusModal, setShowStatusModal] = useState(false)
   const [showCompleteConfirm, setShowCompleteConfirm] = useState(false)
-  const [completedOrders, setCompletedOrders] = useState([]) 
+  const [completedOrders, setCompletedOrders] = useState([])
   const [showRecentModal, setShowRecentModal] = useState(false)
   const [showAdminLogin, setShowAdminLogin] = useState(false)
   const [showManageMenu, setShowManageMenu] = useState(false)
   const [adminUser, setAdminUser] = useState('')
   const [adminPass, setAdminPass] = useState('')
-  const [isEditing, setIsEditing] = useState(false) 
+  const [isEditing, setIsEditing] = useState(false)
   const [editItemId, setEditItemId] = useState(null)
   const [newItemName, setNewItemName] = useState('')
   const [newItemPrice, setNewItemPrice] = useState('')
-  const [newItemCategory, setNewItemCategory] = useState('Flavor') 
+  const [newItemCategory, setNewItemCategory] = useState('Flavor')
   const [newItemFile, setNewItemFile] = useState(null)
   const [previewUrl, setPreviewUrl] = useState(null)
   const fileInputRef = useRef(null)
-  const [newItemRecipe, setNewItemRecipe] = useState([]) 
+  const [newItemRecipe, setNewItemRecipe] = useState([])
   const [selectedIngId, setSelectedIngId] = useState('')
   const [notification, setNotification] = useState({ message: '', type: 'success' })
-  const [orderPage, setOrderPage] = useState(1); const ordersPerPage = 6
-  const [recentPage, setRecentPage] = useState(1); const recentPerPage = 5
+  const [orderPage, setOrderPage] = useState(1)
+  const ordersPerPage = 6
+  const [recentPage, setRecentPage] = useState(1)
+  const recentPerPage = 5
 
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [itemToDelete, setItemToDelete] = useState(null)
@@ -87,51 +89,26 @@ export function usePOSLogic() {
       await fetchCurrentOrders()
       await fetchRecentTransactions()
       setLoading(false)
-      setSearchQuery('') // Ensure search is cleared on load
+      setSearchQuery('')
     }
+
     fetchData()
   }, [navigate])
-  
-  // Clear search when switching to POS tab
+
   useEffect(() => {
     if (activeTab === 'POS') {
       setSearchQuery('')
     }
   }, [activeTab])
 
-async function fetchMenu() {
-  setLoadingMenu(true)
+  async function fetchMenu() {
+    setLoadingMenu(true)
 
-  const { data: productData, error: productError } = await supabase
-    .from('Product')
-    .select('*')
-    .eq('IsArchived', false)
-    .order('ProductID', { ascending: true })
-
-const handleDeleteItem = async (id) => {
-  if (!window.confirm('Archive this item?')) return
-
-  setLoading(true)
-
-  try {
-    const { error } = await supabase
+    const { data: productData, error: productError } = await supabase
       .from('Product')
-      .update({
-        IsArchived: true,
-        ArchivedAt: new Date().toISOString()
-      })
-      .eq('ProductID', id)
-
-    if (error) throw error
-
-    setNotification({ message: 'Item archived successfully.', type: 'success' })
-    await fetchMenu()
-  } catch (error) {
-    setNotification({ message: 'Error archiving item: ' + error.message, type: 'error' })
-  } finally {
-    setLoading(false)
-  }
-}
+      .select('*')
+      .eq('IsArchived', false)
+      .order('ProductID', { ascending: true })
 
     if (productError) {
       console.error('Error fetching menu:', productError)
@@ -188,22 +165,46 @@ const handleDeleteItem = async (id) => {
   }
 
   async function fetchInventory() {
-    const { data, error } = await supabase
+    const { data: items, error: itemError } = await supabase
       .from('Inventory')
       .select('*')
       .eq('Category', 'Ingredients')
       .eq('IsArchived', false)
       .order('ItemName', { ascending: true })
 
-    if (error) {
-      console.error('Inventory Fetch Error:', error)
-    } else {
-      const processedInventory = (data || []).map(item => ({
-        ...item,
-        isExpired: item.Expiry ? new Date(item.Expiry) < new Date() : false
-      }))
-      setInventory(processedInventory)
+    const { data: batches, error: batchError } = await supabase
+      .from('InventoryBatch')
+      .select('*')
+      .eq('IsArchived', false)
+      .order('Expiry', { ascending: true })
+
+    if (itemError || batchError) {
+      console.error('Inventory Fetch Error:', itemError || batchError)
+      return
     }
+
+    const processedInventory = (items || []).map(item => {
+      const itemBatches = (batches || []).filter(
+        batch => batch.InventoryID === item.InventoryID && Number(batch.Quantity) > 0
+      )
+
+      const totalQuantity = itemBatches.reduce(
+        (sum, batch) => sum + Number(batch.Quantity || 0),
+        0
+      )
+
+      const nearestBatch = itemBatches[0]
+
+      return {
+        ...item,
+        Quantity: totalQuantity,
+        Expiry: nearestBatch?.Expiry || null,
+        isExpired: nearestBatch?.Expiry ? new Date(nearestBatch.Expiry) < new Date() : false,
+        Batches: itemBatches
+      }
+    })
+
+    setInventory(processedInventory)
   }
 
   const fetchRecentTransactions = async () => {
@@ -219,24 +220,27 @@ const handleDeleteItem = async (id) => {
       .lte('OrderDateTime', endOfDay)
       .order('OrderDateTime', { ascending: false })
 
-    if (error) console.error('Error fetching recent transactions:', error)
-    else {
-      const formatted = data.map(t => ({
-        id: t.OrderID,
-        customer: t.CustomerName,
-        employeeId: t.EmployeeID,
-        total: t.TotalAmount,
-        paymentMethod: t.PaymentMethod || 'Cash',
-        date: new Date(t.OrderDateTime).toLocaleString('en-US', {
-          year: 'numeric',
-          month: '2-digit',
-          day: '2-digit',
-          hour: '2-digit',
-          minute: '2-digit'
-        })
-      }))
-      setCompletedOrders(formatted)
+    if (error) {
+      console.error('Error fetching recent transactions:', error)
+      return
     }
+
+    const formatted = (data || []).map(t => ({
+      id: t.OrderID,
+      customer: t.CustomerName,
+      employeeId: t.EmployeeID,
+      total: t.TotalAmount,
+      paymentMethod: t.PaymentMethod || 'Cash',
+      date: new Date(t.OrderDateTime).toLocaleString('en-US', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit'
+      })
+    }))
+
+    setCompletedOrders(formatted)
   }
 
   const fetchCurrentOrders = async () => {
@@ -270,12 +274,12 @@ const handleDeleteItem = async (id) => {
     }
 
     const productMap = {}
-    products.forEach(p => {
+    ;(products || []).forEach(p => {
       productMap[p.ProductID] = p.ProductName
     })
 
-    const formatted = data.map(order => {
-const items = orderItems
+    const formatted = (data || []).map(order => {
+      const items = (orderItems || [])
         .filter(oi => oi.OrderID === order.OrderID)
         .map(oi => ({
           name: productMap[oi.ProductID] || `Product ${oi.ProductID}`,
@@ -311,7 +315,7 @@ const items = orderItems
       const stockItem = inventory.find(inv => inv.InventoryID === parseInt(ingredient.id))
       const totalNeeded = ingredient.amount * totalQtyAfterAdd
 
-      if (!stockItem || stockItem.Quantity < totalNeeded) {
+      if (!stockItem || Number(stockItem.Quantity) < totalNeeded) {
         setNotification({
           message: `${ingredient.name} is not enough in inventory.`,
           type: 'error'
@@ -425,7 +429,7 @@ const items = orderItems
     }, 500)
   }
 
-const handleCloseReceipt = () => {
+  const handleCloseReceipt = () => {
     if (!receiptPrinted) {
       setShowReceiptWarning(true)
       return
@@ -442,6 +446,49 @@ const handleCloseReceipt = () => {
     setCustomPaymentMethod('')
     setShowReceiptWarning(false)
     setShowReceiptModal(false)
+  }
+
+  async function deductInventoryByFEFO(totalNeeded) {
+    const { data: batches, error } = await supabase
+      .from('InventoryBatch')
+      .select('*')
+      .eq('IsArchived', false)
+      .gt('Quantity', 0)
+      .order('Expiry', { ascending: true })
+
+    if (error) throw error
+
+    for (const id in totalNeeded) {
+      let remaining = Number(totalNeeded[id].amount)
+
+      const itemBatches = (batches || []).filter(
+        batch => batch.InventoryID === parseInt(id)
+      )
+
+      for (const batch of itemBatches) {
+        if (remaining <= 0) break
+
+        const currentQty = Number(batch.Quantity)
+        const deductAmount = Math.min(currentQty, remaining)
+        const newQty = currentQty - deductAmount
+
+        const { error: updateError } = await supabase
+          .from('InventoryBatch')
+          .update({
+            Quantity: newQty,
+            IsArchived: newQty <= 0
+          })
+          .eq('BatchID', batch.BatchID)
+
+        if (updateError) throw updateError
+
+        remaining -= deductAmount
+      }
+
+      if (remaining > 0) {
+        throw new Error(`${totalNeeded[id].name} is not enough in inventory.`)
+      }
+    }
   }
 
   const handleConfirmPayment = async () => {
@@ -501,7 +548,7 @@ const handleCloseReceipt = () => {
         const stockItem = inventory.find(inv => inv.InventoryID === parseInt(id))
         const amountNeeded = totalNeeded[id].amount
 
-        if (!stockItem || stockItem.Quantity < amountNeeded) {
+        if (!stockItem || Number(stockItem.Quantity) < amountNeeded) {
           setNotification({
             message: `${totalNeeded[id].name} is not enough in inventory. Needed: ${amountNeeded}, Available: ${stockItem?.Quantity || 0}.`,
             type: 'error'
@@ -547,7 +594,7 @@ const handleCloseReceipt = () => {
       const { error: itemsError } = await supabase.from('OrderItem').insert(itemsData)
       if (itemsError) throw itemsError
 
-      await supabase.from('FinancialRecord').insert([{
+      const { error: financialError } = await supabase.from('FinancialRecord').insert([{
         EmployeeID: currentUser?.EmployeeID || 1,
         TransactionDate: new Date().toISOString(),
         RecordType: 'Income',
@@ -556,62 +603,9 @@ const handleCloseReceipt = () => {
         Status: 'Completed'
       }])
 
-      for (const id in totalNeeded) {
-        const stockItem = inventory.find(inv => inv.InventoryID === parseInt(id))
-        if (!stockItem) continue
+      if (financialError) throw financialError
 
-        const newQty = stockItem.Quantity - totalNeeded[id].amount
-
-        if (newQty <= 0) {
-          const { error: archiveError } = await supabase.from('InventoryArchive').insert([{
-            EmployeeID: currentUser?.EmployeeID || null,
-            ArchivedDate: new Date().toISOString(),
-            Reason: `[AUTO] ${stockItem.ItemName} reached 0 stock after POS Order #${newOrderID}`
-          }])
-
-          if (archiveError) {
-            console.error(`Error archiving ${stockItem.ItemName}:`, archiveError)
-            throw new Error(`Failed to archive ${stockItem.ItemName}.`)
-          }
-
-          const { error: softArchiveError } = await supabase
-            .from('Inventory')
-            .update({
-              Quantity: 0,
-              IsArchived: true,
-              ArchivedAt: new Date().toISOString()
-            })
-            .eq('InventoryID', id)
-
-          if (softArchiveError) {
-            console.error(`Error updating ${stockItem.ItemName}:`, softArchiveError)
-            throw new Error(`Failed to archive ${stockItem.ItemName}.`)
-          }
-
-          setNotification({
-            message: `${stockItem.ItemName} is now out of stock`,
-            type: 'warning'
-          })
-        } else {
-          const { error: updateError } = await supabase
-            .from('Inventory')
-            .update({ Quantity: newQty })
-            .eq('InventoryID', id)
-
-          if (updateError) {
-            console.error(`Error updating ${totalNeeded[id].name}:`, updateError)
-            throw updateError
-          }
-
-          if (newQty <= stockItem.ReorderThreshold) {
-            setNotification({
-              message: `Low stock: ${stockItem.ItemName} is now ${newQty.toFixed(2)}.`,
-              type: 'warning'
-            })
-          }
-        }
-      }
-
+      await deductInventoryByFEFO(totalNeeded)
       await fetchInventory()
       await fetchCurrentOrders()
 
@@ -709,12 +703,10 @@ const handleCloseReceipt = () => {
   }
 
   const handleAddIngredientToRecipe = () => {
-    // 1. Check if they selected an ingredient
     if (!selectedIngId) {
       return setNotification({ message: 'Please select an ingredient.', type: 'error' })
     }
-    
-    // 2. Check if they entered a valid quantity (must not be empty, and must be greater than 0)
+
     if (!selectedIngAmount || parseFloat(selectedIngAmount) <= 0) {
       return setNotification({ message: 'Please enter a valid quantity.', type: 'error' })
     }
@@ -849,20 +841,9 @@ const handleCloseReceipt = () => {
     setShowDeleteConfirm(true)
   }
 
-const executeDeleteItem = async () => {
-  setLoading(true)
-  try {
-    // Check if product has transaction history
-    const { data: orderItems, error: checkError } = await supabase
-      .from('OrderItem')
-      .select('OrderItemID')
-      .eq('ProductID', itemToDelete)
-      .limit(1)
-    
-    if (checkError) throw checkError
-    
-    if (orderItems && orderItems.length > 0) {
-      // Product has transaction history - archive instead of delete
+  const executeDeleteItem = async () => {
+    setLoading(true)
+    try {
       const { error } = await supabase
         .from('Product')
         .update({
@@ -872,113 +853,94 @@ const executeDeleteItem = async () => {
         .eq('ProductID', itemToDelete)
 
       if (error) throw error
-      setNotification({ message: 'Item archived (has transaction history)', type: 'info' })
-    } else {
-      // No transaction history - can safely archive
-      const { error } = await supabase
-        .from('Product')
-        .update({
-          IsArchived: true,
-          ArchivedAt: new Date().toISOString()
-        })
-        .eq('ProductID', itemToDelete)
 
-      if (error) throw error
       setNotification({ message: 'Item archived successfully.', type: 'success' })
+      await fetchMenu()
+    } catch (error) {
+      setNotification({ message: 'Error archiving item: ' + error.message, type: 'error' })
+    } finally {
+      setLoading(false)
+      setShowDeleteConfirm(false)
+      setItemToDelete(null)
     }
-    
-    await fetchMenu()
-  } catch (error) {
-    setNotification({ message: 'Error archiving item: ' + error.message, type: 'error' })
-  } finally {
-    setLoading(false)
-    setShowDeleteConfirm(false)
-    setItemToDelete(null)
   }
-}
 
-// PIN Time In/Out Functions
-const handleOpenPOSTimeInOut = async () => {
-  // Check if employee is currently timed in
-  const { getEmployeeAttendanceStatus } = await import('../services/personalService')
-  const status = await getEmployeeAttendanceStatus(currentUser?.EmployeeID)
-  
-  // Set mode automatically: if timed in, show Time Out; if not, show Time In
-  const mode = status.isTimedIn ? 'out' : 'in'
-  setPosTimeInOutMode(mode)
-  
-  // Go directly to PIN modal (skip options modal)
-  setPosPin('')
-  setPosPINError('')
-  setShowPOSPINModal(true)
-}
+  const handleOpenPOSTimeInOut = async () => {
+    const { getEmployeeAttendanceStatus } = await import('../services/personalService')
+    const status = await getEmployeeAttendanceStatus(currentUser?.EmployeeID)
 
-const handleSelectTimeInOutMode = (mode) => {
-  setPosTimeInOutMode(mode)
-  setShowPOSTimeInOutOptions(false)
-  setPosPin('')
-  setPosPINError('')
-  setShowPOSPINModal(true)
-}
+    const mode = status.isTimedIn ? 'out' : 'in'
+    setPosTimeInOutMode(mode)
 
-const handleConfirmPOSPIN = async () => {
-  if (!posPin) {
-    setPosPINError('PIN is required')
-    return
+    setPosPin('')
+    setPosPINError('')
+    setShowPOSPINModal(true)
   }
-  
-  setPosPINError('')
-  setPosPINLoading(true)
-  
-  try {
-    // Import PIN verification at runtime
-    const { verifyEmployeePIN } = await import('../services/personalService')
-    const { verified, error } = await verifyEmployeePIN(currentUser?.EmployeeID, posPin)
-    
-    if (!verified) {
-      setPosPINError(error || 'Invalid PIN')
-      setPosPINLoading(false)
+
+  const handleSelectTimeInOutMode = (mode) => {
+    setPosTimeInOutMode(mode)
+    setShowPOSTimeInOutOptions(false)
+    setPosPin('')
+    setPosPINError('')
+    setShowPOSPINModal(true)
+  }
+
+  const handleConfirmPOSPIN = async () => {
+    if (!posPin) {
+      setPosPINError('PIN is required')
       return
     }
-    
-    // PIN verified - proceed with time in/out
-    if (posTimeInOutMode === 'in') {
-      const { timeInWithPIN } = await import('../services/personalService')
-      const result = await timeInWithPIN(currentUser?.EmployeeID)
-      
-      if (result.success) {
-        setNotification({ message: 'Timed In Successfully!', type: 'success' })
-        setPosEmployeeTimedIn(true) // Update button status
-        closePOSPINModal()
-      } else {
-        setPosPINError(result.error)
-      }
-    } else {
-      const { timeOutWithPIN } = await import('../services/personalService')
-      const result = await timeOutWithPIN(currentUser?.EmployeeID)
-      
-      if (result.success) {
-        setNotification({ message: 'Timed Out Successfully!', type: 'success' })
-        setPosEmployeeTimedIn(false) // Update button status
-        closePOSPINModal()
-      } else {
-        setPosPINError(result.error)
-      }
-    }
-  } catch (err) {
-    setPosPINError('Error processing request')
-  } finally {
-    setPosPINLoading(false)
-  }
-}
 
-const closePOSPINModal = () => {
-  setShowPOSPINModal(false)
-  setPosPin('')
-  setPosPINError('')
-  setShowPOSTimeInOutOptions(false)
-  setSearchQuery('')
-}
+    setPosPINError('')
+    setPosPINLoading(true)
+
+    try {
+      const { verifyEmployeePIN } = await import('../services/personalService')
+      const { verified, error } = await verifyEmployeePIN(currentUser?.EmployeeID, posPin)
+
+      if (!verified) {
+        setPosPINError(error || 'Invalid PIN')
+        setPosPINLoading(false)
+        return
+      }
+
+      if (posTimeInOutMode === 'in') {
+        const { timeInWithPIN } = await import('../services/personalService')
+        const result = await timeInWithPIN(currentUser?.EmployeeID)
+
+        if (result.success) {
+          setNotification({ message: 'Timed In Successfully!', type: 'success' })
+          setPosEmployeeTimedIn(true)
+          closePOSPINModal()
+        } else {
+          setPosPINError(result.error)
+        }
+      } else {
+        const { timeOutWithPIN } = await import('../services/personalService')
+        const result = await timeOutWithPIN(currentUser?.EmployeeID)
+
+        if (result.success) {
+          setNotification({ message: 'Timed Out Successfully!', type: 'success' })
+          setPosEmployeeTimedIn(false)
+          closePOSPINModal()
+        } else {
+          setPosPINError(result.error)
+        }
+      }
+    } catch (err) {
+      setPosPINError('Error processing request')
+    } finally {
+      setPosPINLoading(false)
+    }
+  }
+
+  const closePOSPINModal = () => {
+    setShowPOSPINModal(false)
+    setPosPin('')
+    setPosPINError('')
+    setShowPOSTimeInOutOptions(false)
+    setSearchQuery('')
+  }
 
   const colors = {
     green: '#6B7C65',
@@ -1048,15 +1010,13 @@ const closePOSPINModal = () => {
       newItemName, newItemPrice, newItemCategory, newItemFile, previewUrl,
       fileInputRef, newItemRecipe, selectedIngId, notification, orderPage,
       recentPage, ordersPerPage, recentPerPage,
-      
-      // --- PAYMENT STATES ---
+
       paymentMethod, referenceNumber, customPaymentMethod,
-      
-      // --- PIN TIME IN/OUT STATES ---
-      showPOSPINModal, showPOSTimeInOutOptions, posPin, posPINLoading, posPINError, posTimeInOutMode, posEmployeeTimedIn,
-      
-      // --- NEW STATES ADDED HERE ---
-      showDeleteConfirm, 
+
+      showPOSPINModal, showPOSTimeInOutOptions, posPin, posPINLoading,
+      posPINError, posTimeInOutMode, posEmployeeTimedIn,
+
+      showDeleteConfirm,
       itemToDelete,
       showReceiptWarning
     },
@@ -1073,17 +1033,13 @@ const closePOSPINModal = () => {
       setNewItemName, setNewItemPrice, setShowOptionsModal, setShowPaymentModal,
       setShowStatusModal, setShowCompleteConfirm, setShowAdminLogin, setShowManageMenu,
       setShowRecentModal, setAdminUser, setAdminPass, setNotification, executeDeleteItem,
-      
-      // --- PAYMENT ACTIONS ---
+
       setPaymentMethod, setReferenceNumber, setCustomPaymentMethod,
-      
-      // --- PIN TIME IN/OUT ---
-      handleOpenPOSTimeInOut, handleSelectTimeInOutMode, handleConfirmPOSPIN, closePOSPINModal,
-      setPosPin,
-      
-      // --- NEW ACTIONS ADDED HERE ---
+
+      handleOpenPOSTimeInOut, handleSelectTimeInOutMode, handleConfirmPOSPIN,
+      closePOSPINModal, setPosPin,
+
       executeCloseReceipt,
-      executeDeleteItem,
       setShowDeleteConfirm,
       setShowReceiptWarning
     },

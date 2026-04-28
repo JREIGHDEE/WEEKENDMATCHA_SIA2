@@ -86,7 +86,20 @@ export const updateEmployee = async (employeeId, formData, userID) => {
   return { userUpdate, empUpdate }
 }
 
-// --- ARCHIVE OPERATIONS ---
+// --- STATUS MANAGEMENT (replaces Archive system) ---
+// Helper: Update employee status (Active/Inactive/On Leave) - NEW
+export const updateEmployeeStatus = async (employeeId, userID, newStatus) => {
+  // Update Employee status
+  const empUpdate = await supabase.from('Employee').update({ EmployeeStatus: newStatus }).eq('EmployeeID', employeeId)
+  
+  // Update User IsActive based on new status
+  const isActive = newStatus === 'Active'
+  const userUpdate = await supabase.from('User').update({ IsActive: isActive }).eq('UserID', userID)
+  
+  return { empUpdate, userUpdate }
+}
+
+// --- ARCHIVE OPERATIONS (legacy - now uses status update) ---
 export const archiveEmployee = async (employeeId, userID, reason) => {
   // Update Employee status to Inactive
   const archiveResult = await supabase.from('Employee').update({ EmployeeStatus: 'Inactive' }).eq('EmployeeID', employeeId)

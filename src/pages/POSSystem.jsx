@@ -60,7 +60,16 @@ function POSSystem() {
             <div style={uiStyles.sidebarItem(state.activeTab === 'POS')} onClick={() => actions.setActiveTab('POS')}>POS</div>
             <div style={uiStyles.sidebarItem(state.activeTab === 'CurrentOrders')} onClick={() => actions.setActiveTab('CurrentOrders')}>Current Orders</div>
         </div>
-        <div style={{ marginTop: "auto", padding: "30px", cursor: "pointer", display: "flex", alignItems: "center", gap: "10px", fontSize: "16px" }} onClick={() => { supabase.auth.signOut(); navigate('/') }}><span>↪</span> Log Out</div>
+        <div style={{ display: "flex", flexDirection: "column", gap: "8px", marginTop: "auto", marginBottom: "20px" }}>
+            <button 
+              onClick={actions.handleOpenPOSTimeInOut}
+              style={{ padding: "12px 20px", background: state.posEmployeeTimedIn ? colors.discountRed : colors.blueText, color: "white", border: "none", borderRadius: "8px", fontWeight: "bold", cursor: "pointer", fontSize: "13px", transition: "0.2s" }}
+              title={state.posEmployeeTimedIn ? "Time Out" : "Time In"}
+            >
+              {state.posEmployeeTimedIn ? "TIME OUT" : "TIME IN"}
+            </button>
+        </div>
+        <div style={{ padding: "30px 0 20px 0", cursor: "pointer", display: "flex", alignItems: "center", gap: "10px", fontSize: "16px" }} onClick={() => { supabase.auth.signOut(); navigate('/') }}><span>↪</span> Log Out</div>
       </div>
 
 {/* MAIN CONTENT */}

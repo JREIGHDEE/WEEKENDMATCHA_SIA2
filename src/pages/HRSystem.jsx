@@ -8,6 +8,7 @@ import SearchFilterBar from '../components/SearchFilterBar'
 import ArchiveModal from '../components/ArchiveModal'
 import ArchiveLogModal from '../components/ArchiveLogModal'
 import AttendanceModal from '../components/AttendanceModal'
+import AttendanceOverviewTab from '../components/AttendanceOverviewTab'
 import Sidebar from '../components/Sidebar'
 import ConfirmationModal from '../components/ConfirmationModal'
 import { useEmployeeFiltering } from '../hooks/useEmployeeFiltering'
@@ -29,6 +30,7 @@ function HRSystem() {
   const [attendancePage, setAttendancePage] = useState(1)
   const [archiveLogs, setArchiveLogs] = useState([])
   const [attendanceLogs, setAttendanceLogs] = useState([])
+  const [activeView, setActiveView] = useState('employees') // 'employees' or 'attendanceOverview'
 
   // Custom Hooks
   const employeeFiltering = useEmployeeFiltering()
@@ -150,26 +152,41 @@ function HRSystem() {
     }
   }
 
-// --- ARCHIVE EMPLOYEE ---
+// --- ARCHIVE EMPLOYEE (now STATUS UPDATE) ---
   const prepareArchive = (id) => {
+    const emp = employees.find(e => e.EmployeeID === id)
     setSelectedEmpId(id);
-    setArchiveReason('');
-    modalState.openModal('archive');
+    
+    // If active, show deactivation modal with optional reason
+    // If inactive, directly activate (no reason needed)
+    if (emp?.EmployeeStatus === 'Active') {
+      setArchiveReason('');
+      modalState.openModal('archive');
+    } else {
+      // Directly activate without modal
+      executeActivate(id, emp?.UserID)
+    }
   }
   
   const executeArchive = async () => {
-    if (!archiveReason) { 
-      showWarning('Reason is required')
-      return 
-    }
+    // Deactivate employee
     const emp = employees.find(e => e.EmployeeID === selectedEmpId)
-    await employeeService.archiveEmployee(selectedEmpId, emp.UserID, archiveReason)
+    await employeeService.updateEmployeeStatus(selectedEmpId, emp.UserID, 'Inactive')
     fetchEmployees()
-    showSuccess("Employee Archived.")
+    showSuccess("Employee has been deactivated.")
     closeMultipleModals(['archive', 'confirmation'])
+  }
+  
+  const executeActivate = async (empId, userID) => {
+    // Activate: no reason needed
+    await employeeService.updateEmployeeStatus(empId, userID, 'Active')
+    fetchEmployees()
+    showSuccess("Employee Activated.")
+    closeModal('archive')
   }
 
   const openArchiveLogModal = async () => {
+    // Fetch and display inactive employee logs
     const { data } = await employeeService.fetchArchiveLogs()
     setArchiveLogs(data || [])
     setArchivePage(1)
@@ -269,59 +286,90 @@ function HRSystem() {
           {/* Removed global View Attendance button since it requires a specific employee */}
         </div>
 
-{/* SEARCH, FILTERS, & ACTIONS - ALL IN ONE ROW */}
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "15px", gap: "20px" }}>
-          
-          {/* Left Side: Search Bar AND Status Filters */}
-          <div style={{ display: "flex", alignItems: "center", gap: "20px", flex: 1 }}>
-            
-            {/* Search Bar */}
-            <div style={{ width: "300px", marginTop: "15px" }}> 
-              <SearchFilterBar 
-                searchTerm={searchTerm}
-                setSearchTerm={setSearchTerm}
-                filterCategory={filterCategory}
-                setFilterCategory={setFilterCategory}
-                showFilterMenu={showFilterMenuState}
-                setShowFilterMenu={setShowFilterMenuState}
-                searchContainerRef={searchContainerRef}
-                colors={colors}
-              />
-            </div>
+{/* CONDITIONAL CONTROLS BASED ON ACTIVE VIEW */}
+        {activeView === 'employees' ? (
+          <>
+            {/* EMPLOYEES VIEW - Search, Filters, and Actions */}
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "20px", marginBottom: "15px" }}>
+              {/* LEFT SIDE: Search Bar & Status Filters */}
+              <div style={{ display: "flex", flexDirection: "column", gap: "12px", flex: 1 }}>
+                {/* Search Bar */}
+                <div style={{ width: "300px" }}>
+                  <SearchFilterBar 
+                    searchTerm={searchTerm}
+                    setSearchTerm={setSearchTerm}
+                    filterCategory={filterCategory}
+                    setFilterCategory={setFilterCategory}
+                    showFilterMenu={showFilterMenuState}
+                    setShowFilterMenu={setShowFilterMenuState}
+                    searchContainerRef={searchContainerRef}
+                    colors={colors}
+                  />
+                </div>
 
-            {/* Status Tabs (Moved here to sit next to the search bar) */}
-            <div style={{ display: "flex", gap: "10px" }}>
-              {['All', 'Active', 'Inactive', 'On Leave'].map(status => (
+                {/* Status Filter Buttons */}
+                <div style={{ display: "flex", gap: "8px" }}>
+                  {['All', 'Active', 'On Leave'].map(status => (
+                    <button 
+                      key={status} 
+                      style={pillBtn(statusFilter === status, status)} 
+                      onClick={() => setStatusFilter(status)}
+                    >
+                      {status.toUpperCase()}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* RIGHT SIDE: Action Buttons - Two Rows */}
+              <div style={{ display: "flex", flexDirection: "column", gap: "12px", alignItems: "flex-end" }}>
+                {/* Top: Attendance Overview Button */}
                 <button 
-                  key={status} 
-                  style={pillBtn(statusFilter === status, status)} 
-                  onClick={() => setStatusFilter(status)}
+                  style={{...btnStyle, background: colors.purple, minWidth: "150px"}} 
+                  onClick={() => setActiveView('attendanceOverview')}
                 >
-                  {status.toUpperCase()}
+                  ATTENDANCE OVERVIEW
                 </button>
-              ))}
+                
+                {/* Bottom: ADD EMPLOYEE & INACTIVE LOGS */}
+                <div style={{ display: "flex", gap: "10px" }}>
+                  <button style={{...btnStyle, background: colors.darkGreen}} onClick={prepareAdd}>ADD EMPLOYEE</button>
+                  <button style={{...btnStyle, background: "#337AB7"}} onClick={openArchiveLogModal}>INACTIVE LOGS</button>
+                </div>
+              </div>
             </div>
-
-          </div>
-
-          {/* Right Side: Action Buttons */}
-          <div style={{ display: "flex", gap: "10px", flexShrink: 0 }}>
-            <button style={{...btnStyle, background: colors.darkGreen}} onClick={prepareAdd}>ADD</button>
-            <button style={{...btnStyle, background: "#337AB7"}} onClick={openArchiveLogModal}>VIEW ARCHIVE LOG</button>
-          </div>
-        </div>
-
-        <EmployeeTable 
-          filteredEmployees={filteredEmployees}
-          currentPage={currentPage}
-          setCurrentPage={setCurrentPage} // Add this line so clicking pages works
-          itemsPerPage={PAGINATION.employees}
-          prepareUpdate={prepareUpdate}
-          prepareArchive={prepareArchive}
-          openAttendanceModal={handleOpenAttendance}
-          colors={colors}
-          PaginationControls={PaginationControls}
-        />
+            
+            {/* EMPLOYEE TABLE */}
+            <EmployeeTable 
+              filteredEmployees={filteredEmployees}
+              currentPage={currentPage}
+              setCurrentPage={setCurrentPage}
+              itemsPerPage={PAGINATION.employees}
+              prepareUpdate={prepareUpdate}
+              prepareArchive={prepareArchive}
+              colors={colors}
+              PaginationControls={PaginationControls}
+            />
+          </>
+        ) : (
+          <>
+            {/* ATTENDANCE OVERVIEW TABLE */}
+            <AttendanceOverviewTab 
+              employees={employees}
+              colors={colors}
+              searchTerm={searchTerm}
+              setSearchTerm={setSearchTerm}
+              filterCategory={filterCategory}
+              setFilterCategory={setFilterCategory}
+              showFilterMenu={showFilterMenuState}
+              setShowFilterMenu={setShowFilterMenuState}
+              searchContainerRef={searchContainerRef}
+              btnStyle={btnStyle}
+              setActiveView={setActiveView}
+              PaginationControls={PaginationControls}
+            />
+          </>
+        )}
 
         {/* MODALS */}
         <ConfirmationModal 
@@ -354,7 +402,7 @@ function HRSystem() {
 
         {modals.archive && (
           <ArchiveModal 
-            archiveTitle="Archive Employee"
+            archiveTitle="Deactivate Employee"
             archiveReason={archiveReason}
             setArchiveReason={setArchiveReason}
             triggerConfirmation={triggerConfirmationAction}
@@ -393,6 +441,8 @@ function HRSystem() {
             colors={colors}
             btnStyle={btnStyle}
             PaginationControls={PaginationControls}
+            employeeId={selectedEmpId}
+            isAdmin={true}
           />
         )}
 

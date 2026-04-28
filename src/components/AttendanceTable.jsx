@@ -11,7 +11,7 @@ export default function AttendanceTable({ attendanceLogs, todayRecord, canTimeIn
       <div style={{ flex: 1, overflowY: 'auto' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse' }}>
           <thead style={{ background: colors.green, color: 'white', position: 'sticky', top: 0, zIndex: 1 }}>
-            <tr><th style={{ padding: '15px' }}>Date</th><th style={{ padding: '15px' }}>Time In</th><th style={{ padding: '15px' }}>Time Out</th><th style={{ padding: '15px' }}>Hours Worked</th></tr>
+            <tr><th style={{ padding: '15px' }}>Date</th><th style={{ padding: '15px' }}>Time In</th><th style={{ padding: '15px' }}>Time Out</th><th style={{ padding: '15px' }}>Status</th><th style={{ padding: '15px' }}>Hours Worked</th></tr>
           </thead>
           <tbody>
             {!todayRecord && (
@@ -39,6 +39,20 @@ export default function AttendanceTable({ attendanceLogs, todayRecord, canTimeIn
                   ) : (
                     log.TimeOut ? new Date(log.TimeOut).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '-'
                   )}
+                </td>
+                <td style={{ padding: '10px' }}>
+                  {log.status ? (
+                    <span style={{ 
+                      padding: '4px 10px', 
+                      borderRadius: '4px', 
+                      fontSize: '11px', 
+                      fontWeight: 'bold',
+                      background: log.status === 'Completed' ? '#E8F5E9' : log.status === 'Incomplete' ? '#FFF3E0' : '#F5F5F5',
+                      color: log.status === 'Completed' ? '#2E7D32' : log.status === 'Incomplete' ? '#E65100' : '#666'
+                    }}>
+                      {log.status}
+                    </span>
+                  ) : 'Completed'}
                 </td>
                 <td style={{ padding: '10px' }}>{log.TimeOut ? ((new Date(log.TimeOut) - new Date(log.TimeIn)) / 36e5).toFixed(2) : '-'}</td>
               </tr>

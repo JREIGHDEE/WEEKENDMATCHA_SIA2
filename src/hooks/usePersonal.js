@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import * as personalService from '../services/personalService'
+import { supabase } from '../supabaseClient'
 
 export const usePersonal = () => {
   const [employee, setEmployee] = useState(null)
@@ -7,6 +8,48 @@ export const usePersonal = () => {
   const [todayRecord, setTodayRecord] = useState(null)
   const [loading, setLoading] = useState(true)
   const [isAdmin, setIsAdmin] = useState(false)
+  
+  // PIN State
+  const [hasPIN, setHasPIN] = useState(false)
+  const [showPINModal, setShowPINModal] = useState(false)
+  const [pinMode, setPinMode] = useState('setup') // 'setup' or 'change'
+  const [currentPIN, setCurrentPIN] = useState('')
+  const [newPIN, setNewPIN] = useState('')
+  const [confirmPIN, setConfirmPIN] = useState('')
+  const [pinLoading, setPinLoading] = useState(false)
+  const [pinError, setPinError] = useState('')
+  
+  // Auto timeout safeguard
+  const [autoTimeoutChecked, setAutoTimeoutChecked] = useState(false)
+
+  const handleAutoTimeoutSafeguard = async (empId, empData) => {
+    try {
+      const status = await personalService.getEmployeeAttendanceStatus(empId)
+      if (!status.isTimedIn) return // Already timed out
+      
+      // Check if shift has ended
+      if (!empData?.ShiftSchedule) return
+      
+      const parsed = personalService.parseShiftEndTime(empData.ShiftSchedule)
+      if (!parsed) return
+      
+      const now = new Date()
+      const shiftEnd = new Date()
+      shiftEnd.setHours(parsed.endHour, parsed.endMinute, 0, 0)
+      
+      // If shift ended more than 1 minute ago, mark as Incomplete
+      if (now > shiftEnd && (now - shiftEnd) > 60000) {
+        await supabase
+          .from('Attendance')
+          .update({ status: 'Incomplete' })
+          .eq('AttendanceID', status.activeAttendanceId)
+        
+        setAutoTimeoutChecked(true)
+      }
+    } catch (err) {
+      console.error('Auto timeout safeguard error:', err)
+    }
+  }
 
   const fetchPersonalData = useCallback(async (navigate, setNotification) => {
     setLoading(true)
@@ -33,11 +76,23 @@ export const usePersonal = () => {
     }
 
     setEmployee(empData)
+    
+    // Check if employee has PIN
+    const { hasPIN: pinExists } = await personalService.checkEmployeePIN(empData.EmployeeID)
+    setHasPIN(pinExists)
+    
+    // Mark any incomplete attendance from previous days
+    await personalService.markIncompleteAttendance(empData.EmployeeID)
+    
     const { data } = await personalService.fetchAttendance(empData.EmployeeID)
     setAttendanceLogs(data || [])
     const todayStr = new Date().toLocaleDateString('en-CA')
     const todayLog = (data || []).find(l => l.Date === todayStr)
     setTodayRecord(todayLog || null)
+    
+    // Check for auto timeout safeguard
+    await handleAutoTimeoutSafeguard(empData.EmployeeID, empData)
+    
     setLoading(false)
   }, [])
 
@@ -64,6 +119,69 @@ export const usePersonal = () => {
     return res
   }, [])
 
+  // PIN Handlers
+  const openPINModal = useCallback((mode = 'setup') => {
+    setPinMode(mode)
+    setCurrentPIN('')
+    setNewPIN('')
+    setConfirmPIN('')
+    setPinError('')
+    setShowPINModal(true)
+  }, [])
+
+  const closePINModal = useCallback(() => {
+    setShowPINModal(false)
+    setCurrentPIN('')
+    setNewPIN('')
+    setConfirmPIN('')
+    setPinError('')
+  }, [])
+
+  const handleSavePIN = useCallback(async (onSuccess) => {
+    setPinError('')
+    
+    // Validate new PIN format
+    if (!newPIN || !/^\d{4,6}$/.test(newPIN)) {
+      setPinError('PIN must be 4-6 digits')
+      return
+    }
+    
+    // Validate confirm PIN
+    if (newPIN !== confirmPIN) {
+      setPinError('PINs do not match')
+      return
+    }
+    
+    if (pinMode === 'change' && !currentPIN) {
+      setPinError('Current PIN is required to change PIN')
+      return
+    }
+    
+    setPinLoading(true)
+    try {
+      let result
+      if (pinMode === 'setup') {
+        result = await personalService.createEmployeePIN(employee.EmployeeID, newPIN)
+      } else {
+        result = await personalService.updateEmployeePIN(employee.EmployeeID, currentPIN, newPIN)
+      }
+      
+      if (!result.success) {
+        setPinError(result.error)
+        setPinLoading(false)
+        return
+      }
+      
+      setHasPIN(true)
+      closePINModal()
+      if (onSuccess) onSuccess()
+    } catch (err) {
+      setPinError(err.message)
+    } finally {
+      setPinLoading(false)
+    }
+  }, [employee, newPIN, confirmPIN, currentPIN, pinMode, closePINModal])
+
   return {
     employee,
     setEmployee,
@@ -77,6 +195,28 @@ export const usePersonal = () => {
     refreshAttendance,
     doTimeIn,
     doTimeOut,
-    setNextShift
+    setNextShift,
+    // PIN state and handlers
+    hasPIN,
+    setHasPIN,
+    showPINModal,
+    setShowPINModal,
+    pinMode,
+    setPinMode,
+    currentPIN,
+    setCurrentPIN,
+    newPIN,
+    setNewPIN,
+    confirmPIN,
+    setConfirmPIN,
+    pinLoading,
+    pinError,
+    openPINModal,
+    closePINModal,
+    handleSavePIN,
+    autoTimeoutChecked,
+    setAutoTimeoutChecked,
+    handleAutoTimeoutSafeguard
   }
 }
+

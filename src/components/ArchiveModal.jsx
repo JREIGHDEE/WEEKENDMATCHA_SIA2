@@ -25,12 +25,12 @@ function ArchiveModal({ archiveTitle, archiveReason, setArchiveReason, triggerCo
       <div style={modalOverlay}>
         <div style={modalContent}>
           {/* CHANGED the hardcoded text to use the new prop */}
-          <h2 style={{ color: colors.red, marginTop: 0 }}>{archiveTitle || "Archive"}</h2>
+          <h2 style={{ color: colors.red, marginTop: 0 }}>{archiveTitle || "Deactivate Employee"}</h2>
           
-          <label style={{ fontSize: "12px", fontWeight: "bold", display: "inline-flex", alignItems: "center", gap: "4px", marginBottom: "8px" }}>Reason<span style={{ color: "#D9534F" }}>*</span></label>
+          <label style={{ fontSize: "12px", fontWeight: "bold", display: "inline-flex", alignItems: "center", gap: "4px", marginBottom: "8px" }}>Reason<span style={{ color: "#999" }}>(Optional)</span></label>
           <textarea 
             style={{ ...inputStyle, height: "100px", resize: "none" }} 
-            placeholder="Reason for Archiving (Required)" 
+            placeholder="Reason for deactivating (Optional)" 
             value={archiveReason} 
             onChange={e => setArchiveReason(e.target.value)} 
           />
@@ -45,7 +45,7 @@ function ArchiveModal({ archiveTitle, archiveReason, setArchiveReason, triggerCo
               onClick={() => triggerConfirmation(executeArchive)} 
               style={{...btnStyle, background: colors.red}}
             >
-              Confirm Archive
+              Confirm Deactivate
             </button>
           </div>
         </div>

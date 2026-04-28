@@ -385,6 +385,52 @@ export default function POSModals({ state, actions, ui, PaginationControls }) {
         </div>
       )}
       
+      {/* PIN VERIFICATION MODAL */}
+      {state.showPOSPINModal && (
+        <div style={uiStyles.modalOverlay}>
+          <div style={{ background: "white", padding: "40px", borderRadius: "20px", width: "350px", display: "flex", flexDirection: "column", gap: "20px", boxShadow: "0 10px 40px rgba(0,0,0,0.3)" }}>
+            <h2 style={{ color: "#5a6955", margin: 0, fontSize: "24px", textAlign: "center" }}>
+              Confirm {state.posTimeInOutMode === 'in' ? 'Time In' : 'Time Out'}
+            </h2>
+            
+            <div>
+              <label style={{ display: "block", fontWeight: "bold", marginBottom: "8px", color: "#333" }}>Your PIN:</label>
+              <input
+                type="password"
+                placeholder="Enter 4-6 digit PIN"
+                value={state.posPin}
+                onChange={(e) => actions.setPosPin(e.target.value)}
+                onKeyPress={(e) => e.key === 'Enter' && actions.handleConfirmPOSPIN()}
+                style={{ width: "100%", padding: "12px", border: "1px solid #ccc", borderRadius: "8px", fontSize: "16px", boxSizing: "border-box", outline: "none" }}
+              />
+            </div>
+
+            {state.posPINError && (
+              <div style={{ background: "#ffebee", color: "#d32f2f", padding: "12px", borderRadius: "8px", fontSize: "13px", fontWeight: "bold", textAlign: "center" }}>
+                {state.posPINError}
+              </div>
+            )}
+
+            <div style={{ display: "flex", gap: "10px" }}>
+              <button
+                onClick={actions.closePOSPINModal}
+                disabled={state.posPINLoading}
+                style={{ flex: 1, padding: "12px", background: "#ccc", border: "none", borderRadius: "8px", fontWeight: "bold", cursor: state.posPINLoading ? "default" : "pointer", color: "#333" }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={actions.handleConfirmPOSPIN}
+                disabled={state.posPINLoading}
+                style={{ flex: 1, padding: "12px", background: state.posPINLoading ? "#ccc" : "#5a6955", color: "white", border: "none", borderRadius: "8px", fontWeight: "bold", cursor: state.posPINLoading ? "default" : "pointer" }}
+              >
+                {state.posPINLoading ? 'Processing...' : (state.posTimeInOutMode === 'in' ? 'Confirm Time In' : 'Confirm Time Out')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      
       <CancelConfirmationModal 
         isOpen={showCancelConfirm} 
         onConfirm={handleCancelConfirm} 

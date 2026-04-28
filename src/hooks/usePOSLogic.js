@@ -27,6 +27,15 @@ export function usePOSLogic() {
   const [referenceNumber, setReferenceNumber] = useState('')
   const [customPaymentMethod, setCustomPaymentMethod] = useState('')
 
+  // PIN Time In/Out State
+  const [showPOSPINModal, setShowPOSPINModal] = useState(false)
+  const [showPOSTimeInOutOptions, setShowPOSTimeInOutOptions] = useState(false)
+  const [posPin, setPosPin] = useState('')
+  const [posPINLoading, setPosPINLoading] = useState(false)
+  const [posPINError, setPosPINError] = useState('')
+  const [posTimeInOutMode, setPosTimeInOutMode] = useState('in') // 'in' or 'out'
+  const [posEmployeeTimedIn, setPosEmployeeTimedIn] = useState(false) // Track if currently timed in
+
   const [currentOrderId, setCurrentOrderId] = useState(null) 
   const [receiptPrinted, setReceiptPrinted] = useState(false) 
   const [orders, setOrders] = useState([]) 
@@ -78,9 +87,17 @@ export function usePOSLogic() {
       await fetchCurrentOrders()
       await fetchRecentTransactions()
       setLoading(false)
+      setSearchQuery('') // Ensure search is cleared on load
     }
     fetchData()
   }, [navigate])
+  
+  // Clear search when switching to POS tab
+  useEffect(() => {
+    if (activeTab === 'POS') {
+      setSearchQuery('')
+    }
+  }, [activeTab])
 
 async function fetchMenu() {
   setLoadingMenu(true)
@@ -835,17 +852,41 @@ const handleCloseReceipt = () => {
 const executeDeleteItem = async () => {
   setLoading(true)
   try {
-    const { error } = await supabase
-      .from('Product')
-      .update({
-        IsArchived: true,
-        ArchivedAt: new Date().toISOString()
-      })
+    // Check if product has transaction history
+    const { data: orderItems, error: checkError } = await supabase
+      .from('OrderItem')
+      .select('OrderItemID')
       .eq('ProductID', itemToDelete)
+      .limit(1)
+    
+    if (checkError) throw checkError
+    
+    if (orderItems && orderItems.length > 0) {
+      // Product has transaction history - archive instead of delete
+      const { error } = await supabase
+        .from('Product')
+        .update({
+          IsArchived: true,
+          ArchivedAt: new Date().toISOString()
+        })
+        .eq('ProductID', itemToDelete)
 
-    if (error) throw error
+      if (error) throw error
+      setNotification({ message: 'Item archived (has transaction history)', type: 'info' })
+    } else {
+      // No transaction history - can safely archive
+      const { error } = await supabase
+        .from('Product')
+        .update({
+          IsArchived: true,
+          ArchivedAt: new Date().toISOString()
+        })
+        .eq('ProductID', itemToDelete)
 
-    setNotification({ message: 'Item archived successfully.', type: 'success' })
+      if (error) throw error
+      setNotification({ message: 'Item archived successfully.', type: 'success' })
+    }
+    
     await fetchMenu()
   } catch (error) {
     setNotification({ message: 'Error archiving item: ' + error.message, type: 'error' })
@@ -854,6 +895,89 @@ const executeDeleteItem = async () => {
     setShowDeleteConfirm(false)
     setItemToDelete(null)
   }
+}
+
+// PIN Time In/Out Functions
+const handleOpenPOSTimeInOut = async () => {
+  // Check if employee is currently timed in
+  const { getEmployeeAttendanceStatus } = await import('../services/personalService')
+  const status = await getEmployeeAttendanceStatus(currentUser?.EmployeeID)
+  
+  // Set mode automatically: if timed in, show Time Out; if not, show Time In
+  const mode = status.isTimedIn ? 'out' : 'in'
+  setPosTimeInOutMode(mode)
+  
+  // Go directly to PIN modal (skip options modal)
+  setPosPin('')
+  setPosPINError('')
+  setShowPOSPINModal(true)
+}
+
+const handleSelectTimeInOutMode = (mode) => {
+  setPosTimeInOutMode(mode)
+  setShowPOSTimeInOutOptions(false)
+  setPosPin('')
+  setPosPINError('')
+  setShowPOSPINModal(true)
+}
+
+const handleConfirmPOSPIN = async () => {
+  if (!posPin) {
+    setPosPINError('PIN is required')
+    return
+  }
+  
+  setPosPINError('')
+  setPosPINLoading(true)
+  
+  try {
+    // Import PIN verification at runtime
+    const { verifyEmployeePIN } = await import('../services/personalService')
+    const { verified, error } = await verifyEmployeePIN(currentUser?.EmployeeID, posPin)
+    
+    if (!verified) {
+      setPosPINError(error || 'Invalid PIN')
+      setPosPINLoading(false)
+      return
+    }
+    
+    // PIN verified - proceed with time in/out
+    if (posTimeInOutMode === 'in') {
+      const { timeInWithPIN } = await import('../services/personalService')
+      const result = await timeInWithPIN(currentUser?.EmployeeID)
+      
+      if (result.success) {
+        setNotification({ message: 'Timed In Successfully!', type: 'success' })
+        setPosEmployeeTimedIn(true) // Update button status
+        closePOSPINModal()
+      } else {
+        setPosPINError(result.error)
+      }
+    } else {
+      const { timeOutWithPIN } = await import('../services/personalService')
+      const result = await timeOutWithPIN(currentUser?.EmployeeID)
+      
+      if (result.success) {
+        setNotification({ message: 'Timed Out Successfully!', type: 'success' })
+        setPosEmployeeTimedIn(false) // Update button status
+        closePOSPINModal()
+      } else {
+        setPosPINError(result.error)
+      }
+    }
+  } catch (err) {
+    setPosPINError('Error processing request')
+  } finally {
+    setPosPINLoading(false)
+  }
+}
+
+const closePOSPINModal = () => {
+  setShowPOSPINModal(false)
+  setPosPin('')
+  setPosPINError('')
+  setShowPOSTimeInOutOptions(false)
+  setSearchQuery('')
 }
 
   const colors = {
@@ -928,6 +1052,9 @@ const executeDeleteItem = async () => {
       // --- PAYMENT STATES ---
       paymentMethod, referenceNumber, customPaymentMethod,
       
+      // --- PIN TIME IN/OUT STATES ---
+      showPOSPINModal, showPOSTimeInOutOptions, posPin, posPINLoading, posPINError, posTimeInOutMode, posEmployeeTimedIn,
+      
       // --- NEW STATES ADDED HERE ---
       showDeleteConfirm, 
       itemToDelete,
@@ -949,6 +1076,10 @@ const executeDeleteItem = async () => {
       
       // --- PAYMENT ACTIONS ---
       setPaymentMethod, setReferenceNumber, setCustomPaymentMethod,
+      
+      // --- PIN TIME IN/OUT ---
+      handleOpenPOSTimeInOut, handleSelectTimeInOutMode, handleConfirmPOSPIN, closePOSPINModal,
+      setPosPin,
       
       // --- NEW ACTIONS ADDED HERE ---
       executeCloseReceipt,

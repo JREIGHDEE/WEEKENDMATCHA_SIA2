@@ -11,7 +11,7 @@ function ArchiveLogModal({ archiveLogs, archivePage, setArchivePage, archivePerP
     <div style={modalOverlay}>
       <div style={{...modalContent, width: "800px", display: "flex", flexDirection: "column", height: "80vh"}}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "10px" }}>
-          <h2 style={{ margin: 0, color: colors.blue }}>Archive Log</h2>
+          <h2 style={{ margin: 0, color: colors.blue }}>Inactive Logs</h2>
           <button 
             onClick={() => setModals({...modals, archiveLog: false})} 
             style={{...btnStyle, background: "#ccc", color: "black", padding: "5px 10px"}}

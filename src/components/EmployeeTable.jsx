@@ -23,7 +23,7 @@ function EmployeeTable({ filteredEmployees, currentPage, setCurrentPage, itemsPe
       <div style={{ overflowY: "auto", flex: 1 }}>
         <table style={{ width: "100%", borderCollapse: "collapse" }}>
           <thead style={{ position: "sticky", top: 0, background: colors.green, color: "white", zIndex: 1 }}>
-            <tr><th style={{ padding: "15px" }}>ID</th><th>Full Name</th><th>Role</th><th>Status</th><th>Date Hired</th><th>Contact</th><th style={{ width: "150px", paddingRight: "15px" }}>Actions</th></tr>
+              <tr><th style={{ padding: "15px" }}>ID</th><th>Full Name</th><th>Role</th><th>Status</th><th>Date Hired</th><th>Contact</th><th style={{ width: "120px", paddingRight: "15px" }}>Actions</th></tr>
           </thead>
           <tbody>
             {paginate(filteredEmployees, currentPage, itemsPerPage).map(emp => (
@@ -35,11 +35,24 @@ function EmployeeTable({ filteredEmployees, currentPage, setCurrentPage, itemsPe
                 <td>{emp.DateHired}</td>
                 <td>{emp.User?.ContactNumber}</td>
                 
-                <td style={{ width: "150px", paddingRight: "15px" }}>
+                <td style={{ width: "120px", paddingRight: "15px" }}>
                   <div style={{ display: "flex", gap: "8px", justifyContent: "center" }}>
-                    <button onClick={() => openAttendanceModal(emp.EmployeeID)} style={{ padding: "6px 10px", background: colors.purple, color: "white", border: "none", borderRadius: "5px", cursor: "pointer", fontSize: "12px" }} title="View Attendance">Attendance</button>
                     <button onClick={() => prepareUpdate(emp.EmployeeID)} style={{ padding: "6px 10px", background: "#d3af37", color: "white", border: "none", borderRadius: "5px", cursor: "pointer", fontSize: "12px" }} title="Update Employee">Update</button>
-                    <button onClick={() => prepareArchive(emp.EmployeeID)} style={{ padding: "6px 10px", background: colors.red, color: "white", border: "none", borderRadius: "5px", cursor: "pointer", fontSize: "12px" }} title="Archive Employee">Archive</button>
+                    <button 
+                      onClick={() => prepareArchive(emp.EmployeeID)} 
+                      style={{ 
+                        padding: "6px 10px", 
+                        background: emp.EmployeeStatus === 'Active' ? colors.red : colors.darkGreen, 
+                        color: "white", 
+                        border: "none", 
+                        borderRadius: "5px", 
+                        cursor: "pointer", 
+                        fontSize: "12px" 
+                      }} 
+                      title={emp.EmployeeStatus === 'Active' ? "Deactivate Employee" : "Activate Employee"}
+                    >
+                      {emp.EmployeeStatus === 'Active' ? 'Deactivate' : 'Activate'}
+                    </button>
                   </div>
                 </td>
               </tr>

@@ -4,7 +4,7 @@ import CancelConfirmationModal from './CancelConfirmationModal'
 export default function POSModals({ state, actions, ui, PaginationControls }) {
   const { colors, uiStyles, paginate, showCancelConfirm, handleCancelClick, handleCancelConfirm, handleCancelCancel } = ui;
 
-  const isCashInsufficient = state.paymentMethod === 'Cash' && actions.getChange() < 0;
+  const isCashInsufficient = state.paymentMethod === 'Cash' && (actions.getChange() < 0 || !state.cashReceived);
 
   return (
     <>
@@ -69,6 +69,13 @@ export default function POSModals({ state, actions, ui, PaginationControls }) {
                     <div style={{ marginTop: "5px", fontSize: "12px", fontStyle: "italic", display: "flex", alignItems: "center" }}>
                         Apply Discount for Senior Citizen and PWD (20%) <input type="checkbox" checked={state.isDiscounted} onChange={(e) => actions.setIsDiscounted(e.target.checked)} style={{ marginLeft: "5px", transform: "scale(1.2)" }} />
                     </div>
+                    {/* <-- NEW CONDITIONAL ID INPUT --> */}
+                    {state.isDiscounted && (
+                        <div style={{ marginTop: "10px", padding: "10px", background: "#f9f9f9", borderRadius: "8px", border: "1px dashed #ccc" }}>
+                            <label style={{fontWeight: "bold", fontSize: "12px", display: "inline-flex", alignItems: "center", gap: "4px"}}>Senior/PWD ID Number<span style={{ color: "#D9534F" }}>*</span></label>
+                            <input placeholder="Enter ID Number" style={{...uiStyles.inputStyle, padding: "8px", fontSize: "14px", marginTop: "5px"}} value={state.discountId} onChange={(e) => actions.setDiscountId(e.target.value)} />
+                        </div>
+                    )}
                 </div>
 
                 {/* 3. Payment Method Selection */}
@@ -173,7 +180,18 @@ export default function POSModals({ state, actions, ui, PaginationControls }) {
                   
                   <hr style={{borderTop: "2px dashed #333", borderBottom: "none", margin: "10px 0"}} />
                   
-                  {state.isDiscounted && <div style={{display:"flex", justifyContent:"space-between", color: colors.discountRed, fontStyle:"italic", marginBottom:"5px", fontWeight: "bold"}}><span>Discount Applied</span><span>-₱{actions.getDiscountAmount().toFixed(2)}</span></div>}
+                  {state.isDiscounted && (
+                        <>
+                            <div style={{display:"flex", justifyContent:"space-between", color: colors.discountRed, fontStyle:"italic", marginBottom:"2px", fontWeight: "bold"}}>
+                                <span>Discount Applied (20%)</span>
+                                <span>-₱{actions.getDiscountAmount().toFixed(2)}</span>
+                            </div>
+                            <div style={{display:"flex", justifyContent:"space-between", color: "#000000", fontSize: "12px", marginBottom:"5px", fontWeight: "bold"}}>
+                                <span>Senior/PWD ID:</span>
+                                <span>{state.discountId}</span>
+                            </div>
+                        </>
+                    )}
                   <div style={{display:"flex", justifyContent:"space-between", fontWeight:"bold", marginBottom:"5px"}}><span>Total:</span><span>₱{actions.getFinalTotal().toFixed(2)}</span></div>
                   
                   {/* DYNAMIC PAYMENT PRINTOUT */}
@@ -228,16 +246,15 @@ export default function POSModals({ state, actions, ui, PaginationControls }) {
         </div>
       )}
 
-      {/* DELETE ITEM CONFIRM MODAL */}
+        {/* DISABLE ITEM CONFIRM MODAL */}
       {state.showDeleteConfirm && (
         <div style={{ ...uiStyles.modalOverlay, zIndex: 3000 }}>
             <div style={{ background: "white", padding: "30px", borderRadius: "15px", width: "350px", textAlign: "center", display: "flex", flexDirection: "column", gap: "10px", boxShadow: "0 10px 30px rgba(0,0,0,0.3)" }}>
-                <h2 style={{ color: "#333", margin: "0", fontSize: "22px" }}>Delete this item?</h2>
-                <p style={{ fontSize: "14px", color: "#666", lineHeight: "1.5", margin: "0 0 10px 0" }}>This action cannot be undone.</p>
+                <h2 style={{ color: "#333", margin: "0", fontSize: "22px" }}>Disable this item?</h2>
+                <p style={{ fontSize: "14px", color: "#666", lineHeight: "1.5", margin: "0 0 10px 0" }}>This will remove the item from the active menu.</p>
                 <div style={{ display: "flex", justifyContent: "center", gap: "15px" }}>
-                    {/* Swapped: Cancel is Grey, Delete is Red */}
                     <button onClick={() => actions.setShowDeleteConfirm(false)} style={{ padding: "10px 20px", background: "#ccc", color: "#333", border: "none", borderRadius: "8px", fontWeight: "bold", cursor: "pointer", fontSize: "14px" }}>Cancel</button>
-                    <button onClick={actions.executeDeleteItem} style={{ padding: "10px 20px", background: "#D9534F", color: "white", border: "none", borderRadius: "8px", fontWeight: "bold", cursor: "pointer", fontSize: "14px" }}>Delete</button>
+                    <button onClick={actions.executeDeleteItem} style={{ padding: "10px 20px", background: "#D9534F", color: "white", border: "none", borderRadius: "8px", fontWeight: "bold", cursor: "pointer", fontSize: "14px" }}>Disable</button>
                 </div>
             </div>
         </div>
@@ -333,7 +350,7 @@ export default function POSModals({ state, actions, ui, PaginationControls }) {
                                     <div style={{display: "flex", flexDirection: "column"}}><span style={{fontSize: "14px", color: "#333", fontWeight: "bold"}}>{item.name}</span><span style={{fontSize: "12px", color: "#666"}}>{item.category} - ₱{item.price.toFixed(2)}</span></div>
                                     <div style={{display: "flex", gap: "5px"}}>
                                         <button onClick={() => actions.handleEditPrep(item)} style={{ background: "#E5C546", color: "white", border: "none", borderRadius: "5px", width: "60px", height: "24px", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }} title="Edit Item">Update</button>
-                                        <button onClick={() => actions.handleDeleteItem(item.id)} style={{ background: "#FF6B6B", color: "white", border: "none", borderRadius: "5px", width: "60px", height: "24px", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }} title="Delete Item">Delete</button>
+                                        <button onClick={() => actions.handleDeleteItem(item.id)} style={{ background: "#FF6B6B", color: "white", border: "none", borderRadius: "5px", width: "60px", height: "24px", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }} title="Disable Item">Disable</button>
                                     </div>
                                 </div>
                             ))}

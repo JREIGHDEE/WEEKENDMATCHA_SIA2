@@ -22,6 +22,7 @@ export function usePOSLogic() {
   const [customerName, setCustomerName] = useState('')
   const [cashReceived, setCashReceived] = useState('')
   const [isDiscounted, setIsDiscounted] = useState(false)
+  const [discountId, setDiscountId] = useState('')
 
   const [paymentMethod, setPaymentMethod] = useState('Cash')
   const [referenceNumber, setReferenceNumber] = useState('')
@@ -414,6 +415,7 @@ export function usePOSLogic() {
       setCustomerName('')
       setCashReceived('')
       setIsDiscounted(false)
+      setDiscountId('')
       setPaymentMethod('Cash')
       setReferenceNumber('')
       setCustomPaymentMethod('')
@@ -441,6 +443,7 @@ export function usePOSLogic() {
     setCart([])
     setCustomerName('')
     setCashReceived('')
+    setDiscountId('')
     setPaymentMethod('Cash')
     setReferenceNumber('')
     setCustomPaymentMethod('')
@@ -494,6 +497,10 @@ export function usePOSLogic() {
   const handleConfirmPayment = async () => {
     if (!customerName.trim()) {
       return setNotification({ message: 'Customer Name is required!', type: 'error' })
+    }
+
+    if (isDiscounted && !discountId.trim()) {
+      return setNotification({ message: 'Senior/PWD ID Number is required to apply discount.', type: 'error' })
     }
 
     let finalMethod = paymentMethod
@@ -568,7 +575,8 @@ export function usePOSLogic() {
         ChangeGiven: changeGiven,
         DiscountAmount: getDiscountAmount(),
         PaymentMethod: finalMethod,
-        ReferenceNumber: paymentMethod !== 'Cash' ? referenceNumber : null
+        ReferenceNumber: paymentMethod !== 'Cash' ? referenceNumber : null,
+        DiscountID: isDiscounted ? discountId : null 
       }
 
       const { data: insertedOrder, error: orderError } = await supabase
@@ -599,7 +607,7 @@ export function usePOSLogic() {
         TransactionDate: new Date().toISOString(),
         RecordType: 'Income',
         Amount: getFinalTotal(),
-        Description: `POS Order #${newOrderID} - ${customerName} (${finalMethod})`,
+        Description: `POS Order #${newOrderID} - ${customerName} (${finalMethod})${isDiscounted ? ` [ID: ${discountId}]` : ''}`,
         Status: 'Completed'
       }])
 
@@ -854,10 +862,10 @@ export function usePOSLogic() {
 
       if (error) throw error
 
-      setNotification({ message: 'Item archived successfully.', type: 'success' })
+      setNotification({ message: 'Item disabled successfully.', type: 'success' })
       await fetchMenu()
     } catch (error) {
-      setNotification({ message: 'Error archiving item: ' + error.message, type: 'error' })
+      setNotification({ message: 'Error disabling item: ' + error.message, type: 'error' })
     } finally {
       setLoading(false)
       setShowDeleteConfirm(false)
@@ -1009,7 +1017,7 @@ export function usePOSLogic() {
       showAdminLogin, showManageMenu, adminUser, adminPass, isEditing, editItemId,
       newItemName, newItemPrice, newItemCategory, newItemFile, previewUrl,
       fileInputRef, newItemRecipe, selectedIngId, notification, orderPage,
-      recentPage, ordersPerPage, recentPerPage,
+      recentPage, ordersPerPage, recentPerPage, discountId,
 
       paymentMethod, referenceNumber, customPaymentMethod,
 
@@ -1032,7 +1040,7 @@ export function usePOSLogic() {
       setSelectedSweetness, setSelectedIngAmount, setSelectedIngId, setNewItemCategory,
       setNewItemName, setNewItemPrice, setShowOptionsModal, setShowPaymentModal,
       setShowStatusModal, setShowCompleteConfirm, setShowAdminLogin, setShowManageMenu,
-      setShowRecentModal, setAdminUser, setAdminPass, setNotification, executeDeleteItem,
+      setShowRecentModal, setAdminUser, setAdminPass, setNotification, executeDeleteItem, setDiscountId,
 
       setPaymentMethod, setReferenceNumber, setCustomPaymentMethod,
 

@@ -33,6 +33,8 @@ function SalesSystem() {
   // Date Filters 
   const [dateFrom, setDateFrom] = useState(new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0]) 
   const [dateTo, setDateTo] = useState(new Date().toISOString().split('T')[0])
+  const [timeFrom, setTimeFrom] = useState('00:00') // NEW
+  const [timeTo, setTimeTo] = useState('23:59')     // NEW
 
   // Search & Filter
   const [searchTerm, setSearchTerm] = useState('')
@@ -193,7 +195,7 @@ function SalesSystem() {
         if (tDate.getFullYear() === currentYear && t.status === 'Completed') {
             if (t.type === 'Expense') {
                 yearlyExpense += (parseFloat(t.amount) || 0)
-            } else if (t.type === 'Income') {
+            } else if (t.type === 'Capital') {
                 yearlyIncome += (parseFloat(t.amount) || 0)
             }
         }
@@ -208,18 +210,23 @@ function SalesSystem() {
   }
 
   const calculateGraphAndSidebar = () => {
-      const start = new Date(dateFrom)
-      start.setHours(0,0,0,0)
-      const end = new Date(dateTo)
-      end.setHours(23,59,59,999)
+      // 1. Combine Date and Time inputs for extreme precision
+      const start = new Date(`${dateFrom}T${timeFrom}:00`)
+      const end = new Date(`${dateTo}T${timeTo}:59`)
 
       const dateArray = []
+      
+      // 2. We still calculate midnight-to-midnight just for drawing the Bar Chart's X-Axis days
       let currentDate = new Date(start)
-      while (currentDate <= end) {
+      currentDate.setHours(0,0,0,0)
+      const endDay = new Date(end)
+      endDay.setHours(23,59,59,999)
+
+      while (currentDate <= endDay) {
           dateArray.push(new Date(currentDate))
           currentDate.setDate(currentDate.getDate() + 1)
       }
-
+      
       let fSales = 0, fDiscounts = 0, fOrdersCount = 0, fExpenses = 0
       const dailyMap = {} 
       dateArray.forEach(d => dailyMap[d.toLocaleDateString('en-US')] = 0)
@@ -241,7 +248,7 @@ function SalesSystem() {
           if (tDate >= start && tDate <= end && t.status === 'Completed') {
               if (t.type === 'Expense') {
                   fExpenses += (parseFloat(t.amount) || 0)
-              } else if (t.type === 'Income') {
+              } else if (t.type === 'Capital') {
                   fSales += (parseFloat(t.amount) || 0)
               }
           }
@@ -312,7 +319,7 @@ function SalesSystem() {
       const now = new Date();
       
       setSalesFormData({ 
-          type: 'Income', 
+          type: 'Capital', 
           date: now.toISOString().split('T')[0], 
           time: now.toTimeString().slice(0, 5), 
           amount: '', 
@@ -377,9 +384,20 @@ function SalesSystem() {
   }
 
   const prepareArchiveSale = (id) => {
-      setSelectedId(id);
-      setModals({...modals, archive:true})
-  }
+        const t = transactions.find(x => x.id === id); 
+        
+        // STRICT RULE: Cannot void transactions older than 24 hours
+        const transactionDate = new Date(t.rawDate);
+        const hoursOld = (new Date() - transactionDate) / (1000 * 60 * 60);
+        
+        if (hoursOld > 24) {
+            setNotification({ message: "Strict Policy: Cannot void transactions older than 24 hours.", type: 'error' });
+            return;
+        }
+
+        setSelectedId(id);
+        setModals({...modals, archive:true})
+    }
 
   const handleArchiveConfirmation = () => triggerConfirmation(executeArchiveSale, "Archive", "Confirm archive?")
   
@@ -407,13 +425,13 @@ function SalesSystem() {
 
       const { error: updateError } = await supabase
           .from('FinancialRecord')
-          .update({ Status: 'Archived' })
+          .update({ Status: 'Voided' })
           .eq('RecordID', dbId); 
       
       if (updateError) {
           setNotification({ message: "Update Error: " + updateError.message, type: 'error' });
       } else { 
-          setNotification({ message: "Record Archived!", type: 'success' }); 
+          setNotification({ message: "Record Voided Successfully!", type: 'success' }); 
           fetchData(); 
           closeModal(); 
       }
@@ -458,9 +476,15 @@ function SalesSystem() {
                 <div style={{ display: "flex", alignItems: "center", background: "#f0f0f0", padding: "5px 10px", borderRadius: "8px" }}>
                     <span style={{ fontSize: "12px", marginRight: "5px", fontWeight: "bold" }}>From:</span>
                     <input type="date" style={inputStyle} value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} />
-                    <span style={{ fontSize: "12px", marginRight: "5px", fontWeight: "bold" }}>To:</span>
+                    {/* NEW TIME INPUT */}
+                    <input type="time" style={{...inputStyle, marginLeft: "5px"}} value={timeFrom} onChange={(e) => setTimeFrom(e.target.value)} />
+                    
+                    <span style={{ fontSize: "12px", marginRight: "5px", fontWeight: "bold", marginLeft: "15px" }}>To:</span>
                     <input type="date" style={inputStyle} value={dateTo} onChange={(e) => setDateTo(e.target.value)} />
-                    <button onClick={() => { calculateGraphAndSidebar(); setFilterButtonClicked(true); }} style={{ padding: "5px 10px", background: filterButtonClicked ? "#aaa" : colors.green, color: "white", border: "none", borderRadius: "5px", cursor: "pointer", fontSize: "12px", fontWeight: "bold" }}>Apply Filter</button>
+                    {/* NEW TIME INPUT */}
+                    <input type="time" style={{...inputStyle, marginLeft: "5px"}} value={timeTo} onChange={(e) => setTimeTo(e.target.value)} />
+                    
+                    <button onClick={() => { calculateGraphAndSidebar(); setFilterButtonClicked(true); }} style={{ padding: "5px 10px", marginLeft: "10px", background: filterButtonClicked ? "#aaa" : colors.green, color: "white", border: "none", borderRadius: "5px", cursor: "pointer", fontSize: "12px", fontWeight: "bold" }}>Apply Filter</button>
                 </div>
             </div>
             
@@ -518,7 +542,7 @@ function SalesSystem() {
           {/* Action Buttons */}
           <div style={{ display: "flex", gap: "10px" }}>
             <button style={{...btnStyle, background: colors.darkGreen}} onClick={prepareAddSale}>ADD</button>
-            <button style={{...btnStyle, background: colors.blue}} onClick={() => setModals({...modals, archiveLog: true})}>ARCHIVE LOGS</button>
+            <button style={{...btnStyle, background: colors.blue}} onClick={() => setModals({...modals, archiveLog: true})}>VOID LOGS</button>
           </div>
         </div>
 
@@ -539,14 +563,14 @@ function SalesSystem() {
                     </tr>
                   </thead>
                   <tbody>
-                    {paginate(filteredTransactions.filter(t => t.status !== 'Archived'), currentPage, itemsPerPage).map(t => (
+                    {paginate(filteredTransactions.filter(t => t.status !== 'Archived' && t.status !== 'Voided'), currentPage, itemsPerPage).map(t => (
                       <tr key={t.id} style={{ borderBottom: "1px solid #eee", textAlign: "center", height: "50px", fontSize: "13px" }}>
                         <td style={{ width: "120px" }}>{t.id}</td>
                         <td style={{ width: "200px" }}>{t.date}</td>
                         <td style={{ width: "200px", color: t.dateUpdated === '---' ? '#aaa' : 'inherit' }}>{t.dateUpdated}</td>
                         <td style={{ textAlign: "left", paddingLeft: "20px", fontWeight: "bold" }}>{t.desc}</td>
                         <td style={{ width: "150px", fontWeight: "bold" }}>₱{parseFloat(t.amount).toLocaleString(undefined, {minimumFractionDigits: 2})}</td>
-                        <td style={{ width: "120px", color: t.type === 'Income' ? colors.green : colors.red, fontWeight: "bold" }}>{t.type}</td>
+                        <td style={{ width: "120px", color: t.type === 'Capital' ? colors.green : colors.red, fontWeight: "bold" }}>{t.type}</td>
                         <td style={{ width: "120px", fontWeight: "bold", color: colors.darkGreen }}>{t.enteredBy}</td>
                         <td style={{ width: "120px", paddingRight: "15px" }}>
                           <div style={{ display: "flex", gap: "8px", justifyContent: "center" }}>
@@ -558,12 +582,12 @@ function SalesSystem() {
                               Update
                             </button>
                             <button 
-                              onClick={() => prepareArchiveSale(t.id)} 
-                              style={{ padding: "6px 10px", background: colors.red, color: "white", border: "none", borderRadius: "5px", cursor: "pointer", fontSize: "12px" }}
-                              title="Archive Record"
-                            >
-                              Archive
-                            </button>
+                                  onClick={() => prepareArchiveSale(t.id)} 
+                                  style={{ padding: "6px 10px", background: colors.red, color: "white", border: "none", borderRadius: "5px", cursor: "pointer", fontSize: "12px" }}
+                                  title="Void Invalid Record"
+                                >
+                                  Void
+                                </button>
                           </div>
                         </td>
                       </tr>
@@ -571,7 +595,7 @@ function SalesSystem() {
                   </tbody>
                 </table>
             </div>
-            <PaginationControls total={filteredTransactions.filter(t => t.status !== 'Archived').length} page={currentPage} setPage={setCurrentPage} perPage={itemsPerPage} />
+            <PaginationControls total={filteredTransactions.filter(t => t.status !== 'Archived' && t.status !== 'Voided').length} page={currentPage} setPage={setCurrentPage} perPage={itemsPerPage} />
         </div>
       </div>
 
@@ -583,7 +607,7 @@ function SalesSystem() {
         <div style={modalOverlay}><div style={modalContent}><h2 style={{color:colors.darkGreen, marginTop:0}}>{modals.add ? "Add Record" : "Update Record"}</h2>
         <form onSubmit={modals.add ? handleAddConfirmation : handleUpdateConfirmation}>
             <div style={{display:"flex", gap:"10px"}}>
-                <div style={{flex:1}}><label style={formLabelStyle}>Type<span style={requiredStyle}>*</span></label><select style={{...formInput, opacity: !modals.add ? 0.6 : 1, cursor: !modals.add ? 'not-allowed' : 'auto'}} disabled={!modals.add} value={salesFormData.type} onChange={e=>setSalesFormData({...salesFormData, type:e.target.value})}><option>Income</option><option>Expense</option></select></div>
+                <div style={{flex:1}}><label style={formLabelStyle}>Type<span style={requiredStyle}>*</span></label><select style={{...formInput, opacity: !modals.add ? 0.6 : 1, cursor: !modals.add ? 'not-allowed' : 'auto'}} disabled={!modals.add} value={salesFormData.type} onChange={e=>setSalesFormData({...salesFormData, type:e.target.value})}><option>Capital</option><option>Expense</option></select></div>
                 <div style={{flex:1}}>
                   <label style={formLabelStyle}>Date<span style={requiredStyle}>*</span></label>
                   <input 
@@ -610,7 +634,7 @@ function SalesSystem() {
       )}
       {modals.archive && (
         <ArchiveModal 
-          archiveTitle="Archive Financial Record"
+          archiveTitle="Void Financial Record"
           archiveReason={archiveReason}
           setArchiveReason={setArchiveReason}
           triggerConfirmation={() => handleArchiveConfirmation()} // We pass your custom sales confirmation handler here
@@ -623,7 +647,7 @@ function SalesSystem() {
         />
       )}
       {modals.archiveLog && (
-        <div style={modalOverlay}><div style={{...modalContent, width:"900px"}}><h2 style={{color:colors.blue}}>Archive Log</h2><div style={{height:"400px", overflow:"auto"}}><table style={{width:"100%"}}><thead style={{background:colors.blue, color:"white"}}><tr><th>ID</th><th>Reason</th><th>By</th><th>Date Archived</th><th>Auto-Delete Date</th></tr></thead><tbody>{archiveLogs.map(l => {
+        <div style={modalOverlay}><div style={{...modalContent, width:"900px"}}><h2 style={{color:colors.blue}}>Void Log</h2><div style={{height:"400px", overflow:"auto"}}><table style={{width:"100%"}}><thead style={{background:colors.blue, color:"white"}}><tr><th>ID</th><th>Reason</th><th>By</th><th>Date Archived</th><th>Auto-Delete Date</th></tr></thead><tbody>{archiveLogs.map(l => {
           const archivedDate = new Date(l.dateArchived)
           const deleteDate = new Date(archivedDate.getTime() + 90 * 24 * 60 * 60 * 1000)
           return (

@@ -33,7 +33,7 @@ function SalesReports() {
     const tableColumns = ["ID", "Date", "Description", "Type", "Amount"];
     const tableRows = state.selectedReportData.map(record => [
       `F${String(record.RecordID).padStart(3, '0')}`,
-      new Date(record.TransactionDate).toLocaleDateString(),
+      new Date(record.TransactionDate).toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' }),
       record.Description,
       record.RecordType,
       `PHP ${parseFloat(record.Amount).toLocaleString(undefined, {minimumFractionDigits: 2})}`
@@ -48,7 +48,7 @@ function SalesReports() {
       headStyles: { fillColor: [90, 105, 85] }, 
       didParseCell: function(data) {
         if (data.section === 'body' && data.column.index === 3) {
-            if (data.cell.raw === 'Income') data.cell.styles.textColor = [40, 167, 69];
+            if (data.cell.raw === 'Capital' || data.cell.raw === 'Income') data.cell.styles.textColor = [40, 167, 69];
             if (data.cell.raw === 'Expense') data.cell.styles.textColor = [220, 53, 69];
         }
       }
@@ -113,7 +113,7 @@ function SalesReports() {
           </div>
 
           <ReportTable 
-            history={state.reportHistory} 
+            history={state.filteredHistory}
             loading={state.loading} 
             colors={colors} 
             onViewReport={actions.fetchReportDetails} 
@@ -255,9 +255,9 @@ function SalesReports() {
                       {state.selectedReportData.map((record) => (
                         <tr key={record.RecordID} style={{ borderBottom: "1px solid #ddd" }}>
                           <td style={{ padding: "10px" }}>F{String(record.RecordID).padStart(3, '0')}</td>
-                          <td style={{ padding: "10px" }}>{new Date(record.TransactionDate).toLocaleDateString()}</td>
+                          <td style={{ padding: "10px" }}>{new Date(record.TransactionDate).toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' })}</td>
                           <td style={{ padding: "10px" }}>{record.Description}</td>
-                          <td style={{ padding: "10px", color: record.RecordType === 'Income' ? 'green' : 'red', fontWeight: "bold" }}>{record.RecordType}</td>
+                          <td style={{ padding: "10px", color: (record.RecordType === 'Capital' || record.RecordType === 'Income') ? 'green' : 'red', fontWeight: "bold" }}>{record.RecordType}</td>
                           <td style={{ padding: "10px", textAlign: "right" }}>₱{parseFloat(record.Amount).toLocaleString(undefined, {minimumFractionDigits: 2})}</td>
                         </tr>
                       ))}
@@ -295,7 +295,7 @@ function SalesReports() {
               {state.printData.map((record) => (
                 <tr key={record.RecordID} style={{ borderBottom: "1px solid #ddd" }}>
                   <td style={{ padding: "10px" }}>F{String(record.RecordID).padStart(3, '0')}</td>
-                  <td style={{ padding: "10px" }}>{new Date(record.TransactionDate).toLocaleDateString()}</td>
+                  <td style={{ padding: "10px" }}>{new Date(record.TransactionDate).toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' })}</td>
                   <td style={{ padding: "10px" }}>{record.Description}</td>
                   <td style={{ padding: "10px", fontWeight: "bold", color: record.RecordType === 'Income' ? 'green' : 'red' }}>{record.RecordType}</td>
                   <td style={{ padding: "10px", textAlign: "right" }}>₱{parseFloat(record.Amount).toLocaleString(undefined, {minimumFractionDigits: 2})}</td>
@@ -339,7 +339,7 @@ function SalesReports() {
               {state.selectedReportData.map((record) => (
                 <tr key={record.RecordID} style={{ borderBottom: "1px solid #ddd" }}>
                   <td style={{ padding: "10px" }}>F{String(record.RecordID).padStart(3, '0')}</td>
-                  <td style={{ padding: "10px" }}>{new Date(record.TransactionDate).toLocaleDateString()}</td>
+                  <td style={{ padding: "10px" }}>{new Date(record.TransactionDate).toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' })}</td>
                   <td style={{ padding: "10px" }}>{record.Description}</td>
                   <td style={{ padding: "10px", fontWeight: "bold", color: record.RecordType === 'Income' ? 'green' : 'red' }}>{record.RecordType}</td>
                   <td style={{ padding: "10px", textAlign: "right" }}>₱{parseFloat(record.Amount).toLocaleString(undefined, {minimumFractionDigits: 2})}</td>

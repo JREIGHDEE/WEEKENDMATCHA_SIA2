@@ -1,4 +1,45 @@
 export default function ReportTable({ history, loading, colors, onViewReport }) {
+  
+  // --- NEW: SMART DATE RANGE FORMATTER ---
+  const formatDisplayRange = (type, fromStr, toStr) => {
+    if (!fromStr || !toStr) return "---";
+
+    // Adding T00:00:00 ensures the browser doesn't accidentally shift the day based on local timezones
+    const d1 = new Date(fromStr + 'T00:00:00');
+    const d2 = new Date(toStr + 'T00:00:00');
+
+    // 1. Daily Format: "April 01, 2026"
+    if (type === 'Daily Sales') {
+        return d1.toLocaleDateString('en-US', { month: 'long', day: '2-digit', year: 'numeric' });
+    }
+    
+    // 2. Monthly Format: "April 2026"
+    if (type === 'Monthly Sales') {
+        return d1.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+    }
+
+    // 3. Weekly & Custom Format
+    const m1 = d1.toLocaleDateString('en-US', { month: 'long' });
+    const m2 = d2.toLocaleDateString('en-US', { month: 'long' });
+    const day1 = d1.toLocaleDateString('en-US', { day: '2-digit' });
+    const day2 = d2.toLocaleDateString('en-US', { day: '2-digit' });
+    const y1 = d1.getFullYear();
+    const y2 = d2.getFullYear();
+
+    if (y1 === y2) {
+        if (m1 === m2) {
+            // Same month: "April 01-31, 2026"
+            return `${m1} ${day1}-${day2}, ${y1}`; 
+        } else {
+            // Different months, same year: "April 28 - May 04, 2026"
+            return `${m1} ${day1} - ${m2} ${day2}, ${y1}`; 
+        }
+    } else {
+        // Different years (Rare, but safe to have): "Dec 28, 2025 - Jan 04, 2026"
+        return `${m1} ${day1}, ${y1} - ${m2} ${day2}, ${y2}`; 
+    }
+  };
+
   return (
     <div style={{ background: "white", borderRadius: "15px", boxShadow: "0 4px 10px rgba(0,0,0,0.1)", overflow: "hidden" }}>
       <table style={{ width: "100%", borderCollapse: "collapse" }}>
@@ -19,15 +60,20 @@ export default function ReportTable({ history, loading, colors, onViewReport }) 
               <tr key={report.ReportID} style={{ borderBottom: "1px solid #eee", textAlign: "center", height: "50px" }}>
                 <td>RPT-{String(report.ReportID).padStart(3, '0')}</td>
                 <td>{report.Employee?.User?.FirstName} {report.Employee?.User?.LastName}</td>
-                <td>{report.ReportType}</td>
-                <td>{new Date(report.DateGenerated).toLocaleDateString()}</td>
+                <td style={{ fontWeight: "bold" }}>{report.ReportType}</td>
+                <td>{new Date(report.DateGenerated).toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' })}</td>
                 <td>
                   {report.TimeGenerated ? new Date(`1970-01-01T${report.TimeGenerated}`).toLocaleTimeString('en-US', { 
                     hour: '2-digit', 
                     minute: '2-digit' 
                   }) : '---'}
                 </td>
-                <td>{report.DateRangeFrom} to {report.DateRangeTo}</td>
+                
+                {/* --- APPLIED THE SMART FORMATTER HERE --- */}
+                <td style={{ fontWeight: "bold", color: "#000000" }}>
+                  {formatDisplayRange(report.ReportType, report.DateRangeFrom, report.DateRangeTo)}
+                </td>
+                
                 <td>
                   <button 
                     onClick={() => onViewReport(report.ReportID)}

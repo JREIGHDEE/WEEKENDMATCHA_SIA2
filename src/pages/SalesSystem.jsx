@@ -399,7 +399,7 @@ function SalesSystem() {
         setModals({...modals, archive:true})
     }
 
-  const handleArchiveConfirmation = () => triggerConfirmation(executeArchiveSale, "Archive", "Confirm archive?")
+  const handleArchiveConfirmation = () => triggerConfirmation(executeArchiveSale, "Void", "Confirm void?")
   
   const executeArchiveSale = async () => { 
       const t = transactions.find(x => x.id === selectedId); 

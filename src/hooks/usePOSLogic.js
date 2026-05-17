@@ -24,6 +24,9 @@ export function usePOSLogic() {
   const [isDiscounted, setIsDiscounted] = useState(false)
   const [discountId, setDiscountId] = useState('')
 
+  const [showSwitchProfileModal, setShowSwitchProfileModal] = useState(false)
+  const [availableEmployees, setAvailableEmployees] = useState([])
+
   const [paymentMethod, setPaymentMethod] = useState('Cash')
   const [referenceNumber, setReferenceNumber] = useState('')
   const [customPaymentMethod, setCustomPaymentMethod] = useState('')
@@ -36,6 +39,7 @@ export function usePOSLogic() {
   const [posPINError, setPosPINError] = useState('')
   const [posTimeInOutMode, setPosTimeInOutMode] = useState('in')
   const [posEmployeeTimedIn, setPosEmployeeTimedIn] = useState(false)
+  const [posEmployeeTimedOutToday, setPosEmployeeTimedOutToday] = useState(false)
 
   const [currentOrderId, setCurrentOrderId] = useState(null)
   const [receiptPrinted, setReceiptPrinted] = useState(false)
@@ -84,6 +88,19 @@ export function usePOSLogic() {
         .maybeSingle()
 
       setCurrentUser(userData)
+
+  // --- NEW: SYNC ATTENDANCE ON LOAD ---
+      if (userData?.EmployeeID) {
+        try {
+          const { getEmployeeAttendanceStatus } = await import('../services/personalService')
+          const status = await getEmployeeAttendanceStatus(userData.EmployeeID)
+          setPosEmployeeTimedIn(status?.isTimedIn || false)
+          setPosEmployeeTimedOutToday(status?.hasTimedOutToday || false) 
+        } catch (err) {
+          console.error("Failed to sync attendance:", err)
+        }
+      }
+      // ------------------------------------
 
       await fetchInventory()
       await fetchMenu()
@@ -885,6 +902,38 @@ export function usePOSLogic() {
     setShowPOSPINModal(true)
   }
 
+  const handleOpenSwitchProfile = async () => {
+    // Fetch all active employees so they can be selected
+    const { data, error } = await supabase
+      .from('Employee')
+      .select('EmployeeID, EmployeeStatus, User(FirstName, LastName, RoleName)')
+      .eq('EmployeeStatus', 'Active')
+
+    if (!error && data) {
+      setAvailableEmployees(data)
+    }
+    setShowSwitchProfileModal(true)
+  }
+
+  const handleSwitchProfile = async (employee) => {
+    // 1. Instantly swap the user details & close modal
+    setCurrentUser(employee)
+    setShowSwitchProfileModal(false)
+
+    // 2. Fetch the new employee's specific attendance status!
+    try {
+      const { getEmployeeAttendanceStatus } = await import('../services/personalService')
+      const status = await getEmployeeAttendanceStatus(employee.EmployeeID)
+      
+      setPosEmployeeTimedIn(status?.isTimedIn || false)
+      setPosEmployeeTimedOutToday(status?.hasTimedOutToday || false)
+      
+      setNotification({ message: `Profile switched to ${employee.User.FirstName}`, type: 'success' })
+    } catch (err) {
+      console.error("Failed to sync attendance on switch:", err)
+    }
+  }
+
   const handleSelectTimeInOutMode = (mode) => {
     setPosTimeInOutMode(mode)
     setShowPOSTimeInOutOptions(false)
@@ -930,6 +979,7 @@ export function usePOSLogic() {
         if (result.success) {
           setNotification({ message: 'Timed Out Successfully!', type: 'success' })
           setPosEmployeeTimedIn(false)
+          setPosEmployeeTimedOutToday(true)
           closePOSPINModal()
         } else {
           setPosPINError(result.error)
@@ -1017,12 +1067,13 @@ export function usePOSLogic() {
       showAdminLogin, showManageMenu, adminUser, adminPass, isEditing, editItemId,
       newItemName, newItemPrice, newItemCategory, newItemFile, previewUrl,
       fileInputRef, newItemRecipe, selectedIngId, notification, orderPage,
-      recentPage, ordersPerPage, recentPerPage, discountId,
+      recentPage, ordersPerPage, recentPerPage, discountId, showSwitchProfileModal, 
+      availableEmployees,
 
       paymentMethod, referenceNumber, customPaymentMethod,
 
       showPOSPINModal, showPOSTimeInOutOptions, posPin, posPINLoading,
-      posPINError, posTimeInOutMode, posEmployeeTimedIn,
+      posPINError, posTimeInOutMode, posEmployeeTimedIn, posEmployeeTimedOutToday,
 
       showDeleteConfirm,
       itemToDelete,
@@ -1042,7 +1093,9 @@ export function usePOSLogic() {
       setShowStatusModal, setShowCompleteConfirm, setShowAdminLogin, setShowManageMenu,
       setShowRecentModal, setAdminUser, setAdminPass, setNotification, executeDeleteItem, setDiscountId,
 
-      setPaymentMethod, setReferenceNumber, setCustomPaymentMethod,
+      setPaymentMethod, setReferenceNumber, setCustomPaymentMethod, setShowSwitchProfileModal, 
+      handleOpenSwitchProfile,   
+      handleSwitchProfile,
 
       handleOpenPOSTimeInOut, handleSelectTimeInOutMode, handleConfirmPOSPIN,
       closePOSPINModal, setPosPin,

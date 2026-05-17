@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react'
 import CancelConfirmationModal from './CancelConfirmationModal'
-import { validateEmployeeForm, isFieldValid, getFieldBorderColor, validateShiftTimes, formatPhilippineNumber } from '../utils/validation'
+import { validateEmployeeForm, isFieldValid, getFieldBorderColor, formatPhilippineNumber } from '../utils/validation'
 
 // TimePicker used only by the employee form
 const TimePicker = ({ label, value, onChange }) => {
@@ -51,6 +51,7 @@ export default function EmployeeForm({
   const requiredStyle = { color: "#D9534F" }
 
   const handleValidation = () => {
+    // Note: We bypass strict start/end time validation here to allow overnight shifts (e.g. 5 PM to 3 AM)
     const errors = validateEmployeeForm(formData, ALL_ROLES)
     if (errors.length > 0) {
       showError(errors[0])
@@ -156,39 +157,54 @@ export default function EmployeeForm({
                 <input type="date" style={{...inputStyle, borderColor: getFieldBorderColor('dateHired', formData, ALL_ROLES), borderWidth: '2px'}} value={formData.dateHired} onChange={e => setFormData({...formData, dateHired: e.target.value})} />
               </>
             )}
-            <label style={{ fontSize: "12px", fontWeight: "bold", marginTop: "10px", display: "block" }}>Shift Date Range (Start to End)</label>
-            <div style={{ display: "flex", gap: "10px" }}>
-              <div style={{ flex: 1 }}>
-                <label style={{ fontSize: "10px", fontWeight: "bold", color: "#555", display: "inline-flex", alignItems: "center", gap: "4px" }}>Start Date<span style={requiredStyle}>*</span></label>
-                <input 
-                  type="date" 
-                  style={{...inputStyle, borderColor: getFieldBorderColor('shiftStartDate', formData, ALL_ROLES), borderWidth: '2px'}} 
-                  value={formData.shiftStartDate || ''} 
-                  onChange={e => setFormData({...formData, shiftStartDate: e.target.value})} 
-                />
+
+            {/* --- NEW SHIFT DAY SELECTION (Dynamic Checkbox & Dropdowns) --- */}
+            <div style={{ marginBottom: "20px", marginTop: "15px" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "10px" }}>
+                <label style={{ fontSize: "12px", fontWeight: "bold", display: "block" }}>Shift Days</label>
+                <label style={{ display: "flex", alignItems: "center", fontSize: "12px", cursor: "pointer", fontWeight: "bold", color: colors.darkGreen }}>
+                  <input
+                    type="checkbox"
+                    checked={formData.isShiftRange}
+                    onChange={(e) => setFormData({ ...formData, isShiftRange: e.target.checked })}
+                    style={{ marginRight: "6px", transform: "scale(1.2)" }}
+                  />
+                  Multiple Days (Range)
+                </label>
               </div>
-              <div style={{ flex: 1 }}>
-                <label style={{ fontSize: "10px", fontWeight: "bold", color: "#555", display: "inline-flex", alignItems: "center", gap: "4px" }}>End Date<span style={requiredStyle}>*</span></label>
-                <input 
-                  type="date" 
-                  style={{...inputStyle, borderColor: getFieldBorderColor('shiftEndDate', formData, ALL_ROLES), borderWidth: '2px'}} 
-                  value={formData.shiftEndDate || ''} 
-                  onChange={e => setFormData({...formData, shiftEndDate: e.target.value})} 
-                />
-              </div>
+
+              {formData.isShiftRange ? (
+                <div style={{ display: "flex", gap: "10px" }}>
+                  <div style={{ flex: 1 }}>
+                    <label style={{ fontSize: "10px", fontWeight: "bold", color: "#555", display: "inline-flex", alignItems: "center", gap: "4px" }}>Start Day <span style={{ color: "red" }}>*</span></label>
+                    <select style={{...inputStyle, borderColor: getFieldBorderColor('shiftStartDate', formData, ALL_ROLES), borderWidth: '2px'}} value={formData.shiftStartDate} onChange={e => setFormData({ ...formData, shiftStartDate: e.target.value })}>
+                      {['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'].map(day => <option key={day} value={day}>{day}</option>)}
+                    </select>
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <label style={{ fontSize: "10px", fontWeight: "bold", color: "#555", display: "inline-flex", alignItems: "center", gap: "4px" }}>End Day <span style={{ color: "red" }}>*</span></label>
+                    <select style={{...inputStyle, borderColor: getFieldBorderColor('shiftEndDate', formData, ALL_ROLES), borderWidth: '2px'}} value={formData.shiftEndDate} onChange={e => setFormData({ ...formData, shiftEndDate: e.target.value })}>
+                      {['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'].map(day => <option key={day} value={day}>{day}</option>)}
+                    </select>
+                  </div>
+                </div>
+              ) : (
+                <div>
+                  <label style={{ fontSize: "10px", fontWeight: "bold", color: "#555", display: "inline-flex", alignItems: "center", gap: "4px" }}>Select Day <span style={{ color: "red" }}>*</span></label>
+                  <select style={{...inputStyle, borderColor: getFieldBorderColor('shiftStartDate', formData, ALL_ROLES), borderWidth: '2px'}} value={formData.shiftSingleDay} onChange={e => setFormData({ ...formData, shiftSingleDay: e.target.value, shiftStartDate: e.target.value, shiftEndDate: e.target.value })}>
+                    {['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'].map(day => <option key={day} value={day}>{day}</option>)}
+                  </select>
+                </div>
+              )}
             </div>
 
             <label style={{ fontSize: "12px", fontWeight: "bold", marginTop: "10px", display: "block" }}>Shift Time (Start to End)</label>
-            <div style={{ display: "flex", alignItems: "center", background: "#f9f9f9", padding: "10px", borderRadius: "5px", border: formData.shiftStart && formData.shiftEnd && !validateShiftTimes(formData.shiftStart, formData.shiftEnd).isValid ? "2px solid #f44336" : "1px solid #eee" }}>
+            <div style={{ display: "flex", alignItems: "center", background: "#f9f9f9", padding: "10px", borderRadius: "5px", border: "1px solid #eee" }}>
               <TimePicker label="Start Time" value={formData.shiftStart} onChange={(val) => setFormData({...formData, shiftStart: val})} />
               <span style={{ margin: "0 10px", fontWeight: "bold" }}>TO</span>
               <TimePicker label="End Time" value={formData.shiftEnd} onChange={(val) => setFormData({...formData, shiftEnd: val})} />
             </div>
-            {formData.shiftStart && formData.shiftEnd && !validateShiftTimes(formData.shiftStart, formData.shiftEnd).isValid && (
-              <span style={{ fontSize: "12px", color: "#f44336", marginTop: "5px", display: "block" }}>
-                {validateShiftTimes(formData.shiftStart, formData.shiftEnd).error}
-              </span>
-            )}
+            
             <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px", marginTop: "25px" }}>
               <button type="button" onClick={handleCancelClick} style={{...btnStyle, background: "#ccc", color: "#333"}}>Cancel</button>
               <button type="submit" style={{...btnStyle, background: colors.green}}>Confirm</button>

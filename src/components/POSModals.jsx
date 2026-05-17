@@ -1,5 +1,6 @@
 import React, { useState } from 'react'
 import CancelConfirmationModal from './CancelConfirmationModal'
+import LoadingSpinner from './LoadingSpinner'
 
 export default function POSModals({ state, actions, ui, PaginationControls }) {
   const { colors, uiStyles, paginate, showCancelConfirm, handleCancelClick, handleCancelConfirm, handleCancelCancel } = ui;
@@ -120,7 +121,10 @@ export default function POSModals({ state, actions, ui, PaginationControls }) {
                 
                 <div style={{ display: "flex", gap: "10px", marginTop: "10px" }}>
                     <button onClick={() => handleCancelClick(() => actions.setShowPaymentModal(false))} style={{ flex: 1, padding: "12px", background: colors.redBtn, color: "white", border: "none", borderRadius: "10px", fontWeight: "bold", cursor: "pointer" }}>Cancel Order</button>
-                    <button onClick={actions.handleConfirmPayment} disabled={isCashInsufficient} style={{ flex: 1, padding: "12px", background: isCashInsufficient ? "#ccc" : colors.darkBtn, color: "white", border: "none", borderRadius: "10px", fontWeight: "bold", cursor: isCashInsufficient ? "default" : "pointer" }}>Confirm</button>
+                    <button onClick={actions.handleConfirmPayment} disabled={isCashInsufficient || state.loading} style={{ flex: 1, padding: "12px", background: isCashInsufficient || state.loading ? "#ccc" : colors.darkBtn, color: "white", border: "none", borderRadius: "10px", fontWeight: "bold", cursor: isCashInsufficient || state.loading ? "default" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: "8px" }}>
+                      {state.loading ? <LoadingSpinner size={14} color="white" /> : null}
+                      {state.loading ? 'Processing...' : 'Confirm'}
+                    </button>
                 </div>
             </div>
         </div>
@@ -209,9 +213,9 @@ export default function POSModals({ state, actions, ui, PaginationControls }) {
 
                 <div className="no-print-buttons" style={{ marginTop: "20px" }}>
                     {!state.receiptPrinted ? (
-                        <button onClick={actions.handlePrintReceipt} style={{ width: "100%", padding: "12px", background: "#FF6B6B", color: "white", border: "none", borderRadius: "20px", fontWeight: "bold", cursor: "pointer", marginBottom: "10px" }}>Print Receipt</button>
+                        <button onClick={actions.handlePrintReceipt} style={{ width: "100%", padding: "12px", background: "#FF6B6B", color: "white", border: "none", borderRadius: "20px", fontWeight: "bold", cursor: "pointer", marginBottom: "10px", display: "flex", alignItems: "center", justifyContent: "center", gap: "8px" }}><LoadingSpinner size={14} color="white" /> Print Receipt</button>
                     ) : (
-                        <button onClick={actions.handleCloseReceipt} style={{ width: "100%", padding: "12px", background: "#538D4E", color: "white", border: "none", borderRadius: "20px", fontWeight: "bold", cursor: "pointer" }}>Close & Start New Order</button>
+                        <button onClick={actions.handleCloseReceipt} style={{ width: "100%", padding: "12px", background: "#538D4E", color: "white", border: "none", borderRadius: "20px", fontWeight: "bold", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: "8px" }}>Close & Start New Order</button>
                     )}
                 </div>
             </div>
@@ -231,16 +235,18 @@ export default function POSModals({ state, actions, ui, PaginationControls }) {
         </div>
       )}
 
-    {/* COMPLETE ORDER CONFIRM MODAL */}
+      {/* COMPLETE ORDER CONFIRM MODAL */}
       {state.showCompleteConfirm && (
         <div style={uiStyles.modalOverlay}>
             <div style={{ background: "white", padding: "30px", borderRadius: "15px", width: "350px", textAlign: "center", display: "flex", flexDirection: "column", gap: "10px", boxShadow: "0 10px 30px rgba(0,0,0,0.3)" }}>
                 <h2 style={{ color: "#333", margin: "0", fontSize: "22px" }}>Complete Order?</h2>
                 <p style={{ fontSize: "14px", color: "#666", lineHeight: "1.5", margin: "0 0 10px 0" }}>This action cannot be undone.<br/>Please review the details before continuing.</p>
                 <div style={{ display: "flex", justifyContent: "center", gap: "15px" }}>
-                    {/* Swapped: Cancel is now Grey, Confirm is Green */}
-                    <button onClick={actions.handleCancelCompletion} style={{ padding: "10px 20px", background: "#D9534F", color: "white", border: "none", borderRadius: "8px", fontWeight: "bold", cursor: "pointer", fontSize: "14px" }}>Cancel</button>
-                    <button onClick={actions.confirmCompletion} style={{ padding: "10px 20px", background: "#6B7C65", color: "white", border: "none", borderRadius: "8px", fontWeight: "bold", cursor: "pointer", fontSize: "14px" }}>Confirm</button>
+                    <button onClick={actions.handleCancelCompletion} disabled={state.loading} style={{ padding: "10px 20px", background: state.loading ? "#ddd" : "#D9534F", color: "white", border: "none", borderRadius: "8px", fontWeight: "bold", cursor: state.loading ? "default" : "pointer", fontSize: "14px" }}>Cancel</button>
+                    <button onClick={actions.confirmCompletion} disabled={state.loading} style={{ padding: "10px 20px", background: state.loading ? "#ccc" : "#6B7C65", color: "white", border: "none", borderRadius: "8px", fontWeight: "bold", cursor: state.loading ? "default" : "pointer", fontSize: "14px", display: "flex", alignItems: "center", gap: "8px" }}>
+                      {state.loading ? <LoadingSpinner size={12} color="white" /> : null}
+                      {state.loading ? 'Processing...' : 'Confirm'}
+                    </button>
                 </div>
             </div>
         </div>
@@ -253,8 +259,11 @@ export default function POSModals({ state, actions, ui, PaginationControls }) {
                 <h2 style={{ color: "#333", margin: "0", fontSize: "22px" }}>Disable this item?</h2>
                 <p style={{ fontSize: "14px", color: "#666", lineHeight: "1.5", margin: "0 0 10px 0" }}>This will remove the item from the active menu.</p>
                 <div style={{ display: "flex", justifyContent: "center", gap: "15px" }}>
-                    <button onClick={() => actions.setShowDeleteConfirm(false)} style={{ padding: "10px 20px", background: "#ccc", color: "#333", border: "none", borderRadius: "8px", fontWeight: "bold", cursor: "pointer", fontSize: "14px" }}>Cancel</button>
-                    <button onClick={actions.executeDeleteItem} style={{ padding: "10px 20px", background: "#D9534F", color: "white", border: "none", borderRadius: "8px", fontWeight: "bold", cursor: "pointer", fontSize: "14px" }}>Disable</button>
+                    <button onClick={() => actions.setShowDeleteConfirm(false)} disabled={state.loading} style={{ padding: "10px 20px", background: state.loading ? "#ddd" : "#ccc", color: "#333", border: "none", borderRadius: "8px", fontWeight: "bold", cursor: state.loading ? "default" : "pointer", fontSize: "14px" }}>Cancel</button>
+                    <button onClick={actions.executeDeleteItem} disabled={state.loading} style={{ padding: "10px 20px", background: state.loading ? "#ccc" : "#D9534F", color: "white", border: "none", borderRadius: "8px", fontWeight: "bold", cursor: state.loading ? "default" : "pointer", fontSize: "14px", display: "flex", alignItems: "center", gap: "8px" }}>
+                      {state.loading ? <LoadingSpinner size={12} color="white" /> : null}
+                      {state.loading ? 'Disabling...' : 'Disable'}
+                    </button>
                 </div>
             </div>
         </div>
@@ -337,8 +346,11 @@ export default function POSModals({ state, actions, ui, PaginationControls }) {
                         </div>
 
                         <div style={{display: "flex", gap: "10px", marginTop: "10px"}}>
-                            {state.isEditing && <button onClick={actions.resetForm} style={{flex:1, padding: "12px", background: "#999", color: "white", border: "none", borderRadius: "8px", fontWeight: "bold", cursor: "pointer"}}>CANCEL EDIT</button>}
-                            <button onClick={actions.handleSaveItem} style={{flex:1, padding: "12px", background: "#607D8B", color: "white", border: "none", borderRadius: "8px", fontWeight: "bold", cursor: "pointer", height: "50px"}}>{state.isEditing ? "UPDATE ITEM" : "ADD ITEM"}</button>
+                            {state.isEditing && <button onClick={actions.resetForm} disabled={state.loading} style={{flex:1, padding: "12px", background: state.loading ? "#ddd" : "#999", color: "white", border: "none", borderRadius: "8px", fontWeight: "bold", cursor: state.loading ? "default" : "pointer"}}>CANCEL EDIT</button>}
+                            <button onClick={actions.handleSaveItem} disabled={state.loading} style={{flex:1, padding: "12px", background: state.loading ? "#999" : "#607D8B", color: "white", border: "none", borderRadius: "8px", fontWeight: "bold", cursor: state.loading ? "default" : "pointer", height: "50px", display: "flex", alignItems: "center", justifyContent: "center", gap: "8px"}}>
+                              {state.loading ? <LoadingSpinner size={14} color="white" /> : null}
+                              {state.loading ? (state.isEditing ? 'Updating...' : 'Adding...') : (state.isEditing ? "UPDATE ITEM" : "ADD ITEM")}
+                            </button>
                         </div>
                     </div>
 
@@ -432,22 +444,71 @@ export default function POSModals({ state, actions, ui, PaginationControls }) {
               <button
                 onClick={actions.closePOSPINModal}
                 disabled={state.posPINLoading}
-                style={{ flex: 1, padding: "12px", background: "#ccc", border: "none", borderRadius: "8px", fontWeight: "bold", cursor: state.posPINLoading ? "default" : "pointer", color: "#333" }}
+                style={{ flex: 1, padding: "12px", background: state.posPINLoading ? "#ddd" : "#ccc", border: "none", borderRadius: "8px", fontWeight: "bold", cursor: state.posPINLoading ? "default" : "pointer", color: "#333" }}
               >
                 Cancel
               </button>
               <button
                 onClick={actions.handleConfirmPOSPIN}
                 disabled={state.posPINLoading}
-                style={{ flex: 1, padding: "12px", background: state.posPINLoading ? "#ccc" : "#5a6955", color: "white", border: "none", borderRadius: "8px", fontWeight: "bold", cursor: state.posPINLoading ? "default" : "pointer" }}
+                style={{ flex: 1, padding: "12px", background: state.posPINLoading ? "#ccc" : "#5a6955", color: "white", border: "none", borderRadius: "8px", fontWeight: "bold", cursor: state.posPINLoading ? "default" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: "8px" }}
               >
+                {state.posPINLoading ? <LoadingSpinner size={12} color="white" /> : null}
                 {state.posPINLoading ? 'Processing...' : (state.posTimeInOutMode === 'in' ? 'Confirm Time In' : 'Confirm Time Out')}
               </button>
             </div>
           </div>
         </div>
       )}
-      
+      {/* SWITCH PROFILE MODAL */}
+      {state.showSwitchProfileModal && (
+        <div style={uiStyles.modalOverlay}>
+            {/* Embedded CSS for smooth hover and click animations */}
+            <style>
+                {`
+                .profile-switch-card {
+                    transition: transform 0.15s ease, box-shadow 0.15s ease;
+                }
+                .profile-switch-card:hover {
+                    transform: translateY(-4px);
+                    box-shadow: 0 6px 15px rgba(0,0,0,0.1);
+                }
+                .profile-switch-card:active {
+                    transform: scale(0.92);
+                    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+                }
+                `}
+            </style>
+            <div style={{ background: "white", padding: "30px", borderRadius: "20px", width: "550px", position: "relative", boxShadow: "0 10px 40px rgba(0,0,0,0.3)" }}>
+                {/* The 'X' Button */}
+                <button onClick={() => actions.setShowSwitchProfileModal(false)} style={{ position: "absolute", top: "20px", right: "20px", background: "none", border: "none", fontSize: "20px", cursor: "pointer", color: "#888", transition: "0.2s" }} onMouseOver={e => e.target.style.color = "#333"} onMouseOut={e => e.target.style.color = "#888"}>✖</button>
+                
+                <h2 style={{ color: "#5a6955", margin: "0 0 25px 0", textAlign: "center", fontSize: "24px" }}>Switch Profile</h2>
+                
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "15px", maxHeight: "400px", overflowY: "auto", padding: "10px" }}>
+                    {state.availableEmployees.map(emp => (
+                        <div 
+                            key={emp.EmployeeID} 
+                            className="profile-switch-card"
+                            onClick={() => actions.handleSwitchProfile(emp)}
+                            style={{ 
+                              border: state.currentUser?.EmployeeID === emp.EmployeeID ? "2px solid #5a6955" : "1px solid #eee", 
+                              borderRadius: "15px", padding: "20px 10px", display: "flex", flexDirection: "column", alignItems: "center", 
+                              cursor: "pointer", background: state.currentUser?.EmployeeID === emp.EmployeeID ? "#f4f7f4" : "white" 
+                            }}
+                        >
+                            <div style={{ width: "50px", height: "50px", borderRadius: "50%", background: "#404f3d", color: "white", display: "flex", justifyContent: "center", alignItems: "center", fontSize: "20px", marginBottom: "10px", fontWeight: "bold" }}>
+                                {emp.User?.FirstName?.charAt(0)}
+                            </div>
+                            <div style={{ fontWeight: "bold", fontSize: "14px", color: "#333", textAlign: "center" }}>{emp.User?.FirstName}</div>
+                            <div style={{ fontSize: "11px", color: "#888", marginTop: "2px" }}>ID: {emp.EmployeeID}</div>
+                            <div style={{ fontSize: "10px", color: "#5a6955", fontWeight: "bold", marginTop: "5px", opacity: 0.8 }}>{emp.User?.RoleName}</div>
+                        </div>
+                    ))}
+                </div>
+            </div>
+        </div>
+      )}
       <CancelConfirmationModal 
         isOpen={showCancelConfirm} 
         onConfirm={handleCancelConfirm} 

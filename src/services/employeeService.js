@@ -51,8 +51,14 @@ export const createEmployee = async (formData, authData, existingUserId = null) 
     ShiftSchedule: fullShift,
     EmployeeStatus: formData.status,
     DateOfBirth: formData.dob,
-    ShiftStartDate: formData.shiftStartDate,
-    ShiftEndDate: formData.shiftEndDate
+// --- ADD THIS NEW LOGIC ---
+      SchedulePattern: formData.isShiftRange 
+          ? `${formData.shiftStartDate} - ${formData.shiftEndDate}` 
+          : formData.shiftSingleDay,
+          
+      // Ensure the old timestamp columns are sent as null so the DB doesn't crash
+      ShiftStartDate: null,  
+      ShiftEndDate: null
   }])
 
   if (empError) return { error: empError }
@@ -79,8 +85,13 @@ export const updateEmployee = async (employeeId, formData, userID) => {
     EmployeeStatus: formData.status, 
     DateOfBirth: formData.dob, 
     DateHired: formData.dateHired,
-    ShiftStartDate: formData.shiftStartDate,
-    ShiftEndDate: formData.shiftEndDate
+// --- ADD THIS NEW LOGIC ---
+      SchedulePattern: formData.isShiftRange 
+          ? `${formData.shiftStartDate} - ${formData.shiftEndDate}` 
+          : formData.shiftSingleDay,
+          
+      ShiftStartDate: null,
+      ShiftEndDate: null
   }).eq('EmployeeID', employeeId)
 
   return { userUpdate, empUpdate }

@@ -19,12 +19,37 @@ export const useEmployeeForm = () => {
       email: '', password: '', role: 'Barista', status: 'Active', 
       shiftStart: '08:00 AM', shiftEnd: '05:00 PM', 
       dateHired: new Date().toISOString().split('T')[0],
-      shiftStartDate: '', shiftEndDate: ''
+      
+      // --- NEW DAY SELECTION STATES ---
+      isShiftRange: true, 
+      shiftSingleDay: 'Monday', 
+      shiftStartDate: 'Tuesday', 
+      shiftEndDate: 'Friday'
     })
   }, [])
 
   const populateUpdateForm = useCallback((employee) => {
     const [start, end] = employee.ShiftSchedule ? employee.ShiftSchedule.split(' - ') : ["08:00 AM", "05:00 PM"]
+    
+    // --- SMART PARSER FOR EXISTING SCHEDULES ---
+    let isRange = true;
+    let singleDay = 'Monday';
+    let startDay = 'Tuesday';
+    let endDay = 'Friday';
+
+    if (employee.SchedulePattern) {
+        if (employee.SchedulePattern.includes(' - ')) {
+            const parts = employee.SchedulePattern.split(' - ');
+            startDay = parts[0];
+            endDay = parts[1];
+        } else {
+            isRange = false;
+            singleDay = employee.SchedulePattern;
+            startDay = employee.SchedulePattern;
+            endDay = employee.SchedulePattern;
+        }
+    }
+
     setFormData({
       firstName: employee.User?.FirstName, 
       lastName: employee.User?.LastName, 
@@ -38,8 +63,12 @@ export const useEmployeeForm = () => {
       shiftStart: start, 
       shiftEnd: end, 
       dateHired: employee.DateHired,
-      shiftStartDate: employee.ShiftStartDate || '',
-      shiftEndDate: employee.ShiftEndDate || ''
+      
+      // Apply the parsed days
+      isShiftRange: isRange,
+      shiftSingleDay: singleDay,
+      shiftStartDate: startDay,
+      shiftEndDate: endDay
     })
   }, [])
 

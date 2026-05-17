@@ -1,9 +1,10 @@
 import React, { useState } from 'react'
 import { supabase } from '../supabaseClient'
-import logo from '../assets/wm-logo.svg' 
+import logo from '../assets/wm-logo.svg'
 import { Notification } from '../components/Notification'
 import { usePOSLogic } from '../hooks/usePOSLogic'
 import POSModals from '../components/POSModals'
+import LoadingSpinner from '../components/LoadingSpinner'
 
 function POSSystem() {
   const { state, actions, ui, navigate } = usePOSLogic();
@@ -41,8 +42,6 @@ function POSSystem() {
     )
   }
 
-  if (state.loading) return <div style={{height: "100vh", background: colors.green, display:"flex", justifyContent:"center", alignItems:"center", color:"white"}}>Loading POS...</div>
-
   return (
     <div style={{ display: "flex", height: "100vh", width: "100vw", overflow: "hidden", fontFamily: "sans-serif", background: colors.beige }}>
       
@@ -51,7 +50,18 @@ function POSSystem() {
         <div style={{ paddingBottom: "10px", textAlign: "center" }}><img src={logo} alt="WeekendMatcha Logo" style={{ width: "130px", height: "auto" }} /></div>
         <h2 style={{fontSize: "18px", marginBottom: "40px", marginTop: -20, textAlign: "center"}}>WeekendMatcha</h2>
         <div style={{ display: "flex", flexDirection: "column", alignItems: "center", marginBottom: "30px" }}>
-            <div style={{ width: "80px", height: "80px", borderRadius: "50%", background: "#404f3d", display: "flex", justifyContent: "center", alignItems: "center", fontSize: "32px", marginBottom: "10px", border: "2px solid rgba(255,255,255,0.2)" }}>{state.currentUser?.User?.FirstName?.charAt(0)}</div>
+            <div 
+              onClick={actions.handleOpenSwitchProfile}
+              onMouseOver={(e) => { e.currentTarget.style.transform = "scale(1.05)"; e.currentTarget.style.borderColor = "white"; }}
+              onMouseOut={(e) => { e.currentTarget.style.transform = "scale(1)"; e.currentTarget.style.borderColor = "rgba(255,255,255,0.2)"; }}
+              style={{ 
+                width: "80px", height: "80px", borderRadius: "50%", background: "#404f3d", display: "flex", justifyContent: "center", alignItems: "center", 
+                fontSize: "32px", marginBottom: "10px", border: "2px solid rgba(255,255,255,0.2)", cursor: "pointer", transition: "transform 0.2s, border-color 0.2s" 
+              }}
+              title="Click to Switch Profile"
+            >
+              {state.currentUser?.User?.FirstName?.charAt(0)}
+            </div>
             <div style={{ fontSize: "18px", fontWeight: "bold" }}>{state.currentUser?.User?.FirstName}</div>
             <div style={{ fontSize: "14px", opacity: 0.8 }}>ID: {state.currentUser?.EmployeeID}</div>
             <div style={{ width: "70%", height: "1px", background: "rgba(255,255,255,0.3)", marginTop: "20px" }}></div>
@@ -61,12 +71,28 @@ function POSSystem() {
             <div style={uiStyles.sidebarItem(state.activeTab === 'CurrentOrders')} onClick={() => actions.setActiveTab('CurrentOrders')}>Current Orders</div>
         </div>
         <div style={{ display: "flex", flexDirection: "column", gap: "8px", marginTop: "auto", marginBottom: "20px" }}>
-            <button 
+            <button
               onClick={actions.handleOpenPOSTimeInOut}
-              style={{ padding: "12px 20px", background: state.posEmployeeTimedIn ? colors.discountRed : colors.blueText, color: "white", border: "none", borderRadius: "8px", fontWeight: "bold", cursor: "pointer", fontSize: "13px", transition: "0.2s" }}
-              title={state.posEmployeeTimedIn ? "Time Out" : "Time In"}
+              disabled={state.posEmployeeTimedOutToday || state.loading}
+              style={{
+                padding: "12px 20px",
+                background: state.posEmployeeTimedOutToday ? "#888" : (state.posEmployeeTimedIn ? colors.discountRed : colors.blueText),
+                color: "white",
+                border: "none",
+                borderRadius: "8px",
+                fontWeight: "bold",
+                cursor: state.posEmployeeTimedOutToday || state.loading ? "not-allowed" : "pointer",
+                fontSize: "13px",
+                transition: "0.2s",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: "8px"
+              }}
+              title={state.posEmployeeTimedOutToday ? "Shift completed for today" : (state.posEmployeeTimedIn ? "Time Out" : "Time In")}
             >
-              {state.posEmployeeTimedIn ? "TIME OUT" : "TIME IN"}
+              {state.loading ? <LoadingSpinner size={12} color="white" /> : null}
+              {state.posEmployeeTimedOutToday ? "TIMED OUT" : (state.posEmployeeTimedIn ? "TIME OUT" : "TIME IN")}
             </button>
         </div>
         <div style={{ padding: "30px 0 20px 0", cursor: "pointer", display: "flex", alignItems: "center", gap: "10px", fontSize: "16px" }} onClick={() => { supabase.auth.signOut(); navigate('/') }}><span>↪</span> Log Out</div>
@@ -131,7 +157,10 @@ function POSSystem() {
                     </div>
                     <div style={{ borderTop: "1px solid #eee", paddingTop: "20px" }}>
                         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "25px" }}><h3 style={{ margin: 0, color: "#888", fontSize: "16px" }}>TOTAL</h3><h2 style={{ margin: 0, color: "#888", fontSize: "24px" }}>₱{actions.getSubtotal().toFixed(2)}</h2></div>
-                        <button onClick={actions.handleOpenPayment} disabled={state.cart.length === 0} style={{ width: "100%", padding: "15px", background: state.cart.length === 0 ? "#ccc" : colors.darkBtn, color: "white", border: "none", borderRadius: "10px", fontWeight: "bold", cursor: state.cart.length === 0 ? "default" : "pointer", marginBottom: "10px", fontSize: "14px" }}>Process Payment</button>
+                        <button onClick={actions.handleOpenPayment} disabled={state.cart.length === 0 || state.loading} style={{ width: "100%", padding: "15px", background: state.cart.length === 0 || state.loading ? "#ccc" : colors.darkBtn, color: "white", border: "none", borderRadius: "10px", fontWeight: "bold", cursor: state.cart.length === 0 || state.loading ? "default" : "pointer", marginBottom: "10px", fontSize: "14px", display: "flex", alignItems: "center", justifyContent: "center", gap: "8px" }}>
+                          {state.loading ? <LoadingSpinner size={14} color="white" /> : null}
+                          {state.loading ? 'Processing...' : 'Process Payment'}
+                        </button>
                     </div>
                 </div>
             </div>
@@ -175,8 +204,56 @@ function POSSystem() {
                 </div>
             </div>
         )}
-      </div>
-
+        
+      </div>{/* SWITCH PROFILE MODAL */}
+      {state.showSwitchProfileModal && (
+        <div style={uiStyles.modalOverlay}>
+            {/* Embedded CSS for smooth hover and click animations */}
+            <style>
+                {`
+                .profile-switch-card {
+                    transition: transform 0.15s ease, box-shadow 0.15s ease;
+                }
+                .profile-switch-card:hover {
+                    transform: translateY(-4px);
+                    box-shadow: 0 6px 15px rgba(0,0,0,0.1);
+                }
+                .profile-switch-card:active {
+                    transform: scale(0.92);
+                    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+                }
+                `}
+            </style>
+            <div style={{ background: "white", padding: "30px", borderRadius: "20px", width: "550px", position: "relative", boxShadow: "0 10px 40px rgba(0,0,0,0.3)" }}>
+                {/* The 'X' Button */}
+                <button onClick={() => actions.setShowSwitchProfileModal(false)} style={{ position: "absolute", top: "20px", right: "20px", background: "none", border: "none", fontSize: "20px", cursor: "pointer", color: "#888", transition: "0.2s" }} onMouseOver={e => e.target.style.color = "#333"} onMouseOut={e => e.target.style.color = "#888"}>✖</button>
+                
+                <h2 style={{ color: "#5a6955", margin: "0 0 25px 0", textAlign: "center", fontSize: "24px" }}>Switch Profile</h2>
+                
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "15px", maxHeight: "400px", overflowY: "auto", padding: "10px" }}>
+                    {state.availableEmployees.map(emp => (
+                        <div 
+                            key={emp.EmployeeID} 
+                            className="profile-switch-card"
+                            onClick={() => actions.handleSwitchProfile(emp)}
+                            style={{ 
+                              border: state.currentUser?.EmployeeID === emp.EmployeeID ? "2px solid #5a6955" : "1px solid #eee", 
+                              borderRadius: "15px", padding: "20px 10px", display: "flex", flexDirection: "column", alignItems: "center", 
+                              cursor: "pointer", background: state.currentUser?.EmployeeID === emp.EmployeeID ? "#f4f7f4" : "white" 
+                            }}
+                        >
+                            <div style={{ width: "50px", height: "50px", borderRadius: "50%", background: "#404f3d", color: "white", display: "flex", justifyContent: "center", alignItems: "center", fontSize: "20px", marginBottom: "10px", fontWeight: "bold" }}>
+                                {emp.User?.FirstName?.charAt(0)}
+                            </div>
+                            <div style={{ fontWeight: "bold", fontSize: "14px", color: "#333", textAlign: "center" }}>{emp.User?.FirstName}</div>
+                            <div style={{ fontSize: "11px", color: "#888", marginTop: "2px" }}>ID: {emp.EmployeeID}</div>
+                            <div style={{ fontSize: "10px", color: "#5a6955", fontWeight: "bold", marginTop: "5px", opacity: 0.8 }}>{emp.User?.RoleName}</div>
+                        </div>
+                    ))}
+                </div>
+            </div>
+        </div>
+      )}
       {/* ALL POPUP MODALS INJECTED HERE */}
       <POSModals 
         state={state} 

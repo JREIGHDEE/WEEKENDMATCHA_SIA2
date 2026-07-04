@@ -21,7 +21,6 @@ export function usePOSLogic() {
   const [selectedSweetness, setSelectedSweetness] = useState('Balanced')
   const [customerName, setCustomerName] = useState('')
   const [cashReceived, setCashReceived] = useState('')
-  const [isDiscounted, setIsDiscounted] = useState(false)
   const [discountId, setDiscountId] = useState('')
 
   const [showSwitchProfileModal, setShowSwitchProfileModal] = useState(false)
@@ -392,8 +391,18 @@ export function usePOSLogic() {
             : i
         )
       }
-      return [...prev, { ...cartItem, qty: 1 }]
+      return [...prev, { ...cartItem, qty: 1, isSeniorPwdDiscounted: false }]
     })
+  }
+
+  const toggleItemDiscount = (uniqueKey) => {
+    setCart(prev =>
+      prev.map(i =>
+        i.uniqueKey === uniqueKey
+          ? { ...i, isSeniorPwdDiscounted: !i.isSeniorPwdDiscounted }
+          : i
+      )
+    )
   }
 
   const increaseQty = (uniqueKey) => {
@@ -423,7 +432,8 @@ export function usePOSLogic() {
     )
 
   const getSubtotal = () => cart.reduce((total, item) => total + (item.price * item.qty), 0)
-  const getDiscountAmount = () => isDiscounted ? getSubtotal() * 0.20 : 0
+  const hasDiscountedItems = () => cart.some(item => item.isSeniorPwdDiscounted)
+  const getDiscountAmount = () => cart.reduce((total, item) => item.isSeniorPwdDiscounted ? total + (item.price * item.qty * 0.20) : total, 0)
   const getFinalTotal = () => getSubtotal() - getDiscountAmount()
   const getChange = () => (parseFloat(cashReceived) || 0) - getFinalTotal()
 
@@ -431,7 +441,6 @@ export function usePOSLogic() {
     if (cart.length > 0) {
       setCustomerName('')
       setCashReceived('')
-      setIsDiscounted(false)
       setDiscountId('')
       setPaymentMethod('Cash')
       setReferenceNumber('')
@@ -516,7 +525,7 @@ export function usePOSLogic() {
       return setNotification({ message: 'Customer Name is required!', type: 'error' })
     }
 
-    if (isDiscounted && !discountId.trim()) {
+    if (hasDiscountedItems() && !discountId.trim()) {
       return setNotification({ message: 'Senior/PWD ID Number is required to apply discount.', type: 'error' })
     }
 
@@ -593,7 +602,7 @@ export function usePOSLogic() {
         DiscountAmount: getDiscountAmount(),
         PaymentMethod: finalMethod,
         ReferenceNumber: paymentMethod !== 'Cash' ? referenceNumber : null,
-        DiscountID: isDiscounted ? discountId : null 
+        DiscountID: hasDiscountedItems() ? discountId : null
       }
 
       const { data: insertedOrder, error: orderError } = await supabase
@@ -624,7 +633,7 @@ export function usePOSLogic() {
         TransactionDate: new Date().toISOString(),
         RecordType: 'Income',
         Amount: getFinalTotal(),
-        Description: `POS Order #${newOrderID} - ${customerName} (${finalMethod})${isDiscounted ? ` [ID: ${discountId}]` : ''}`,
+        Description: `POS Order #${newOrderID} - ${customerName} (${finalMethod})${hasDiscountedItems() ? ` [ID: ${discountId}]` : ''}`,
         Status: 'Completed'
       }])
 
@@ -1062,7 +1071,7 @@ export function usePOSLogic() {
       activeTab, currentUser, menu, loadingMenu, selectedIngAmount, inventory, cart,
       searchQuery, loading, showPaymentModal, showReceiptModal, showOptionsModal,
       selectedItemForOptions, selectedSweetness, customerName, cashReceived,
-      isDiscounted, currentOrderId, receiptPrinted, orders, selectedOrder,
+      currentOrderId, receiptPrinted, orders, selectedOrder,
       showStatusModal, showCompleteConfirm, completedOrders, showRecentModal,
       showAdminLogin, showManageMenu, adminUser, adminPass, isEditing, editItemId,
       newItemName, newItemPrice, newItemCategory, newItemFile, previewUrl,
@@ -1082,12 +1091,13 @@ export function usePOSLogic() {
     actions: {
       setActiveTab, handleItemClick, confirmAddToCart, increaseQty, decreaseQty,
       getSubtotal, getDiscountAmount, getFinalTotal, getChange, handleOpenPayment,
+      hasDiscountedItems, toggleItemDiscount,
       handlePrintReceipt, handleCloseReceipt, handleConfirmPayment, handleStatusClick,
       updateStatus, confirmCompletion, handleCancelCompletion, fetchRecentTransactions,
       fetchCurrentOrders, handleAdminLoginSubmit, handleImageUpload,
       handleAddIngredientToRecipe, removeIngredientFromRecipe, handleSaveItem,
       handleEditPrep, resetForm, handleDeleteItem, setSearchQuery, setOrderPage,
-      setRecentPage, setCustomerName, setCashReceived, setIsDiscounted,
+      setRecentPage, setCustomerName, setCashReceived,
       setSelectedSweetness, setSelectedIngAmount, setSelectedIngId, setNewItemCategory,
       setNewItemName, setNewItemPrice, setShowOptionsModal, setShowPaymentModal,
       setShowStatusModal, setShowCompleteConfirm, setShowAdminLogin, setShowManageMenu,

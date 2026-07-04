@@ -1,5 +1,6 @@
 import React from 'react';
 import * as styles from '../../constants/inventoryStyles';
+import { HiOutlineNoSymbol, HiOutlineExclamationTriangle, HiOutlineArrowTrendingDown } from 'react-icons/hi2';
 
 export const AlertBanners = ({ inventory = [], onItemClick }) => {
   const today = new Date();
@@ -31,11 +32,16 @@ export const AlertBanners = ({ inventory = [], onItemClick }) => {
 
   const bannerStyle = color => ({
     flex: 1,
+    minWidth: '200px',
     background: color,
     color: 'white',
-    padding: '15px',
-    borderRadius: '10px'
+    padding: '15px 18px',
+    borderRadius: '14px',
+    boxShadow: '0 4px 12px rgba(0,0,0,0.10)',
+    fontSize: '14px'
   });
+
+  const bannerHeader = { display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 700 };
 
   const renderItems = items => {
     return items.slice(0, 3).map(item => (
@@ -56,24 +62,24 @@ export const AlertBanners = ({ inventory = [], onItemClick }) => {
   };
 
   return (
-    <div style={{ display: 'flex', gap: '20px', marginBottom: '20px' }}>
+    <div className="responsive-stack" style={{ display: 'flex', gap: '16px', marginBottom: '20px', flexWrap: 'wrap' }}>
       {expiredItems.length > 0 && (
-        <div style={bannerStyle(styles.colors.red)}>
-          ⛔ <b>{expiredItems.length} Expired Item(s)</b>
+        <div className="card-hover" style={bannerStyle(styles.colors.red)}>
+          <div style={bannerHeader}><HiOutlineNoSymbol size={18} /> {expiredItems.length} Expired Item(s)</div>
           {renderItems(expiredItems)}
         </div>
       )}
 
       {expiringItems.length > 0 && (
-        <div style={bannerStyle(styles.colors.orange)}>
-          ⚠️ <b>{expiringItems.length} Expiring Soon</b>
+        <div className="card-hover" style={bannerStyle(styles.colors.orange)}>
+          <div style={bannerHeader}><HiOutlineExclamationTriangle size={18} /> {expiringItems.length} Expiring Soon</div>
           {renderItems(expiringItems)}
         </div>
       )}
 
       {lowStockItems.length > 0 && (
-        <div style={bannerStyle(styles.colors.red)}>
-          📉 <b>{lowStockItems.length} Low Stock</b>
+        <div className="card-hover" style={bannerStyle(styles.colors.red)}>
+          <div style={bannerHeader}><HiOutlineArrowTrendingDown size={18} /> {lowStockItems.length} Low Stock</div>
           {renderItems(lowStockItems)}
         </div>
       )}

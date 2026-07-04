@@ -1,6 +1,7 @@
 import React, { useState } from 'react'
 import CancelConfirmationModal from './CancelConfirmationModal'
 import LoadingSpinner from './LoadingSpinner'
+import { IoClose } from 'react-icons/io5'
 
 export default function POSModals({ state, actions, ui, PaginationControls }) {
   const { colors, uiStyles, paginate, showCancelConfirm, handleCancelClick, handleCancelConfirm, handleCancelCancel } = ui;
@@ -64,14 +65,13 @@ export default function POSModals({ state, actions, ui, PaginationControls }) {
                 <div>
                     <label style={{fontWeight: "bold", fontSize: "14px"}}>Total Amount</label>
                     <div style={{ ...uiStyles.inputStyle, background: "#f0f0f0", display: "flex", justifyContent: "flex-end", alignItems: "center", gap: "10px" }}>
-                        {state.isDiscounted && <span style={{ textDecoration: "line-through", color: "#ccc", fontSize: "14px" }}>₱{actions.getSubtotal().toFixed(2)}</span>}
-                        <span style={{ color: state.isDiscounted ? "red" : "black", fontSize: "18px" }}>₱{actions.getFinalTotal().toFixed(2)}</span>
+                        {actions.hasDiscountedItems() && <span style={{ textDecoration: "line-through", color: "#ccc", fontSize: "14px" }}>₱{actions.getSubtotal().toFixed(2)}</span>}
+                        <span style={{ color: actions.hasDiscountedItems() ? "red" : "black", fontSize: "18px" }}>₱{actions.getFinalTotal().toFixed(2)}</span>
                     </div>
-                    <div style={{ marginTop: "5px", fontSize: "12px", fontStyle: "italic", display: "flex", alignItems: "center" }}>
-                        Apply Discount for Senior Citizen and PWD (20%) <input type="checkbox" checked={state.isDiscounted} onChange={(e) => actions.setIsDiscounted(e.target.checked)} style={{ marginLeft: "5px", transform: "scale(1.2)" }} />
+                    <div style={{ marginTop: "5px", fontSize: "12px", fontStyle: "italic", color: "#777" }}>
+                        Senior Citizen/PWD discount (20%) is applied per item — check the box next to each item in the cart.
                     </div>
-                    {/* <-- NEW CONDITIONAL ID INPUT --> */}
-                    {state.isDiscounted && (
+                    {actions.hasDiscountedItems() && (
                         <div style={{ marginTop: "10px", padding: "10px", background: "#f9f9f9", borderRadius: "8px", border: "1px dashed #ccc" }}>
                             <label style={{fontWeight: "bold", fontSize: "12px", display: "inline-flex", alignItems: "center", gap: "4px"}}>Senior/PWD ID Number<span style={{ color: "#D9534F" }}>*</span></label>
                             <input placeholder="Enter ID Number" style={{...uiStyles.inputStyle, padding: "8px", fontSize: "14px", marginTop: "5px"}} value={state.discountId} onChange={(e) => actions.setDiscountId(e.target.value)} />
@@ -174,17 +174,17 @@ export default function POSModals({ state, actions, ui, PaginationControls }) {
                       {state.cart.map((item, i) => (
                           <div key={i} style={{marginBottom:"5px"}}>
                               <div style={{display:"flex", justifyContent:"space-between", fontWeight: "bold"}}>
-                                  <span>{item.qty}x {item.name}</span>
+                                  <span>{item.qty}x {item.name}{item.isSeniorPwdDiscounted ? ' (SC/PWD)' : ''}</span>
                                   <span>₱{(item.price * item.qty).toFixed(2)}</span>
                               </div>
                               <div style={{fontStyle:"italic", paddingLeft: "10px", fontWeight: "bold"}}>- {item.sweetness}</div>
                           </div>
                       ))}
                   </div>
-                  
+
                   <hr style={{borderTop: "2px dashed #333", borderBottom: "none", margin: "10px 0"}} />
-                  
-                  {state.isDiscounted && (
+
+                  {actions.hasDiscountedItems() && (
                         <>
                             <div style={{display:"flex", justifyContent:"space-between", color: colors.discountRed, fontStyle:"italic", marginBottom:"2px", fontWeight: "bold"}}>
                                 <span>Discount Applied (20%)</span>
@@ -303,7 +303,7 @@ export default function POSModals({ state, actions, ui, PaginationControls }) {
             <div style={{background: "white", padding: "30px", borderRadius: "20px", width: "900px", height: "700px", display: "flex", flexDirection: "column", boxShadow: "0 10px 40px rgba(0,0,0,0.2)"}}>
                 <div style={{display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px"}}>
                     <h1 style={{color: "#5a6955", margin: 0, fontSize: "28px"}}>{state.isEditing ? "Edit Item" : "Manage Menu"}</h1>
-                    <button onClick={() => { actions.setShowManageMenu(false); actions.resetForm(); }} style={{background: "transparent", border: "none", fontSize: "20px", fontWeight: "bold", cursor: "pointer", color: "#999"}}>✕</button>
+                    <button className="icon-btn" onClick={() => { actions.setShowManageMenu(false); actions.resetForm(); }} style={{background: "#f2f2f2", border: "none", borderRadius: "8px", width: "30px", height: "30px", fontSize: "16px", color: "#888"}}><IoClose /></button>
                 </div>
                 <div style={{display: "flex", gap: "40px", flex: 1, overflow: "hidden"}}>
                     <div style={{flex: 1, display: "flex", flexDirection: "column", gap: "10px", height: "100%", overflowY: "auto"}}>
@@ -339,7 +339,7 @@ export default function POSModals({ state, actions, ui, PaginationControls }) {
                                 {state.newItemRecipe.map((r, idx) => (
                                     <div key={idx} style={{display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "13px", borderBottom: "1px solid #eee", padding: "8px 0"}}>
                                         <span style={{color: "#333"}}>{r.name} <strong>({r.amount} {r.unit})</strong></span> 
-                                        <button onClick={() => actions.removeIngredientFromRecipe(idx)} style={{color: "#FF6B6B", border: "none", background: "none", cursor: "pointer", fontWeight: "bold", fontSize: "14px"}}>✕</button>
+                                        <button className="icon-btn" onClick={() => actions.removeIngredientFromRecipe(idx)} style={{color: "#FF6B6B", border: "none", background: "none", fontSize: "16px"}}><IoClose /></button>
                                     </div>
                                 ))}
                             </div>
@@ -460,56 +460,7 @@ export default function POSModals({ state, actions, ui, PaginationControls }) {
           </div>
         </div>
       )}
-      {/* SWITCH PROFILE MODAL */}
-      {state.showSwitchProfileModal && (
-        <div style={uiStyles.modalOverlay}>
-            {/* Embedded CSS for smooth hover and click animations */}
-            <style>
-                {`
-                .profile-switch-card {
-                    transition: transform 0.15s ease, box-shadow 0.15s ease;
-                }
-                .profile-switch-card:hover {
-                    transform: translateY(-4px);
-                    box-shadow: 0 6px 15px rgba(0,0,0,0.1);
-                }
-                .profile-switch-card:active {
-                    transform: scale(0.92);
-                    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-                }
-                `}
-            </style>
-            <div style={{ background: "white", padding: "30px", borderRadius: "20px", width: "550px", position: "relative", boxShadow: "0 10px 40px rgba(0,0,0,0.3)" }}>
-                {/* The 'X' Button */}
-                <button onClick={() => actions.setShowSwitchProfileModal(false)} style={{ position: "absolute", top: "20px", right: "20px", background: "none", border: "none", fontSize: "20px", cursor: "pointer", color: "#888", transition: "0.2s" }} onMouseOver={e => e.target.style.color = "#333"} onMouseOut={e => e.target.style.color = "#888"}>✖</button>
-                
-                <h2 style={{ color: "#5a6955", margin: "0 0 25px 0", textAlign: "center", fontSize: "24px" }}>Switch Profile</h2>
-                
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "15px", maxHeight: "400px", overflowY: "auto", padding: "10px" }}>
-                    {state.availableEmployees.map(emp => (
-                        <div 
-                            key={emp.EmployeeID} 
-                            className="profile-switch-card"
-                            onClick={() => actions.handleSwitchProfile(emp)}
-                            style={{ 
-                              border: state.currentUser?.EmployeeID === emp.EmployeeID ? "2px solid #5a6955" : "1px solid #eee", 
-                              borderRadius: "15px", padding: "20px 10px", display: "flex", flexDirection: "column", alignItems: "center", 
-                              cursor: "pointer", background: state.currentUser?.EmployeeID === emp.EmployeeID ? "#f4f7f4" : "white" 
-                            }}
-                        >
-                            <div style={{ width: "50px", height: "50px", borderRadius: "50%", background: "#404f3d", color: "white", display: "flex", justifyContent: "center", alignItems: "center", fontSize: "20px", marginBottom: "10px", fontWeight: "bold" }}>
-                                {emp.User?.FirstName?.charAt(0)}
-                            </div>
-                            <div style={{ fontWeight: "bold", fontSize: "14px", color: "#333", textAlign: "center" }}>{emp.User?.FirstName}</div>
-                            <div style={{ fontSize: "11px", color: "#888", marginTop: "2px" }}>ID: {emp.EmployeeID}</div>
-                            <div style={{ fontSize: "10px", color: "#5a6955", fontWeight: "bold", marginTop: "5px", opacity: 0.8 }}>{emp.User?.RoleName}</div>
-                        </div>
-                    ))}
-                </div>
-            </div>
-        </div>
-      )}
-      <CancelConfirmationModal 
+      <CancelConfirmationModal
         isOpen={showCancelConfirm} 
         onConfirm={handleCancelConfirm} 
         onCancel={handleCancelCancel}

@@ -2,6 +2,9 @@
   font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
   line-height: 1.5;
   font-weight: 400;
+  /* Fluid base font size: scales smoothly between phone/tablet/desktop
+     widths instead of staying fixed, so stretched windows stay readable. */
+  font-size: clamp(14px, 0.6vw + 12px, 16px);
 }
 
 body, html, #root {
@@ -15,4 +18,86 @@ body, html, #root {
 /* Remove default button styles if they conflict */
 button {
   font-family: inherit;
+}
+
+img {
+  max-width: 100%;
+}
+
+/* --- SHARED UI ANIMATIONS / EFFECTS (purely cosmetic, no logic impact) --- */
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.fade-in-card {
+  animation: fadeInUp 0.35s ease both;
+}
+
+.btn-animated {
+  transition: transform 0.15s ease, box-shadow 0.15s ease, filter 0.15s ease;
+}
+.btn-animated:hover {
+  transform: translateY(-2px);
+  filter: brightness(1.06);
+  box-shadow: 0 6px 14px rgba(0,0,0,0.18);
+}
+.btn-animated:active {
+  transform: translateY(0);
+  filter: brightness(0.96);
+}
+
+/* Slim, unobtrusive scrollbars for tablet/touch surfaces */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(0,0,0,0.2);
+  border-radius: 10px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.sidebar-shell button:focus-visible,
+.sidebar-shell div[role="button"]:focus-visible {
+  outline: 2px solid rgba(255,255,255,0.6);
+  outline-offset: 2px;
+}
+
+/* Icon-button: consistent circular hit target for react-icons controls */
+.icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  cursor: pointer;
+  transition: background 0.15s ease, transform 0.15s ease, color 0.15s ease;
+}
+.icon-btn:hover {
+  transform: scale(1.06);
+}
+.icon-btn:active {
+  transform: scale(0.95);
+}
+
+/* Card hover lift, used by stat/summary cards across pages */
+.card-hover {
+  transition: transform 0.18s ease, box-shadow 0.18s ease;
+}
+.card-hover:hover {
+  transform: translateY(-3px);
+}
+
+/* Responsive helpers for tablet breakpoints */
+@media (max-width: 1024px) {
+  .responsive-stack {
+    flex-wrap: wrap !important;
+  }
+}
+@media (max-width: 834px) {
+  .responsive-grid-tight {
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)) !important;
+  }
 }

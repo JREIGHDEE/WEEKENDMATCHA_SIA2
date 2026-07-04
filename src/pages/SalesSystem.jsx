@@ -1,18 +1,18 @@
 import { useEffect, useState, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../supabaseClient'
-import logo from '../assets/wm-logo.svg'
 import { Notification } from '../components/Notification'
 import CancelConfirmationModal from '../components/CancelConfirmationModal'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
-import ArchiveModal from '../components/ArchiveModal' 
+import ArchiveModal from '../components/ArchiveModal'
+import Sidebar from '../components/Sidebar'
 
 // --- IMPORTED SEPARATED FILES ---
 import { PaginationControls } from '../components/PaginationControls'
 import { paginate } from '../utils/helpers'
-import { 
-    colors, btnStyle, cardStyle, inputStyle, formInput, 
-    modalOverlay, modalContent, confirmOverlay, confirmContent 
+import {
+    colors, btnStyle, cardStyle, inputStyle, formInput,
+    modalOverlay, modalContent, confirmOverlay, confirmContent, type
 } from '../styles/SalesStyles'
 
 function SalesSystem() {
@@ -29,6 +29,7 @@ function SalesSystem() {
   const [metrics, setMetrics] = useState({ todaySales: 0, monthlySales: 0, totalProfit: 0, totalDiscounts: 0 })
   const [filteredMetrics, setFilteredMetrics] = useState({ totalSales: 0, totalProfit: 0, totalDiscounts: 0, totalOrders: 0 })
   const [chartData, setChartData] = useState([])
+  const [paymentModeBreakdown, setPaymentModeBreakdown] = useState({})
 
   // Date Filters 
   const [dateFrom, setDateFrom] = useState(new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0]) 
@@ -49,6 +50,9 @@ function SalesSystem() {
 
   // Notification
   const [notification, setNotification] = useState({ message: '', type: 'success' })
+
+  // Capital/Expenses management UI is hidden for now (kept in code, not removed)
+  const SHOW_CAPITAL_EXPENSES = false
 
   // Modals
   const [modals, setModals] = useState({ add: false, update: false, archive: false, confirmation: false, archiveLog: false })
@@ -228,8 +232,9 @@ function SalesSystem() {
       }
       
       let fSales = 0, fDiscounts = 0, fOrdersCount = 0, fExpenses = 0
-      const dailyMap = {} 
+      const dailyMap = {}
       dateArray.forEach(d => dailyMap[d.toLocaleDateString('en-US')] = 0)
+      const paymentCounts = {}
 
       orders.forEach(o => {
           const oDate = new Date(o.OrderDateTime)
@@ -240,6 +245,9 @@ function SalesSystem() {
               fOrdersCount += 1
               const key = oDate.toLocaleDateString('en-US')
               if (dailyMap[key] !== undefined) dailyMap[key] += amount
+
+              const method = o.PaymentMethod || 'Cash'
+              paymentCounts[method] = (paymentCounts[method] || 0) + amount
           }
       })
 
@@ -256,6 +264,7 @@ function SalesSystem() {
 
       setFilteredMetrics({ totalSales: fSales, totalProfit: fSales - fExpenses, totalDiscounts: fDiscounts, totalOrders: fOrdersCount })
       setChartData(dateArray.map(d => ({ date: d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }), sales: dailyMap[d.toLocaleDateString('en-US')] || 0 })))
+      setPaymentModeBreakdown(paymentCounts)
   }
 
   // --- SEARCH HANDLER ---
@@ -441,53 +450,42 @@ function SalesSystem() {
     <div style={{ display: "flex", height: "100vh", width: "100vw", overflow: "hidden", fontFamily: "sans-serif" }}>
       
       {/* SIDEBAR */}
-      <div style={{ width: "250px", flexShrink: 0, background: colors.green, padding: "30px 20px", color: "white", display: "flex", flexDirection: "column", boxSizing: "border-box" }}>
-        <div style={{ paddingBottom: "10px", textAlign: "center" }}>
-            <img src={logo} alt="WeekendMatcha Logo" style={{ width: "130px", height: "auto" }} />
-        </div>
-        <h2 style={{fontSize: "18px", marginBottom: "40px", marginTop: -20, textAlign: "center"}}>WeekendMatcha</h2>
-        <div style={{ padding: "10px", fontSize: "16px", fontWeight: "bold", borderRadius: "8px", marginBottom: "10px", color: "white", cursor: "pointer", opacity: 0.5}} onClick={() => navigate('/inventory-system')}>Inventory System</div>
-        <div style={{ padding: "10px", fontSize: "16px", fontWeight: "bold", borderRadius: "8px", marginBottom: "10px", color: "white", cursor: "pointer", background: "#5a6955"}}>Sales System ➤</div>
-        <div style={{ padding: "10px", fontSize: "16px", fontWeight: "bold", borderRadius: "8px", marginBottom: "10px", color: "white", cursor: "pointer", opacity: 0.5}} onClick={() => navigate('/hr-system')}>Human Resource</div>
-        <div style={{ marginTop: "auto", cursor: "pointer", opacity: 0.8, display:"flex", alignItems:"center", gap:"10px", fontSize:"18px" }} onClick={() => navigate('/')}><span>↪</span> Log Out</div>
-      </div>
+      <Sidebar />
 
       {/* MAIN CONTENT */}
-      <div style={{ flex: 1, background: colors.beige, padding: "30px", display: "flex", flexDirection: "column", overflowY: "auto", height: "100vh" }}>
-        
+      <div style={{ flex: 1, background: `linear-gradient(180deg, ${colors.beige} 0%, #f3ead9 100%)`, padding: "clamp(16px, 2vw, 30px)", display: "flex", flexDirection: "column", overflowY: "auto", height: "100vh" }}>
+
         {/* HEADER */}
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "15px" }}>
-          <h1 style={{ margin: 0, fontSize: "28px", color: colors.darkGreen }}>Sales Management</h1>
-          <button style={{...btnStyle, background: colors.purple}} onClick={() => navigate('/sales-reports')}>VIEW REPORT</button>
+        <div className="responsive-stack" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px", gap: "12px", flexWrap: "wrap" }}>
+          <h1 style={{ margin: 0, fontSize: type.h1, color: colors.darkGreen, fontWeight: 800, letterSpacing: "-0.3px" }}>Sales Management</h1>
+          <button className="btn-animated" style={{...btnStyle, background: colors.purple, borderRadius: "10px", padding: "10px 20px"}} onClick={() => navigate('/sales-reports')}>VIEW REPORT</button>
         </div>
 
         {/* METRICS PANEL */}
-        <div style={{ background: colors.green, borderRadius: "15px", padding: "20px", display: "flex", justifyContent: "space-between", marginBottom: "20px", boxShadow: "0 4px 10px rgba(0,0,0,0.1)" }}>
-            <div style={cardStyle}><div style={{fontSize: "14px", opacity: 0.9}}>Today's Total Sales</div><div style={{fontSize: "24px", fontWeight: "bold"}}>₱ {metrics.todaySales.toLocaleString(undefined, {minimumFractionDigits: 2})}</div></div>
-            <div style={cardStyle}><div style={{fontSize: "14px", opacity: 0.9}}>Monthly Sales</div><div style={{fontSize: "24px", fontWeight: "bold"}}>₱ {metrics.monthlySales.toLocaleString(undefined, {minimumFractionDigits: 2})}</div></div>
-            <div style={cardStyle}><div style={{fontSize: "14px", opacity: 0.9}}>Total Discounts Given</div><div style={{fontSize: "24px", fontWeight: "bold"}}>₱ {metrics.totalDiscounts.toLocaleString(undefined, {minimumFractionDigits: 2})}</div></div>
-            <div style={cardStyle}><div style={{fontSize: "14px", opacity: 0.9}}>Total Profit</div><div style={{fontSize: "24px", fontWeight: "bold"}}>₱ {metrics.totalProfit.toLocaleString(undefined, {minimumFractionDigits: 2})}</div></div>
+        <div className="responsive-stack" style={{ background: `linear-gradient(135deg, ${colors.green} 0%, ${colors.darkGreen} 100%)`, borderRadius: "18px", padding: "22px", display: "flex", justifyContent: "space-between", marginBottom: "22px", boxShadow: "0 6px 18px rgba(74,93,75,0.25)", gap: "16px", flexWrap: "wrap" }}>
+            <div className="card-hover" style={{...cardStyle, minWidth: "140px"}}><div style={{fontSize: type.small, opacity: 0.9}}>Today's Total Sales</div><div style={{fontSize: type.stat, fontWeight: "bold"}}>₱ {metrics.todaySales.toLocaleString(undefined, {minimumFractionDigits: 2})}</div></div>
+            <div className="card-hover" style={{...cardStyle, minWidth: "140px"}}><div style={{fontSize: type.small, opacity: 0.9}}>Monthly Sales</div><div style={{fontSize: type.stat, fontWeight: "bold"}}>₱ {metrics.monthlySales.toLocaleString(undefined, {minimumFractionDigits: 2})}</div></div>
+            <div className="card-hover" style={{...cardStyle, minWidth: "140px"}}><div style={{fontSize: type.small, opacity: 0.9}}>Total Discounts Given</div><div style={{fontSize: type.stat, fontWeight: "bold"}}>₱ {metrics.totalDiscounts.toLocaleString(undefined, {minimumFractionDigits: 2})}</div></div>
+            <div className="card-hover" style={{...cardStyle, minWidth: "140px"}}><div style={{fontSize: type.small, opacity: 0.9}}>Total Profit</div><div style={{fontSize: type.stat, fontWeight: "bold"}}>₱ {metrics.totalProfit.toLocaleString(undefined, {minimumFractionDigits: 2})}</div></div>
         </div>
 
         {/* GRAPH SECTION */}
-        <div style={{ background: "white", borderRadius: "15px", padding: "20px", marginBottom: "20px", boxShadow: "0 4px 10px rgba(0,0,0,0.1)" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
-                <h3 style={{ margin: 0, color: colors.darkGreen }}>Sales Per Day Overview</h3>
-                <div style={{ display: "flex", alignItems: "center", background: "#f0f0f0", padding: "5px 10px", borderRadius: "8px" }}>
-                    <span style={{ fontSize: "12px", marginRight: "5px", fontWeight: "bold" }}>From:</span>
-                    <input type="date" style={inputStyle} value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} />
-                    {/* NEW TIME INPUT */}
-                    <input type="time" style={{...inputStyle, marginLeft: "5px"}} value={timeFrom} onChange={(e) => setTimeFrom(e.target.value)} />
-                    
-                    <span style={{ fontSize: "12px", marginRight: "5px", fontWeight: "bold", marginLeft: "15px" }}>To:</span>
-                    <input type="date" style={inputStyle} value={dateTo} onChange={(e) => setDateTo(e.target.value)} />
-                    {/* NEW TIME INPUT */}
-                    <input type="time" style={{...inputStyle, marginLeft: "5px"}} value={timeTo} onChange={(e) => setTimeTo(e.target.value)} />
-                    
-                    <button onClick={() => { calculateGraphAndSidebar(); setFilterButtonClicked(true); }} style={{ padding: "5px 10px", marginLeft: "10px", background: filterButtonClicked ? "#aaa" : colors.green, color: "white", border: "none", borderRadius: "5px", cursor: "pointer", fontSize: "12px", fontWeight: "bold" }}>Apply Filter</button>
+        <div className="fade-in-card" style={{ background: "white", borderRadius: "18px", padding: "20px", marginBottom: "22px", boxShadow: "0 4px 16px rgba(0,0,0,0.08)" }}>
+            <div className="responsive-stack" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px", gap: "12px", flexWrap: "wrap" }}>
+                <h3 style={{ margin: 0, color: colors.darkGreen, fontSize: type.h2, whiteSpace: "nowrap" }}>Sales Per Day Overview</h3>
+                <div style={{ display: "flex", alignItems: "center", background: "#f0f0f0", padding: "6px 10px", borderRadius: "10px", flexWrap: "wrap", gap: "6px" }}>
+                    <span style={{ fontSize: type.micro, marginRight: "2px", fontWeight: "bold" }}>From:</span>
+                    <input type="date" style={{...inputStyle, width: "auto", margin: 0, padding: "6px 8px", fontSize: type.micro}} value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} />
+                    <input type="time" style={{...inputStyle, width: "auto", margin: 0, padding: "6px 8px", fontSize: type.micro}} value={timeFrom} onChange={(e) => setTimeFrom(e.target.value)} />
+
+                    <span style={{ fontSize: type.micro, marginRight: "2px", fontWeight: "bold", marginLeft: "8px" }}>To:</span>
+                    <input type="date" style={{...inputStyle, width: "auto", margin: 0, padding: "6px 8px", fontSize: type.micro}} value={dateTo} onChange={(e) => setDateTo(e.target.value)} />
+                    <input type="time" style={{...inputStyle, width: "auto", margin: 0, padding: "6px 8px", fontSize: type.micro}} value={timeTo} onChange={(e) => setTimeTo(e.target.value)} />
+
+                    <button className="btn-animated" onClick={() => { calculateGraphAndSidebar(); setFilterButtonClicked(true); }} style={{ padding: "7px 14px", marginLeft: "6px", background: filterButtonClicked ? "#aaa" : colors.green, color: "white", border: "none", borderRadius: "8px", cursor: "pointer", fontSize: type.micro, fontWeight: "bold" }}>Apply Filter</button>
                 </div>
             </div>
-            
+
             <div style={{ display: "flex", gap: "20px", height: "300px" }}>
                 <div style={{ flex: 3, height: "100%", minWidth: 0 }}>
                     <ResponsiveContainer width="100%" height="100%">
@@ -495,21 +493,35 @@ function SalesSystem() {
                             <CartesianGrid strokeDasharray="3 3" vertical={false} />
                             <XAxis dataKey="date" tick={{ fill: "#888" }} axisLine={false} tickLine={false} />
                             <YAxis tick={{ fill: "#888" }} axisLine={false} tickLine={false} tickFormatter={(value) => `₱${value.toLocaleString()}`} />
-                            <Tooltip formatter={(value) => `₱${value.toLocaleString()}`} cursor={{ fill: 'rgba(107, 124, 101, 0.1)' }} />
+                            <Tooltip formatter={(value) => `₱${value.toLocaleString()}`} cursor={{ fill: 'rgba(107, 124, 101, 0.1)' }} contentStyle={{ borderRadius: "10px", border: "none", boxShadow: "0 4px 12px rgba(0,0,0,0.15)" }} />
                             <Bar dataKey="sales" fill={colors.green} radius={[10, 10, 0, 0]} barSize={50} />
                         </BarChart>
                     </ResponsiveContainer>
                 </div>
-                <div style={{ flex: 1, border: "1px solid #ccc", padding: "15px", borderRadius: "5px", display: "flex", flexDirection: "column", justifyContent: "center" }}>
-                    <div style={{ marginBottom: "10px" }}><div style={{ fontSize: "10px", fontWeight: "bold" }}>Filtered Total Sales</div><div style={{ fontWeight: "bold" }}>₱ {filteredMetrics.totalSales.toLocaleString()}</div></div>
-                    <div style={{ marginBottom: "10px" }}><div style={{ fontSize: "10px", fontWeight: "bold" }}>Filtered Discounts</div><div style={{ fontWeight: "bold" }}>₱ {filteredMetrics.totalDiscounts}</div></div>
-                    <div style={{ marginBottom: "10px" }}><div style={{ fontSize: "10px", fontWeight: "bold" }}>Filtered Profit</div><div style={{ fontWeight: "bold" }}>₱ {filteredMetrics.totalProfit.toLocaleString()}</div></div>
-                    <div><div style={{ fontSize: "10px", fontWeight: "bold" }}>Total Orders</div><div style={{ fontWeight: "bold" }}>{filteredMetrics.totalOrders}</div></div>
+                <div style={{ flex: 1, border: "1px solid #e5ded0", background: "#fbf8f2", padding: "15px", borderRadius: "12px", display: "flex", flexDirection: "column", justifyContent: "center" }}>
+                    <div style={{ marginBottom: "10px" }}><div style={{ fontSize: type.micro, fontWeight: "bold" }}>Filtered Total Sales</div><div style={{ fontWeight: "bold", fontSize: type.body }}>₱ {filteredMetrics.totalSales.toLocaleString()}</div></div>
+                    <div style={{ marginBottom: "10px" }}><div style={{ fontSize: type.micro, fontWeight: "bold" }}>Filtered Discounts</div><div style={{ fontWeight: "bold", fontSize: type.body }}>₱ {filteredMetrics.totalDiscounts}</div></div>
+                    <div style={{ marginBottom: "10px" }}><div style={{ fontSize: type.micro, fontWeight: "bold" }}>Filtered Profit</div><div style={{ fontWeight: "bold", fontSize: type.body }}>₱ {filteredMetrics.totalProfit.toLocaleString()}</div></div>
+                    <div style={{ marginBottom: "10px" }}><div style={{ fontSize: type.micro, fontWeight: "bold" }}>Total Orders</div><div style={{ fontWeight: "bold", fontSize: type.body }}>{filteredMetrics.totalOrders}</div></div>
+                    <div style={{ borderTop: "1px solid #eee", paddingTop: "10px" }}>
+                        <div style={{ fontSize: type.micro, fontWeight: "bold", marginBottom: "5px" }}>Sales by Payment Mode</div>
+                        {Object.keys(paymentModeBreakdown).length === 0 ? (
+                            <div style={{ fontSize: type.small, color: "#999", fontStyle: "italic" }}>No orders in range.</div>
+                        ) : (
+                            Object.entries(paymentModeBreakdown).map(([method, amount]) => (
+                                <div key={method} style={{ display: "flex", justifyContent: "space-between", fontSize: type.small, marginBottom: "3px" }}>
+                                    <span>{method}</span><span style={{ fontWeight: "bold" }}>₱ {amount.toLocaleString(undefined, {minimumFractionDigits: 2})}</span>
+                                </div>
+                            ))
+                        )}
+                    </div>
                 </div>
             </div>
         </div>
 
         {/* SEARCH & ACTIONS BAR (MOVED HERE) */}
+        {SHOW_CAPITAL_EXPENSES && (
+        <>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
           {/* Search Input */}
           <div style={{ position: "relative" }} ref={searchContainerRef}>
@@ -597,13 +609,15 @@ function SalesSystem() {
             </div>
             <PaginationControls total={filteredTransactions.filter(t => t.status !== 'Archived' && t.status !== 'Voided').length} page={currentPage} setPage={setCurrentPage} perPage={itemsPerPage} />
         </div>
+        </>
+        )}
       </div>
 
       {/* --- MODALS --- */}
-      {modals.confirmation && (
+      {SHOW_CAPITAL_EXPENSES && modals.confirmation && (
         <div style={confirmOverlay}><div style={confirmContent}><h2 style={{color:colors.darkGreen}}>{confirmationMsg.title}</h2><p>{confirmationMsg.message}</p><div style={{display:"flex", justifyContent:"center", gap:"10px", marginTop:"20px"}}><button onClick={closeModal} style={{...btnStyle, background:"#ccc", color:"#333"}}>Cancel</button><button onClick={confirmAction} style={{...btnStyle, background:colors.green}}>Confirm</button></div></div></div>
       )}
-      {(modals.add || modals.update) && (
+      {SHOW_CAPITAL_EXPENSES && (modals.add || modals.update) && (
         <div style={modalOverlay}><div style={modalContent}><h2 style={{color:colors.darkGreen, marginTop:0}}>{modals.add ? "Add Record" : "Update Record"}</h2>
         <form onSubmit={modals.add ? handleAddConfirmation : handleUpdateConfirmation}>
             <div style={{display:"flex", gap:"10px"}}>
@@ -632,8 +646,8 @@ function SalesSystem() {
             <div style={{display:"flex", justifyContent:"flex-end", gap:"10px"}}><button type="button" onClick={() => handleCancelClick(closeModal)} style={{...btnStyle, background:"#ccc", color:"#333"}}>Cancel</button><button type="submit" style={{...btnStyle, background:colors.green}}>{modals.add?"Add":"Update"}</button></div>
         </form></div></div>
       )}
-      {modals.archive && (
-        <ArchiveModal 
+      {SHOW_CAPITAL_EXPENSES && modals.archive && (
+        <ArchiveModal
           archiveTitle="Void Financial Record"
           archiveReason={archiveReason}
           setArchiveReason={setArchiveReason}
@@ -646,7 +660,7 @@ function SalesSystem() {
           inputStyle={formInput} // Mapping Sales formInput to the modal's inputStyle
         />
       )}
-      {modals.archiveLog && (
+      {SHOW_CAPITAL_EXPENSES && modals.archiveLog && (
         <div style={modalOverlay}><div style={{...modalContent, width:"900px"}}><h2 style={{color:colors.blue}}>Void Log</h2><div style={{height:"400px", overflow:"auto"}}><table style={{width:"100%"}}><thead style={{background:colors.blue, color:"white"}}><tr><th>ID</th><th>Reason</th><th>By</th><th>Date Archived</th><th>Auto-Delete Date</th></tr></thead><tbody>{archiveLogs.map(l => {
           const archivedDate = new Date(l.dateArchived)
           const deleteDate = new Date(archivedDate.getTime() + 90 * 24 * 60 * 60 * 1000)

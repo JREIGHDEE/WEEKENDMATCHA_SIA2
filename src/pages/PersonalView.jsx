@@ -6,7 +6,9 @@ import { useNotification } from '../hooks/useNotification'
 import { usePersonal } from '../hooks/usePersonal'
 import ProfileCard from '../components/ProfileCard'
 import AttendanceTable from '../components/AttendanceTable'
-import { colors } from '../constants/uiStyles'
+import { colors, type as typeScale } from '../constants/uiStyles'
+import { HiMenuAlt2 } from 'react-icons/hi'
+import { HiOutlineUserCircle, HiOutlineClipboardDocumentList, HiOutlineLockClosed, HiOutlineArrowRightOnRectangle, HiOutlineCheckCircle } from 'react-icons/hi2'
 
 function PersonalView() {
   const navigate = useNavigate()
@@ -22,6 +24,7 @@ function PersonalView() {
   // Pagination
   const [currentPage, setCurrentPage] = useState(1)
   const itemsPerPage = 7
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   
   // Shift-end reminder
   const [showShiftEndReminder, setShowShiftEndReminder] = useState(false)
@@ -133,14 +136,20 @@ function PersonalView() {
   }
 
   const sidebarItem = (name) => ({
-    padding: "10px", 
-    cursor: "pointer", 
+    padding: "10px",
+    cursor: "pointer",
     fontWeight: "bold",
     borderRadius: "8px",
     marginBottom: "10px",
     fontSize: "16px",
     color: "white",
-    background: activeTab === name ? "#5a6955" : "transparent"
+    background: activeTab === name ? "rgba(255,255,255,0.18)" : "transparent",
+    opacity: activeTab === name ? 1 : 0.75,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: sidebarCollapsed ? "center" : "flex-start",
+    gap: "10px",
+    transition: "background 0.2s ease, opacity 0.2s ease"
   })
 
   // --- PAGINATION HELPER ---
@@ -172,36 +181,53 @@ function PersonalView() {
     <div style={{ display: "flex", height: "100vh", width: "100vw", fontFamily: "sans-serif", overflow: "hidden" }}>
       
       {/* SIDEBAR */}
-      <div style={{ width: "250px", flexShrink: 0, background: colors.green, color: "white", display: "flex", flexDirection: "column", padding: "30px 20px", boxSizing: "border-box" }}>
-        
-        {/* LOGO ADDED HERE */}
-        <div style={{ paddingBottom: "10px", textAlign: "center" }}>
-            <img src={logo} alt="WeekendMatcha Logo" style={{ width: "130px", height: "auto" }} />
-        </div>
-        
-        <h2 style={{fontSize: "18px", marginBottom: "40px", marginTop: -20, textAlign: "center"}}>WeekendMatcha</h2>
-        
-        <div style={sidebarItem('Profile')} onClick={() => setActiveTab('Profile')}>My Profile</div>
-        <div style={sidebarItem('Attendance')} onClick={() => setActiveTab('Attendance')}>Attendance Log</div>
-        <div style={sidebarItem('Security')} onClick={() => setActiveTab('Security')}>Security Settings</div>
+      <div className="sidebar-shell" style={{ width: sidebarCollapsed ? "78px" : "252px", flexShrink: 0, background: `linear-gradient(165deg, ${colors.green} 0%, #4A5D4B 100%)`, color: "white", display: "flex", flexDirection: "column", padding: sidebarCollapsed ? "20px 12px" : "24px 18px", boxSizing: "border-box", position: "relative", transition: "width 0.3s cubic-bezier(0.4, 0, 0.2, 1), padding 0.3s cubic-bezier(0.4, 0, 0.2, 1)", boxShadow: "2px 0 18px rgba(0,0,0,0.18)" }}>
 
-        <div style={{ marginTop: "auto", padding: "20px", cursor: "pointer", display: "flex", alignItems: "center", gap: "10px" }} onClick={handleLogout}>
-          <span>↪</span> Log Out
+        <button
+          className="icon-btn"
+          onClick={() => setSidebarCollapsed(prev => !prev)}
+          title={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+          style={{ position: "absolute", top: "18px", right: sidebarCollapsed ? "50%" : "14px", transform: sidebarCollapsed ? "translateX(50%)" : "none", background: "rgba(255,255,255,0.14)", borderRadius: "9px", width: "34px", height: "34px", color: "white", fontSize: "17px", transition: "background 0.2s ease, right 0.3s ease, transform 0.3s ease" }}
+          onMouseOver={(e) => e.currentTarget.style.background = "rgba(255,255,255,0.26)"}
+          onMouseOut={(e) => e.currentTarget.style.background = "rgba(255,255,255,0.14)"}
+        >
+          <HiMenuAlt2 />
+        </button>
+
+        {/* LOGO ADDED HERE */}
+        <div style={{ paddingBottom: "8px", paddingTop: sidebarCollapsed ? "36px" : "8px", textAlign: "center", transition: "padding 0.3s ease" }}>
+            <img src={logo} alt="WeekendMatcha Logo" style={{ width: sidebarCollapsed ? "36px" : "116px", height: "auto", transition: "width 0.3s cubic-bezier(0.4, 0, 0.2, 1)" }} />
+        </div>
+
+        {!sidebarCollapsed && <h2 style={{fontSize: typeScale.h3, marginBottom: "34px", marginTop: "-14px", textAlign: "center", fontWeight: 700}}>WeekendMatcha</h2>}
+        {sidebarCollapsed && <div style={{ marginBottom: "26px" }} />}
+
+        <div style={{...sidebarItem('Profile'), display: "flex", alignItems: "center", gap: "12px"}} onClick={() => setActiveTab('Profile')} title="My Profile"><HiOutlineUserCircle size={19} />{!sidebarCollapsed && "My Profile"}</div>
+        <div style={{...sidebarItem('Attendance'), display: "flex", alignItems: "center", gap: "12px"}} onClick={() => setActiveTab('Attendance')} title="Attendance Log"><HiOutlineClipboardDocumentList size={19} />{!sidebarCollapsed && "Attendance Log"}</div>
+        <div style={{...sidebarItem('Security'), display: "flex", alignItems: "center", gap: "12px"}} onClick={() => setActiveTab('Security')} title="Security Settings"><HiOutlineLockClosed size={19} />{!sidebarCollapsed && "Security Settings"}</div>
+
+        <div style={{ marginTop: "auto", padding: "16px", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: sidebarCollapsed ? "center" : "flex-start", gap: "12px", borderRadius: "12px", transition: "background 0.2s ease" }}
+          onClick={handleLogout}
+          onMouseOver={(e) => e.currentTarget.style.background = "rgba(255,255,255,0.12)"}
+          onMouseOut={(e) => e.currentTarget.style.background = "transparent"}
+          title="Log Out"
+        >
+          <HiOutlineArrowRightOnRectangle size={19} /> {!sidebarCollapsed && "Log Out"}
         </div>
       </div>
 
       {/* MAIN CONTENT */}
-      <div style={{ flex: 1, background: colors.beige, padding: "30px", display: "flex", flexDirection: "column" }}>
-        
+      <div style={{ flex: 1, background: `linear-gradient(180deg, ${colors.beige} 0%, #f3ead9 100%)`, padding: "clamp(16px, 2vw, 30px)", display: "flex", flexDirection: "column", overflowY: "auto" }}>
+
         {/* VIEW: MY PROFILE */}
         {activeTab === 'Profile' && (
           <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: "20px" }}>
-            <h1 style={{ color: "#5a6955", margin: "0" }}>Employee Account</h1>
-            
+            <h1 style={{ color: "#5a6955", margin: "0", fontSize: typeScale.h1, fontWeight: 800 }}>Employee Account</h1>
+
             <ProfileCard employee={employee} colors={colors} />
 
-            <div style={{ display: "flex", gap: "20px", flex: 1 }}>
-              <div style={{ flex: 1, background: colors.white, padding: "30px", borderRadius: "15px", boxShadow: "0 4px 10px rgba(0,0,0,0.1)" }}>
+            <div className="responsive-stack" style={{ display: "flex", gap: "20px", flex: 1, flexWrap: "wrap" }}>
+              <div className="card-hover" style={{ flex: 1, minWidth: "280px", background: colors.white, padding: "30px", borderRadius: "16px", boxShadow: "0 4px 16px rgba(0,0,0,0.08)" }}>
                 <h2 style={{ color: "#5a6955", marginTop: 0, borderBottom: "1px solid #eee", paddingBottom: "10px" }}>Job Details</h2>
                 <div style={{ marginBottom: "20px" }}><label style={{display:"block", color:"#999", fontSize:"12px"}}>Date Hired</label><div style={{fontWeight:"bold", fontSize:"18px"}}>{employee?.DateHired}</div></div>
                 <div style={{ marginBottom: "20px" }}><label style={{display:"block", color:"#999", fontSize:"12px"}}>Employee ID</label><div style={{fontWeight:"bold", fontSize:"18px"}}>{employee?.EmployeeID}</div></div>
@@ -211,7 +237,7 @@ function PersonalView() {
                 <div style={{ marginBottom: "20px" }}><label style={{display:"block", color:"#999", fontSize:"12px"}}>Next Scheduled Shift</label><div style={{fontWeight:"bold", fontSize:"20px", color: colors.red}}>{employee?.NextShift || "Pending Assignment"}</div></div>
               </div>
 
-              <div style={{ flex: 1, background: colors.white, padding: "30px", borderRadius: "15px", boxShadow: "0 4px 10px rgba(0,0,0,0.1)" }}>
+              <div className="card-hover" style={{ flex: 1, minWidth: "280px", background: colors.white, padding: "30px", borderRadius: "16px", boxShadow: "0 4px 16px rgba(0,0,0,0.08)" }}>
                 <h2 style={{ color: "#5a6955", marginTop: 0, borderBottom: "1px solid #eee", paddingBottom: "10px" }}>Contact Information</h2>
                 <div style={{ marginBottom: "20px" }}><label style={{display:"block", color:"#999", fontSize:"12px"}}>Contact Number</label><div style={{fontWeight:"bold", fontSize:"18px"}}>{employee?.User?.ContactNumber}</div></div>
                 <div style={{ marginBottom: "20px" }}><label style={{display:"block", color:"#999", fontSize:"12px"}}>Email</label><div style={{fontWeight:"bold", fontSize:"18px"}}>{employee?.User?.Email}</div></div>
@@ -225,9 +251,9 @@ function PersonalView() {
         {/* VIEW: ATTENDANCE LOG */}
         {activeTab === 'Attendance' && (
           <div style={{ flex: 1, display: "flex", flexDirection: "column" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
-              <h1 style={{ color: "#5a6955", margin: 0 }}>My Attendance Log</h1>
-              <button onClick={async () => { await refreshAttendance(employee?.EmployeeID); showSuccess('Data refreshed') }} style={{ background: "#FF9800", color: "white", border: "none", padding: "10px 20px", borderRadius: "20px", fontWeight: "bold", fontSize: "12px", cursor: "pointer" }}>REFRESH</button>
+            <div className="responsive-stack" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px", gap: "12px", flexWrap: "wrap" }}>
+              <h1 style={{ color: "#5a6955", margin: 0, fontSize: typeScale.h1, fontWeight: 800 }}>My Attendance Log</h1>
+              <button className="btn-animated" onClick={async () => { await refreshAttendance(employee?.EmployeeID); showSuccess('Data refreshed') }} style={{ background: "#FF9800", color: "white", border: "none", padding: "10px 20px", borderRadius: "20px", fontWeight: "bold", fontSize: "12px", cursor: "pointer" }}>REFRESH</button>
             </div>
             
             {/* CONTAINER WITH FLEX to ensure pagination stays at bottom */}
@@ -249,20 +275,20 @@ function PersonalView() {
         {/* VIEW: SECURITY SETTINGS */}
         {activeTab === 'Security' && (
           <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: "20px", justifyContent: "flex-start", alignItems: "center" }}>
-            <h1 style={{ color: "#5a6955", margin: "0", alignSelf: "flex-start" }}>Security Settings</h1>
-            
-            <div style={{ background: colors.white, padding: "25px", borderRadius: "15px", boxShadow: "0 4px 10px rgba(0,0,0,0.08)", width: "100%", maxWidth: "500px" }}>
+            <h1 style={{ color: "#5a6955", margin: "0", alignSelf: "flex-start", fontSize: typeScale.h1, fontWeight: 800 }}>Security Settings</h1>
+
+            <div className="card-hover" style={{ background: colors.white, padding: "25px", borderRadius: "16px", boxShadow: "0 4px 16px rgba(0,0,0,0.08)", width: "100%", maxWidth: "500px" }}>
               <div style={{ marginBottom: "20px" }}>
                 <h3 style={{ color: "#5a6955", margin: "0 0 8px 0", fontSize: "16px", fontWeight: "bold" }}>Employee PIN</h3>
                 <p style={{ color: "#666", margin: "0", fontSize: "13px", lineHeight: "1.5" }}>
                   4-6 digit numeric PIN for secure time in/out operations.
                 </p>
               </div>
-              
-              <div style={{ background: personal.hasPIN ? "#E8F5E9" : "#FFF3E0", padding: "15px", borderRadius: "8px", marginBottom: "20px", border: `2px solid ${personal.hasPIN ? "#4CAF50" : "#FF9800"}` }}>
+
+              <div style={{ background: personal.hasPIN ? "#E8F5E9" : "#FFF3E0", padding: "15px", borderRadius: "10px", marginBottom: "20px", border: `2px solid ${personal.hasPIN ? "#4CAF50" : "#FF9800"}` }}>
                 <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-                  <div style={{ fontSize: "28px", color: personal.hasPIN ? "#4CAF50" : "#FF9800", fontWeight: "bold" }}>
-                    {personal.hasPIN ? '✓' : '•'}
+                  <div style={{ fontSize: "26px", color: personal.hasPIN ? "#4CAF50" : "#FF9800", display: "flex" }}>
+                    {personal.hasPIN ? <HiOutlineCheckCircle /> : <span style={{ fontSize: "28px", lineHeight: 1 }}>•</span>}
                   </div>
                   <div>
                     <div style={{ fontWeight: "bold", fontSize: "15px", color: personal.hasPIN ? "#2E7D32" : "#E65100" }}>
@@ -276,8 +302,9 @@ function PersonalView() {
               </div>
 
               <button
+                className="btn-animated"
                 onClick={() => personal.openPINModal(personal.hasPIN ? 'change' : 'setup')}
-                style={{ 
+                style={{
                   width: "100%", 
                   padding: "12px 20px", 
                   background: "#5a6955", 

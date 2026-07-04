@@ -41,8 +41,8 @@ export default function ReportTable({ history, loading, colors, onViewReport }) 
   };
 
   return (
-    <div style={{ background: "white", borderRadius: "15px", boxShadow: "0 4px 10px rgba(0,0,0,0.1)", overflow: "hidden" }}>
-      <table style={{ width: "100%", borderCollapse: "collapse" }}>
+    <div className="fade-in-card" style={{ background: "white", borderRadius: "16px", boxShadow: "0 4px 16px rgba(0,0,0,0.08)", overflow: "auto" }}>
+      <table style={{ width: "100%", minWidth: "700px", borderCollapse: "collapse" }}>
         <thead style={{ background: colors.green, color: "white" }}>
           <tr>
             <th style={{ padding: "15px" }}>Report ID</th>
@@ -75,7 +75,8 @@ export default function ReportTable({ history, loading, colors, onViewReport }) 
                 </td>
                 
                 <td>
-                  <button 
+                  <button
+                    className="btn-animated"
                     onClick={() => onViewReport(report.ReportID)}
                     style={{ padding: "6px 15px", background: colors.blue, color: "white", border: "none", borderRadius: "5px", cursor: "pointer", fontSize: "12px", fontWeight: "bold" }}
                   >

@@ -1,68 +1,135 @@
-import { useNavigate, useLocation } from 'react-router-dom'; // 1. Added useLocation
-import { colors } from '../constants/uiStyles';
+import { useState } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
+import { colors, type as typeScale } from '../constants/uiStyles';
 import logo from '../assets/wm-logo.svg';
+import { HiMenuAlt2 } from 'react-icons/hi';
+import { HiOutlineArchiveBox, HiOutlineBanknotes, HiOutlineUserGroup, HiOutlineArrowRightOnRectangle } from 'react-icons/hi2';
+import { IoChevronForward } from 'react-icons/io5';
+
+const NAV_ITEMS = [
+  { path: '/inventory-system', label: 'Inventory System', Icon: HiOutlineArchiveBox },
+  { path: '/sales-system', label: 'Sales System', Icon: HiOutlineBanknotes },
+  { path: '/hr-system', label: 'Human Resource', Icon: HiOutlineUserGroup },
+];
 
 const Sidebar = () => {
   const navigate = useNavigate();
-  const location = useLocation(); // 2. Initialize location
+  const location = useLocation();
+  const [collapsed, setCollapsed] = useState(false);
 
-  // 3. Helper function to check if the path is active
   const isActive = (path) => location.pathname === path;
 
-  // 4. Helper style function
   const getLinkStyle = (path) => ({
-    padding: "10px",
-    fontSize: "16px",
-    fontWeight: "bold",
-    borderRadius: "8px",
-    marginBottom: "10px",
+    padding: collapsed ? "12px 0" : "12px 14px",
+    fontSize: typeScale.body,
+    fontWeight: 600,
+    borderRadius: "12px",
+    marginBottom: "6px",
     color: "white",
     cursor: "pointer",
-    // This logic dynamically switches the highlight based on the URL
-    background: isActive(path) ? "#5a6955" : "transparent",
-    opacity: isActive(path) ? 1 : 0.5,
+    background: isActive(path) ? "rgba(255,255,255,0.16)" : "transparent",
+    boxShadow: isActive(path) ? "inset 0 0 0 1px rgba(255,255,255,0.15)" : "none",
+    opacity: isActive(path) ? 1 : 0.72,
     display: "flex",
-    justifyContent: "space-between",
-    alignItems: "center"
+    justifyContent: collapsed ? "center" : "space-between",
+    alignItems: "center",
+    gap: "10px",
+    transition: "background 0.18s ease, opacity 0.18s ease, box-shadow 0.18s ease",
+    whiteSpace: "nowrap",
+    overflow: "hidden"
   });
 
   return (
-    <div className="no-print" style={{
-        width: "250px",
+    <div
+      className="no-print sidebar-shell"
+      style={{
+        width: collapsed ? "78px" : "252px",
         flexShrink: 0,
-        background: colors.green,
-        padding: "30px 20px",
+        background: `linear-gradient(165deg, ${colors.green} 0%, ${colors.darkGreen} 100%)`,
+        padding: collapsed ? "20px 12px" : "24px 18px",
         color: "white",
         display: "flex",
         flexDirection: "column",
         boxSizing: "border-box",
-        height: "100vh"
-    }}>
-      <div style={{ paddingBottom: "10px", textAlign: "center" }}>
-          <img src={logo} alt="Logo" style={{ width: "130px", height: "auto" }} />
+        height: "100vh",
+        position: "relative",
+        transition: "width 0.3s cubic-bezier(0.4, 0, 0.2, 1), padding 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
+        boxShadow: "2px 0 18px rgba(0,0,0,0.18)",
+        zIndex: 10
+      }}
+    >
+      {/* HAMBURGER TOGGLE */}
+      <button
+        className="icon-btn"
+        onClick={() => setCollapsed(prev => !prev)}
+        title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+        style={{
+          position: "absolute",
+          top: "18px",
+          right: collapsed ? "50%" : "14px",
+          transform: collapsed ? "translateX(50%)" : "none",
+          background: "rgba(255,255,255,0.14)",
+          borderRadius: "9px",
+          width: "34px",
+          height: "34px",
+          color: "white",
+          fontSize: "17px",
+          transition: "background 0.2s ease, right 0.3s ease, transform 0.3s ease"
+        }}
+        onMouseOver={(e) => e.currentTarget.style.background = "rgba(255,255,255,0.26)"}
+        onMouseOut={(e) => e.currentTarget.style.background = "rgba(255,255,255,0.14)"}
+      >
+        <HiMenuAlt2 />
+      </button>
+
+      <div style={{ paddingBottom: "8px", paddingTop: collapsed ? "36px" : "8px", textAlign: "center", transition: "padding 0.3s ease" }}>
+        <img src={logo} alt="Logo" style={{ width: collapsed ? "36px" : "116px", height: "auto", transition: "width 0.3s cubic-bezier(0.4, 0, 0.2, 1)" }} />
       </div>
-      <h2 style={{ fontSize: "18px", marginBottom: "40px", marginTop: -20, textAlign: "center" }}>
+      {!collapsed && (
+        <h2 style={{ fontSize: typeScale.h3, marginBottom: "34px", marginTop: "-14px", textAlign: "center", fontWeight: 700, letterSpacing: "0.3px" }}>
           WeekendMatcha
-      </h2>
+        </h2>
+      )}
+      {collapsed && <div style={{ marginBottom: "26px" }} />}
 
-      {/* INVENTORY */}
-      <div style={getLinkStyle('/inventory-system')} onClick={() => navigate('/inventory-system')}>
-        Inventory System {isActive('/inventory-system') && '➤'}
+      <div style={{ display: "flex", flexDirection: "column" }}>
+        {NAV_ITEMS.map((item) => (
+          <div
+            key={item.path}
+            style={getLinkStyle(item.path)}
+            onClick={() => navigate(item.path)}
+            title={collapsed ? item.label : undefined}
+          >
+            <span style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+              <item.Icon size={19} />
+              {!collapsed && item.label}
+            </span>
+            {!collapsed && isActive(item.path) && <IoChevronForward size={14} />}
+          </div>
+        ))}
       </div>
 
-      {/* SALES */}
-      <div style={getLinkStyle('/sales-system')} onClick={() => navigate('/sales-system')}>
-        Sales System {isActive('/sales-system') && '➤'}
-      </div>
-
-      {/* HUMAN RESOURCE */}
-      <div style={getLinkStyle('/hr-system')} onClick={() => navigate('/hr-system')}>
-        Human Resource {isActive('/hr-system') && '➤'}
-      </div>
-
-      <div style={{ marginTop: "auto", cursor: "pointer", opacity: 0.8, display: "flex", alignItems: "center", gap: "10px", fontSize: "18px" }} 
-           onClick={() => navigate('/')}>
-        <span>↪</span> Log Out
+      <div
+        style={{
+          marginTop: "auto",
+          cursor: "pointer",
+          opacity: 0.85,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: collapsed ? "center" : "flex-start",
+          gap: "12px",
+          fontSize: typeScale.body,
+          fontWeight: 600,
+          padding: "10px",
+          borderRadius: "12px",
+          transition: "background 0.18s ease, opacity 0.18s ease"
+        }}
+        onClick={() => navigate('/')}
+        onMouseOver={(e) => { e.currentTarget.style.background = "rgba(255,255,255,0.12)"; e.currentTarget.style.opacity = 1; }}
+        onMouseOut={(e) => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.opacity = 0.85; }}
+        title={collapsed ? "Log Out" : undefined}
+      >
+        <HiOutlineArrowRightOnRectangle size={19} /> {!collapsed && "Log Out"}
       </div>
     </div>
   );

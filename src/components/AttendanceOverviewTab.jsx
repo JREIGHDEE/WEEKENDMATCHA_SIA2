@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { supabase } from '../supabaseClient'
 import SearchFilterBar from './SearchFilterBar'
+import { HiChevronUp, HiChevronDown, HiOutlineSwitchVertical } from 'react-icons/hi'
 
 function AttendanceOverviewTab({ employees, colors, searchTerm = '', setSearchTerm, btnStyle, setActiveView, PaginationControls, filterCategory = 'FirstName', setFilterCategory, showFilterMenu = false, setShowFilterMenu, searchContainerRef }) {
   const [attendanceData, setAttendanceData] = useState([])
@@ -128,8 +129,9 @@ function AttendanceOverviewTab({ employees, colors, searchTerm = '', setSearchTe
   }
 
   const getSortArrow = (columnName) => {
-    const arrow = sortBy !== columnName ? '↕' : (sortOrder === 'asc' ? '↑' : '↓')
-    return <span style={{ fontWeight: 'bold', fontSize: '16px', marginLeft: '4px' }}>{arrow}</span>
+    const iconStyle = { marginLeft: '4px', verticalAlign: 'middle' }
+    if (sortBy !== columnName) return <HiOutlineSwitchVertical size={13} style={iconStyle} />
+    return sortOrder === 'asc' ? <HiChevronUp size={14} style={iconStyle} /> : <HiChevronDown size={14} style={iconStyle} />
   }
   
   const getStatusColor = (status) => {
@@ -156,9 +158,9 @@ function AttendanceOverviewTab({ employees, colors, searchTerm = '', setSearchTe
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100%", overflow: "hidden" }}>
       {/* Top Controls: Search + Calendar Picker + Back Button */}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "15px", marginBottom: "15px", flexShrink: 0 }}>
+      <div className="responsive-stack" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "15px", marginBottom: "15px", flexShrink: 0, flexWrap: "wrap" }}>
         {/* Search Bar - Using SearchFilterBar */}
-        <div style={{ width: "300px" }}>
+        <div style={{ width: "min(300px, 100%)" }}>
           <SearchFilterBar 
             searchTerm={searchTerm}
             setSearchTerm={setSearchTerm}
@@ -193,8 +195,9 @@ function AttendanceOverviewTab({ employees, colors, searchTerm = '', setSearchTe
           />
           
           {/* Back Button */}
-          <button 
-            style={{...btnStyle, background: colors.darkGreen, padding: "8px 15px", fontSize: "13px"}} 
+          <button
+            className="btn-animated"
+            style={{...btnStyle, background: colors.darkGreen, padding: "8px 15px", fontSize: "13px"}}
             onClick={() => setActiveView('employees')}
           >
             EMPLOYEES

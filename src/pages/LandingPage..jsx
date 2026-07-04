@@ -9,36 +9,37 @@ function LandingPage() {
   const navigate = useNavigate()
 
   const cardStyle = {
-    width: "220px", height: "220px", background: "#FFF8E7", 
-    border: "2px solid #333", borderRadius: "20px",
+    width: "min(220px, 40vw)", minWidth: "160px", height: "min(220px, 40vw)", minHeight: "160px", background: "#FFF8E7",
+    border: "none", borderRadius: "20px",
     display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
-    cursor: "pointer", margin: "20px", fontWeight: "bold", color: "#333",
-    boxShadow: "0 4px 8px rgba(0,0,0,0.2)"
+    cursor: "pointer", margin: "12px", fontWeight: "bold", color: "#333",
+    boxShadow: "0 10px 28px rgba(0,0,0,0.22)"
   }
 
   // Style for the icons inside the cards
   const iconStyle = {
-    width: "80px", 
-    height: "80px", 
+    width: "70px",
+    height: "70px",
     marginBottom: "15px"
   }
 
   return (
-    <div style={{ background: "#4A5D4B", height: "100vh", width: "100vw", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "flex-start", paddingTop: "140px", color: "white" }}>
-      
+    <div style={{ background: "linear-gradient(165deg, #6B7C65 0%, #4A5D4B 100%)", minHeight: "100vh", width: "100vw", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "40px 20px", color: "white", boxSizing: "border-box" }}>
+
       {/* 1. REPLACED 'WM.' TEXT WITH LOGO */}
-      <img 
-        src={logo} 
-        alt="WeekendMatcha Logo" 
-        style={{ width: "180px", marginBottom: "5px" }} 
+      <img
+        src={logo}
+        alt="WeekendMatcha Logo"
+        style={{ width: "min(180px, 40vw)", marginBottom: "20px" }}
       />
 
-      <div style={{ display: "flex", gap: "30px", flexWrap: "wrap", justifyContent: "center" }}>
-        
+      <div style={{ display: "flex", gap: "10px", flexWrap: "wrap", justifyContent: "center" }}>
+
         {/* ADMIN BUTTON - STRICT MODE */}
-        <div 
-          style={cardStyle} 
-          onClick={() => navigate('/login', { state: { type: 'admin' } })} 
+        <div
+          className="card-hover"
+          style={cardStyle}
+          onClick={() => navigate('/login', { state: { type: 'admin' } })}
         >
           {/* 2. REPLACED EMOJI WITH SVG */}
           <img src={adminIcon} alt="Admin System" style={iconStyle} />
@@ -46,8 +47,9 @@ function LandingPage() {
         </div>
 
         {/* PERSONAL VIEW BUTTON */}
-        <div 
-          style={cardStyle} 
+        <div
+          className="card-hover"
+          style={cardStyle}
           onClick={() => navigate('/login', { state: { type: 'personal' } })}
         >
           <img src={personalIcon} alt="Personal View" style={iconStyle} />
@@ -55,8 +57,9 @@ function LandingPage() {
         </div>
 
         {/* POS BUTTON - ENABLED */}
-        <div 
-          style={cardStyle} 
+        <div
+          className="card-hover"
+          style={cardStyle}
           onClick={() => navigate('/login', { state: { type: 'pos' } })}
         >
           <img src={posIcon} alt="POS System" style={iconStyle} />

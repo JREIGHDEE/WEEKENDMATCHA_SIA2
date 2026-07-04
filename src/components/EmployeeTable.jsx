@@ -19,9 +19,9 @@ function EmployeeTable({ filteredEmployees, currentPage, setCurrentPage, itemsPe
   }
 
   return (
-    <div style={{ background: "white", borderRadius: "15px", flex: 1, boxShadow: "0 4px 10px rgba(0,0,0,0.1)", overflow: "hidden", display: "flex", flexDirection: "column" }}>
-      <div style={{ overflowY: "auto", flex: 1 }}>
-        <table style={{ width: "100%", borderCollapse: "collapse" }}>
+    <div className="fade-in-card" style={{ background: "white", borderRadius: "16px", flex: 1, boxShadow: "0 4px 16px rgba(0,0,0,0.08)", overflow: "hidden", display: "flex", flexDirection: "column" }}>
+      <div style={{ overflow: "auto", flex: 1 }}>
+        <table style={{ width: "100%", minWidth: "700px", borderCollapse: "collapse" }}>
           <thead style={{ position: "sticky", top: 0, background: colors.green, color: "white", zIndex: 1 }}>
               <tr><th style={{ padding: "15px" }}>ID</th><th>Full Name</th><th>Role</th><th>Status</th><th>Date Hired</th><th>Contact</th><th style={{ width: "120px", paddingRight: "15px" }}>Actions</th></tr>
           </thead>
@@ -37,9 +37,10 @@ function EmployeeTable({ filteredEmployees, currentPage, setCurrentPage, itemsPe
                 
                 <td style={{ width: "120px", paddingRight: "15px" }}>
                   <div style={{ display: "flex", gap: "8px", justifyContent: "center" }}>
-                    <button onClick={() => prepareUpdate(emp.EmployeeID)} style={{ padding: "6px 10px", background: "#d3af37", color: "white", border: "none", borderRadius: "5px", cursor: "pointer", fontSize: "12px" }} title="Update Employee">Update</button>
-                    <button 
-                      onClick={() => prepareArchive(emp.EmployeeID)} 
+                    <button className="btn-animated" onClick={() => prepareUpdate(emp.EmployeeID)} style={{ padding: "6px 10px", background: "#d3af37", color: "white", border: "none", borderRadius: "5px", cursor: "pointer", fontSize: "12px" }} title="Update Employee">Update</button>
+                    <button
+                      className="btn-animated"
+                      onClick={() => prepareArchive(emp.EmployeeID)}
                       style={{ 
                         padding: "6px 10px", 
                         background: emp.EmployeeStatus === 'Active' ? colors.red : colors.darkGreen, 

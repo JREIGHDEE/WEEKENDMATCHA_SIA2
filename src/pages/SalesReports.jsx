@@ -4,7 +4,9 @@ import { useReportLogic } from '../hooks/useReportLogic';
 import { Notification } from '../components/Notification';
 import Sidebar from '../components/Sidebar';
 import ReportTable from '../components/ReportTable';
-import { colors, btnStyle } from '../constants/uiStyles';
+import { colors, btnStyle, type as typeScale } from '../constants/uiStyles';
+import { HiOutlineSearch, HiOutlineDownload } from 'react-icons/hi';
+import { IoClose } from 'react-icons/io5';
 
 function SalesReports() {
   const navigate = useNavigate();
@@ -96,19 +98,22 @@ function SalesReports() {
       <div className="no-print" style={{ display: "flex", width: "100%", height: "100%" }}>
         <Sidebar />
 
-        <div style={{ flex: 1, padding: "30px", overflowY: "auto" }}>
+        <div style={{ flex: 1, padding: "clamp(16px, 2vw, 30px)", overflowY: "auto" }}>
           {/* HEADER & SEARCH ROW */}
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
-            <input 
-              placeholder="🔍 Search History..." 
-              style={{ padding: "10px 15px", borderRadius: "20px", border: "1px solid #ccc", width: "300px", outline: "none" }} 
-              value={state.searchTerm} 
-              onChange={(e) => actions.setSearchTerm(e.target.value)} 
-            />
-            
-            <div style={{ display: "flex", gap: "10px" }}>
-              <button style={{ ...btnStyle, background: colors.blue }} onClick={() => actions.setShowGenerateModal(true)}>GENERATE REPORT</button>
-              <button style={{ ...btnStyle, background: colors.red, padding: "8px 35px" }} onClick={() => navigate('/sales-system')}>BACK</button>
+          <div className="responsive-stack" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px", gap: "12px", flexWrap: "wrap" }}>
+            <div style={{ position: "relative", flex: 1, minWidth: "220px", maxWidth: "300px" }}>
+              <HiOutlineSearch size={15} style={{ position: "absolute", left: "14px", top: "50%", transform: "translateY(-50%)", color: "#999" }} />
+              <input
+                placeholder="Search History..."
+                style={{ padding: "10px 15px 10px 36px", borderRadius: "20px", border: "1px solid #ddd", width: "100%", boxSizing: "border-box", outline: "none", fontSize: typeScale.body }}
+                value={state.searchTerm}
+                onChange={(e) => actions.setSearchTerm(e.target.value)}
+              />
+            </div>
+
+            <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
+              <button className="btn-animated" style={{ ...btnStyle, background: colors.blue }} onClick={() => actions.setShowGenerateModal(true)}>GENERATE REPORT</button>
+              <button className="btn-animated" style={{ ...btnStyle, background: colors.red, padding: "8px 35px" }} onClick={() => navigate('/sales-system')}>BACK</button>
             </div>
           </div>
 
@@ -179,8 +184,9 @@ function SalesReports() {
                 )}
               
               <div style={{ display: "flex", gap: "10px", justifyContent: "flex-end" }}>
-                <button type="button" onClick={() => actions.setShowGenerateModal(false)} style={{ ...btnStyle, background: "#ccc", color: "#333" }}>Cancel</button>
-                <button 
+                <button className="btn-animated" type="button" onClick={() => actions.setShowGenerateModal(false)} style={{ ...btnStyle, background: "#ccc", color: "#333" }}>Cancel</button>
+                <button
+                  className="btn-animated"
                   type="button"
                   onClick={() => {
                     const isValid = actions.prepareReport();
@@ -190,7 +196,7 @@ function SalesReports() {
                     }
                     actions.setShowGenerateModal(false);
                     actions.setShowConfirmModal(true);
-                  }} 
+                  }}
                   style={{ ...btnStyle, background: colors.green }}
                 >
                   Generate
@@ -210,8 +216,8 @@ function SalesReports() {
               </p>
               
               <div style={{ display: "flex", gap: "10px", justifyContent: "center" }}>
-                <button type="button" onClick={() => actions.setShowConfirmModal(false)} style={{ ...btnStyle, background: "#ccc", color: "#333", flex: 1 }}>Cancel</button>
-                <button type="button" onClick={actions.handleConfirmSavePdf} style={{ ...btnStyle, background: colors.blue, flex: 1 }}>Confirm & Print</button>
+                <button className="btn-animated" type="button" onClick={() => actions.setShowConfirmModal(false)} style={{ ...btnStyle, background: "#ccc", color: "#333", flex: 1 }}>Cancel</button>
+                <button className="btn-animated" type="button" onClick={actions.handleConfirmSavePdf} style={{ ...btnStyle, background: colors.blue, flex: 1 }}>Confirm & Print</button>
               </div>
           </div>
         </div>
@@ -228,13 +234,14 @@ function SalesReports() {
                 
                 {/* Button Container */}
                 <div style={{ display: "flex", gap: "15px", alignItems: "center" }}>
-                  <button 
+                  <button
+                     className="btn-animated"
                      onClick={() => window.print()} /* Note: Replace window.print() with your actual PDF generation action if you have one, e.g., actions.generatePDF */
-                     style={{ background: "#3b5998", color: "white", border: "none", padding: "8px 15px", borderRadius: "8px", fontWeight: "bold", cursor: "pointer", fontSize: "13px", boxShadow: "0 2px 5px rgba(0,0,0,0.2)" }}
+                     style={{ background: "#3b5998", color: "white", border: "none", padding: "8px 15px", borderRadius: "8px", fontWeight: "bold", cursor: "pointer", fontSize: "13px", boxShadow: "0 2px 5px rgba(0,0,0,0.2)", display: "flex", alignItems: "center", gap: "6px" }}
                   >
-                     ⬇ Download PDF
+                     <HiOutlineDownload size={15} /> Download PDF
                   </button>
-                  <button onClick={() => actions.setShowViewModal(false)} style={{ background: "none", border: "none", fontSize: "20px", cursor: "pointer", color: "#888" }}>✖</button>
+                  <button className="icon-btn" onClick={() => actions.setShowViewModal(false)} style={{ background: "#f2f2f2", border: "none", borderRadius: "8px", width: "30px", height: "30px", fontSize: "16px", color: "#888" }}><IoClose /></button>
                 </div>
               </div>
               {/* --- END CHANGED HEADER SECTION --- */}

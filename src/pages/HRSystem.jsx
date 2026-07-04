@@ -17,7 +17,7 @@ import { useModalState } from '../hooks/useModalState'
 import { useNotification } from '../hooks/useNotification'
 import * as employeeService from '../services/employeeService'
 import { ADMIN_ROLES, ALL_ROLES, PAGINATION } from '../constants/appConstants'
-import { colors, btnStyle, inputStyle } from '../constants/uiStyles.js'
+import { colors, btnStyle, inputStyle, type as typeScale } from '../constants/uiStyles.js'
 
 function HRSystem() {
   const navigate = useNavigate()
@@ -278,11 +278,11 @@ function HRSystem() {
       <Sidebar colors={colors} navigate={navigate} logo={logo} />
 
       {/* MAIN CONTENT */}
-      <div style={{ flex: 1, background: colors.beige, padding: "30px", display: "flex", flexDirection: "column", overflow: "hidden" }}>
-        
+      <div style={{ flex: 1, background: `linear-gradient(180deg, ${colors.beige} 0%, #f3ead9 100%)`, padding: "clamp(16px, 2vw, 30px)", display: "flex", flexDirection: "column", overflow: "hidden" }}>
+
       {/* HEADER AREA */}
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "15px" }}>
-          <h1 style={{ margin: 0, fontSize: "28px", color: colors.darkGreen }}>Human Resource Management</h1>
+          <h1 style={{ margin: 0, fontSize: typeScale.h1, fontWeight: 800, color: colors.darkGreen, letterSpacing: "-0.3px" }}>Human Resource Management</h1>
           {/* Removed global View Attendance button since it requires a specific employee */}
         </div>
 
@@ -290,12 +290,12 @@ function HRSystem() {
         {activeView === 'employees' ? (
           <>
             {/* EMPLOYEES VIEW - Search, Filters, and Actions */}
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "20px", marginBottom: "15px" }}>
+            <div className="responsive-stack" style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "20px", marginBottom: "15px", flexWrap: "wrap" }}>
               {/* LEFT SIDE: Search Bar & Status Filters */}
-              <div style={{ display: "flex", flexDirection: "column", gap: "12px", flex: 1 }}>
+              <div style={{ display: "flex", flexDirection: "column", gap: "12px", flex: 1, minWidth: "260px" }}>
                 {/* Search Bar */}
-                <div style={{ width: "300px" }}>
-                  <SearchFilterBar 
+                <div style={{ width: "min(300px, 100%)" }}>
+                  <SearchFilterBar
                     searchTerm={searchTerm}
                     setSearchTerm={setSearchTerm}
                     filterCategory={filterCategory}
@@ -308,11 +308,12 @@ function HRSystem() {
                 </div>
 
                 {/* Status Filter Buttons */}
-                <div style={{ display: "flex", gap: "8px" }}>
+                <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
                   {['All', 'Active', 'On Leave'].map(status => (
-                    <button 
-                      key={status} 
-                      style={pillBtn(statusFilter === status, status)} 
+                    <button
+                      key={status}
+                      className="btn-animated"
+                      style={pillBtn(statusFilter === status, status)}
                       onClick={() => setStatusFilter(status)}
                     >
                       {status.toUpperCase()}
@@ -324,23 +325,24 @@ function HRSystem() {
               {/* RIGHT SIDE: Action Buttons - Two Rows */}
               <div style={{ display: "flex", flexDirection: "column", gap: "12px", alignItems: "flex-end" }}>
                 {/* Top: Attendance Overview Button */}
-                <button 
-                  style={{...btnStyle, background: colors.purple, minWidth: "150px"}} 
+                <button
+                  className="btn-animated"
+                  style={{...btnStyle, background: colors.purple, minWidth: "150px"}}
                   onClick={() => setActiveView('attendanceOverview')}
                 >
                   ATTENDANCE OVERVIEW
                 </button>
-                
+
                 {/* Bottom: ADD EMPLOYEE & INACTIVE LOGS */}
-                <div style={{ display: "flex", gap: "10px" }}>
-                  <button style={{...btnStyle, background: colors.darkGreen}} onClick={prepareAdd}>ADD EMPLOYEE</button>
-                  <button style={{...btnStyle, background: "#337AB7"}} onClick={openArchiveLogModal}>INACTIVE LOGS</button>
+                <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
+                  <button className="btn-animated" style={{...btnStyle, background: colors.darkGreen}} onClick={prepareAdd}>ADD EMPLOYEE</button>
+                  <button className="btn-animated" style={{...btnStyle, background: "#337AB7"}} onClick={openArchiveLogModal}>INACTIVE LOGS</button>
                 </div>
               </div>
             </div>
-            
+
             {/* EMPLOYEE TABLE */}
-            <EmployeeTable 
+            <EmployeeTable
               filteredEmployees={filteredEmployees}
               currentPage={currentPage}
               setCurrentPage={setCurrentPage}

@@ -1,5 +1,6 @@
 import React from 'react';
 import * as styles from '../../constants/inventoryStyles';
+import { HiChevronUp, HiChevronDown } from 'react-icons/hi2';
 
 export function InventoryTable({
   items,
@@ -20,8 +21,8 @@ export function InventoryTable({
   }
 
   return (
-    <div style={{ flex: 1 }}>
-      <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+    <div style={{ flex: 1, overflowX: 'auto' }}>
+      <table style={{ width: '100%', minWidth: '900px', borderCollapse: 'collapse' }}>
         <thead
           style={{
             position: 'sticky',
@@ -43,19 +44,21 @@ export function InventoryTable({
               Expiry Date
               <button
                 type="button"
+                className="icon-btn"
                 onClick={() => setSortExpiryAsc(prev => !prev)}
                 style={{
                   marginLeft: '6px',
-                  background: 'transparent',
+                  background: 'rgba(255,255,255,0.15)',
                   border: 'none',
+                  borderRadius: '6px',
+                  width: '22px',
+                  height: '22px',
                   color: 'white',
-                  cursor: 'pointer',
-                  fontWeight: 'bold',
-                  fontSize: '13px'
+                  verticalAlign: 'middle'
                 }}
                 title="Sort by nearest expiry"
               >
-                {sortExpiryAsc ? '▲' : '▼'}
+                {sortExpiryAsc ? <HiChevronUp size={14} /> : <HiChevronDown size={14} />}
               </button>
             </th>
 
@@ -149,6 +152,7 @@ export function InventoryTable({
                   <td style={{ width: '180px', paddingRight: '15px' }}>
                     <div style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
                       <button
+                        className="btn-animated"
                         onClick={() => prepareStockIn(item.InventoryID)}
                         style={{
                           padding: '6px 10px',
@@ -164,6 +168,7 @@ export function InventoryTable({
                       </button>
 
                       <button
+                        className="btn-animated"
                         onClick={() => prepareUpdate(item.InventoryID)}
                         style={{
                           padding: '6px 10px',
@@ -179,6 +184,7 @@ export function InventoryTable({
                       </button>
 
                       <button
+                        className="btn-animated"
                         onClick={() => prepareArchive(item.InventoryID)}
                         style={{
                           padding: '6px 10px',

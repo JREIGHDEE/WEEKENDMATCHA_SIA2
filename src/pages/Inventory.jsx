@@ -10,6 +10,8 @@ import { AlertBanners } from '../components/inventory/AlertBanners';
 import { InventoryTable } from '../components/inventory/InventoryTable';
 import { InventoryModals } from '../components/inventory/InventoryModals';
 import Sidebar from '../components/Sidebar';
+import { type as typeScale } from '../constants/uiStyles';
+import { HiOutlineSearch } from 'react-icons/hi';
 
 function InventorySystem() {
   const { inventory, loading, fetchInventory } = useInventoryData();
@@ -308,29 +310,33 @@ function InventorySystem() {
     <div style={{ display: 'flex', height: '100vh', width: '100vw', overflow: 'hidden', fontFamily: 'sans-serif' }}>
       <Sidebar />
 
-      <div style={{ flex: 1, background: styles.colors.beige, padding: '30px', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-        <h1 style={{ margin: 0, fontSize: '28px', color: styles.colors.darkGreen, marginBottom: '20px' }}>
+      <div style={{ flex: 1, background: `linear-gradient(180deg, ${styles.colors.beige} 0%, #f3ead9 100%)`, padding: 'clamp(16px, 2vw, 30px)', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+        <h1 style={{ margin: 0, fontSize: typeScale.h1, fontWeight: 800, color: styles.colors.darkGreen, marginBottom: '20px', letterSpacing: '-0.3px' }}>
           Inventory Management
         </h1>
 
         <AlertBanners inventory={inventory} onItemClick={scrollToItem} />
 
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '20px' }}>
+        <div className="responsive-stack" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '20px', gap: '12px', flexWrap: 'wrap' }}>
           <div style={{ position: 'relative' }} ref={searchContainerRef}>
-            <input
-              placeholder={`🔍 Search by ${filterCategory}...`}
-              style={{
-                padding: '10px 15px',
-                borderRadius: '25px',
-                border: '1px solid #ccc',
-                width: '300px',
-                outline: 'none',
-                boxShadow: '0 2px 5px rgba(0,0,0,0.05)'
-              }}
-              value={searchTerm}
-              onChange={e => setSearchTerm(e.target.value)}
-              onFocus={() => setShowFilterMenu(true)}
-            />
+            <div style={{ position: 'relative' }}>
+              <HiOutlineSearch size={16} style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)', color: '#999' }} />
+              <input
+                placeholder={`Search by ${filterCategory}...`}
+                style={{
+                  padding: '10px 15px 10px 38px',
+                  borderRadius: '25px',
+                  border: '1px solid #ddd',
+                  width: 'min(300px, 60vw)',
+                  outline: 'none',
+                  fontSize: typeScale.body,
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.06)'
+                }}
+                value={searchTerm}
+                onChange={e => setSearchTerm(e.target.value)}
+                onFocus={() => setShowFilterMenu(true)}
+              />
+            </div>
 
             {showFilterMenu && (
               <div
@@ -341,13 +347,13 @@ function InventorySystem() {
                   background: 'white',
                   padding: '15px',
                   borderRadius: '15px',
-                  boxShadow: '0 5px 20px rgba(0,0,0,0.15)',
+                  boxShadow: '0 10px 28px rgba(30,35,25,0.16)',
                   zIndex: 50,
-                  width: '400px',
+                  width: 'min(400px, 85vw)',
                   border: '1px solid #eee'
                 }}
               >
-                <p style={{ margin: '0 0 10px 0', fontSize: '12px', fontWeight: 'bold', color: '#888', textTransform: 'uppercase' }}>
+                <p style={{ margin: '0 0 10px 0', fontSize: typeScale.micro, fontWeight: 'bold', color: '#888', textTransform: 'uppercase' }}>
                   Filter by Category
                 </p>
 
@@ -370,6 +376,7 @@ function InventorySystem() {
           </div>
 
           <button
+            className="btn-animated"
             style={{ ...styles.btnStyle, background: styles.colors.blue }}
             onClick={() => setModals(prev => ({ ...prev, add: true }))}
           >
@@ -378,11 +385,12 @@ function InventorySystem() {
         </div>
 
         <div
+          className="fade-in-card"
           style={{
             flex: 1,
             background: 'white',
-            borderRadius: '15px',
-            boxShadow: '0 4px 10px rgba(0,0,0,0.1)',
+            borderRadius: '16px',
+            boxShadow: '0 4px 16px rgba(0,0,0,0.08)',
             overflow: 'hidden',
             display: 'flex',
             flexDirection: 'column'
@@ -424,8 +432,8 @@ function InventorySystem() {
 
       {modals.stockIn && (
         <div style={styles.modalOverlay}>
-          <div style={styles.modalContent}>
-            <h2 style={{ color: styles.colors.darkGreen, marginTop: 0 }}>
+          <div className="fade-in-card" style={styles.modalContent}>
+            <h2 style={{ color: styles.colors.darkGreen, marginTop: 0, fontSize: typeScale.h2 }}>
               Stock In: {formData.ItemName}
             </h2>
 

@@ -23,9 +23,6 @@ function Login() {
   if (loginType === 'pos') pageTitle = "POS System Login"
   if (loginType === 'personal') pageTitle = "Employee Personal Login"
 
-  // 3. Define Admin Roles
-  const ADMIN_ROLES = ['HR Admin', 'Inventory Admin', 'Sales Admin']
-
   const showNotification = (message, type = 'success') => {
     setNotification({ message, type })
   }
@@ -76,7 +73,7 @@ function Login() {
     // C1. Check if Employee is Archived/Inactive
     const { data: employeeData, error: employeeError } = await supabase
       .from('Employee')
-      .select('EmployeeStatus')
+      .select('EmployeeID, EmployeeStatus') // <-- UPDATED THIS LINE: Added EmployeeID
       .eq('UserID', userId)
       .maybeSingle()
 
@@ -93,29 +90,29 @@ function Login() {
       return
     }
 
-    const isAdmin = ADMIN_ROLES.includes(userData.RoleName)
+    // --- NEW: Unhide from Quick Login ---
+    // If they successfully logged in with email, remove their ID from the hidden list!
+    if (employeeData) {
+      const hidden = JSON.parse(localStorage.getItem('wm_hidden_profiles')) || []
+      const updatedHidden = hidden.filter(id => id !== employeeData.EmployeeID)
+      localStorage.setItem('wm_hidden_profiles', JSON.stringify(updatedHidden))
+    }
+    // ------------------------------------
 
     // D. ROUTING LOGIC (The Traffic Controller)
     
     if (loginType === 'admin') {
         // --- ADMIN BUTTON CLICKED ---
-        // Strictly allow ONLY Admins. Kick out employees.
-        if (isAdmin) {
-            navigate('/admin-menu')
-        } else {
-            await supabase.auth.signOut()
-            showNotification("Access Denied: You are attempting to access the Admin System with an Employee account. Please use the 'Personal' or 'POS' option.", 'error')
-        }
+        // Let all active employees through to the menu. 
+        // We will lock the specific HR tab inside the Sidebar component instead!
+        navigate('/admin-menu')
     } 
     else if (loginType === 'pos') {
         // --- POS BUTTON CLICKED ---
-        // Allow Admins AND Employees (Barista, Cashier, etc)
-        // You can add extra checks here if you want to block specific roles (e.g. 'Janitor')
         navigate('/pos')
     }
     else {
         // --- PERSONAL BUTTON CLICKED (Default) ---
-        // Allow Everyone to see their own profile
         navigate('/personal-view')
     }
     

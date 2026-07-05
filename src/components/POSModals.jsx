@@ -213,7 +213,10 @@ export default function POSModals({ state, actions, ui, PaginationControls }) {
 
                 <div className="no-print-buttons" style={{ marginTop: "20px" }}>
                     {!state.receiptPrinted ? (
-                        <button onClick={actions.handlePrintReceipt} style={{ width: "100%", padding: "12px", background: "#FF6B6B", color: "white", border: "none", borderRadius: "20px", fontWeight: "bold", cursor: "pointer", marginBottom: "10px", display: "flex", alignItems: "center", justifyContent: "center", gap: "8px" }}><LoadingSpinner size={14} color="white" /> Print Receipt</button>
+                        <div style={{ display: "flex", gap: "10px", marginBottom: "10px" }}>
+                            <button onClick={actions.handlePrintReceipt} style={{ flex: 1, padding: "12px", background: "#FF6B6B", color: "white", border: "none", borderRadius: "20px", fontWeight: "bold", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: "8px" }}><LoadingSpinner size={14} color="white" /> Print Receipt</button>
+                            <button onClick={actions.executeCloseReceipt} style={{ flex: 1, padding: "12px", background: "#538D4E", color: "white", border: "none", borderRadius: "20px", fontWeight: "bold", cursor: "pointer" }}>Don't Print, Proceed</button>
+                        </div>
                     ) : (
                         <button onClick={actions.handleCloseReceipt} style={{ width: "100%", padding: "12px", background: "#538D4E", color: "white", border: "none", borderRadius: "20px", fontWeight: "bold", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: "8px" }}>Close & Start New Order</button>
                     )}
@@ -276,7 +279,6 @@ export default function POSModals({ state, actions, ui, PaginationControls }) {
                 <h2 style={{ color: "#333", margin: "0", fontSize: "22px" }}>Close Receipt?</h2>
                 <p style={{ fontSize: "14px", color: "#666", lineHeight: "1.5", margin: "0 0 10px 0" }}>Receipt has not been printed. Close anyway?</p>
                 <div style={{ display: "flex", justifyContent: "center", gap: "15px" }}>
-                    {/* Swapped: Stay is Grey, Close is Green */}
                     <button onClick={() => actions.setShowReceiptWarning(false)} style={{ padding: "10px 20px", background: "#ccc", color: "#333", border: "none", borderRadius: "8px", fontWeight: "bold", cursor: "pointer", fontSize: "14px" }}>No, Stay</button>
                     <button onClick={actions.executeCloseReceipt} style={{ padding: "10px 20px", background: "#6B7C65", color: "white", border: "none", borderRadius: "8px", fontWeight: "bold", cursor: "pointer", fontSize: "14px" }}>Yes, Close</button>
                 </div>
@@ -327,18 +329,40 @@ export default function POSModals({ state, actions, ui, PaginationControls }) {
 
                         <div style={{border: "1px solid #eee", padding: "10px", borderRadius: "8px", background: "#fafafa"}}>
                             <label style={{fontWeight: "bold", fontSize: "13px", color: "#555", display: "block", marginBottom: "5px"}}>Recipe Ingredients</label>
+                            
+                            {/* --- SMART UNIT RECIPE BUILDER ROW --- */}
                             <div style={{ display: "flex", gap: "5px" }}>
-                                <select style={{ flex: 1, padding: "8px", border: state.selectedIngId && state.inventory.find(i => i.InventoryID === parseInt(state.selectedIngId))?.isExpired ? "2px solid red" : "1px solid #ccc", borderRadius: "5px" }} value={state.selectedIngId} onChange={e => actions.setSelectedIngId(e.target.value)}>
+                                <select style={{ flex: 1, padding: "8px", border: state.selectedIngId && state.inventory.find(i => i.InventoryID === parseInt(state.selectedIngId))?.isExpired ? "2px solid red" : "1px solid #ccc", borderRadius: "5px" }} value={state.selectedIngId} onChange={e => { actions.setSelectedIngId(e.target.value); actions.setSelectedRecipeUnit(''); }}>
                                     <option value="">Select Ingredient</option>
-                                    {state.inventory.map(ing => (<option key={ing.InventoryID} value={ing.InventoryID} disabled={ing.isExpired}>{ing.ItemName} {ing.isExpired ? "⚠️ EXPIRED" : ""}</option>))}
+                                    {state.inventory.map(ing => (<option key={ing.InventoryID} value={ing.InventoryID} disabled={ing.isExpired}>{ing.ItemName} {ing.isExpired ? "⚠️ EXPIRED" : `(${ing.UnitMeasurement})`}</option>))}
                                 </select>
+                                
                                 <input type="number" placeholder="Qty" style={{ width: "70px", padding: "8px", borderRadius: "5px", border: "1px solid #ccc", outline: "none" }} value={state.selectedIngAmount} onChange={(e) => actions.setSelectedIngAmount(e.target.value)} />
+                                
+                                <select style={{ width: "70px", padding: "8px", borderRadius: "5px", border: "1px solid #ccc", background: "white" }} value={state.selectedRecipeUnit || (state.selectedIngId ? state.inventory.find(i => i.InventoryID === parseInt(state.selectedIngId))?.UnitMeasurement : "")} onChange={(e) => actions.setSelectedRecipeUnit(e.target.value)}>
+                                    {state.selectedIngId && (() => {
+                                        const baseUnit = state.inventory.find(i => i.InventoryID === parseInt(state.selectedIngId))?.UnitMeasurement;
+                                        if (baseUnit === 'L' || baseUnit === 'ml') {
+                                            return <><option value="ml">ml</option><option value="L">L</option></>;
+                                        } else if (baseUnit === 'kg' || baseUnit === 'g') {
+                                            return <><option value="g">g</option><option value="kg">kg</option></>;
+                                        } else {
+                                            return <option value={baseUnit}>{baseUnit || "unit"}</option>;
+                                        }
+                                    })()}
+                                </select>
+
                                 <button onClick={actions.handleAddIngredientToRecipe} style={{ padding: "8px 15px", background: "#5a6955", color: "white", border: "none", borderRadius: "5px", cursor: "pointer", fontWeight: "bold" }}>+</button>
                             </div>
+                            {/* ----------------------------------- */}
+
                             <div style={{marginTop: "10px", maxHeight: "100px", overflowY: "auto"}}>
                                 {state.newItemRecipe.map((r, idx) => (
                                     <div key={idx} style={{display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "13px", borderBottom: "1px solid #eee", padding: "8px 0"}}>
-                                        <span style={{color: "#333"}}>{r.name} <strong>({r.amount} {r.unit})</strong></span> 
+                                        <span style={{color: "#333"}}>
+                                            {r.name} <strong>({r.displayAmount || r.amount} {r.displayUnit || r.unit})</strong>
+                                            <span style={{fontSize: "11px", color: "#888", display: "block"}}>→ deducts {r.amount} {r.unit} per order</span>
+                                        </span> 
                                         <button className="icon-btn" onClick={() => actions.removeIngredientFromRecipe(idx)} style={{color: "#FF6B6B", border: "none", background: "none", fontSize: "16px"}}><IoClose /></button>
                                     </div>
                                 ))}

@@ -39,7 +39,8 @@ function LandingPage() {
         <div
           className="card-hover"
           style={cardStyle}
-          onClick={() => navigate('/login', { state: { type: 'admin' } })}
+          onClick={() => navigate('/profile-login', { state: { type: 'admin' } })}
+          
         >
           {/* 2. REPLACED EMOJI WITH SVG */}
           <img src={adminIcon} alt="Admin System" style={iconStyle} />
@@ -50,7 +51,7 @@ function LandingPage() {
         <div
           className="card-hover"
           style={cardStyle}
-          onClick={() => navigate('/login', { state: { type: 'personal' } })}
+          onClick={() => navigate('/profile-login', { state: { type: 'personal' } })}
         >
           <img src={personalIcon} alt="Personal View" style={iconStyle} />
           <span>PERSONAL VIEW</span>
@@ -60,7 +61,7 @@ function LandingPage() {
         <div
           className="card-hover"
           style={cardStyle}
-          onClick={() => navigate('/login', { state: { type: 'pos' } })}
+          onClick={() => navigate('/profile-login', { state: { type: 'pos' } })}
         >
           <img src={posIcon} alt="POS System" style={iconStyle} />
           <span>POS SYSTEM</span>

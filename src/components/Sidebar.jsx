@@ -1,35 +1,65 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { colors, type as typeScale } from '../constants/uiStyles';
+import { supabase } from '../supabaseClient';
+import { Notification } from './Notification';
 import logo from '../assets/wm-logo.svg';
 import { HiMenuAlt2 } from 'react-icons/hi';
-import { HiOutlineArchiveBox, HiOutlineBanknotes, HiOutlineUserGroup, HiOutlineArrowRightOnRectangle } from 'react-icons/hi2';
+import { HiOutlineArchiveBox, HiOutlineBanknotes, HiOutlineUserGroup, HiOutlineArrowRightOnRectangle, HiOutlineLockClosed } from 'react-icons/hi2';
 import { IoChevronForward } from 'react-icons/io5';
 
 const NAV_ITEMS = [
   { path: '/inventory-system', label: 'Inventory System', Icon: HiOutlineArchiveBox },
   { path: '/sales-system', label: 'Sales System', Icon: HiOutlineBanknotes },
-  { path: '/hr-system', label: 'Human Resource', Icon: HiOutlineUserGroup },
+  { path: '/hr-system', label: 'Human Resource', Icon: HiOutlineUserGroup, restrictedTo: 'HR Admin' },
 ];
 
 const Sidebar = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const [collapsed, setCollapsed] = useState(false);
+  const [userRole, setUserRole] = useState(null);
+  const [notification, setNotification] = useState({ message: '', type: 'success' });
+
+  useEffect(() => {
+    const fetchRole = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data } = await supabase
+        .from('User')
+        .select('RoleName')
+        .eq('UserID', user.id)
+        .maybeSingle();
+
+      setUserRole(data?.RoleName || null);
+    };
+    fetchRole();
+  }, []);
 
   const isActive = (path) => location.pathname === path;
+  const isLocked = (item) => item.restrictedTo && userRole !== null && userRole !== item.restrictedTo;
 
-  const getLinkStyle = (path) => ({
+  const handleNavClick = (item) => {
+    if (isLocked(item)) {
+      setNotification({ message: 'Only Admins can access the Human Resource page.', type: 'error' });
+      return;
+    }
+    navigate(item.path);
+  };
+
+  const getLinkStyle = (item) => ({
     padding: collapsed ? "12px 0" : "12px 14px",
     fontSize: typeScale.body,
     fontWeight: 600,
     borderRadius: "12px",
     marginBottom: "6px",
     color: "white",
-    cursor: "pointer",
-    background: isActive(path) ? "rgba(255,255,255,0.16)" : "transparent",
-    boxShadow: isActive(path) ? "inset 0 0 0 1px rgba(255,255,255,0.15)" : "none",
-    opacity: isActive(path) ? 1 : 0.72,
+    cursor: isLocked(item) ? "not-allowed" : "pointer",
+    background: isActive(item.path) ? "rgba(255,255,255,0.16)" : "transparent",
+    boxShadow: isActive(item.path) ? "inset 0 0 0 1px rgba(255,255,255,0.15)" : "none",
+    opacity: isLocked(item) ? 0.4 : (isActive(item.path) ? 1 : 0.72),
+    fontStyle: isLocked(item) ? "italic" : "normal",
     display: "flex",
     justifyContent: collapsed ? "center" : "space-between",
     alignItems: "center",
@@ -96,15 +126,15 @@ const Sidebar = () => {
         {NAV_ITEMS.map((item) => (
           <div
             key={item.path}
-            style={getLinkStyle(item.path)}
-            onClick={() => navigate(item.path)}
-            title={collapsed ? item.label : undefined}
+            style={getLinkStyle(item)}
+            onClick={() => handleNavClick(item)}
+            title={collapsed ? (isLocked(item) ? `${item.label} (Admins only)` : item.label) : undefined}
           >
             <span style={{ display: "flex", alignItems: "center", gap: "12px" }}>
               <item.Icon size={19} />
               {!collapsed && item.label}
             </span>
-            {!collapsed && isActive(item.path) && <IoChevronForward size={14} />}
+            {!collapsed && (isLocked(item) ? <HiOutlineLockClosed size={14} /> : (isActive(item.path) && <IoChevronForward size={14} />))}
           </div>
         ))}
       </div>
@@ -131,6 +161,12 @@ const Sidebar = () => {
       >
         <HiOutlineArrowRightOnRectangle size={19} /> {!collapsed && "Log Out"}
       </div>
+
+      <Notification
+        message={notification.message}
+        type={notification.type}
+        onClose={() => setNotification({ message: '', type: 'success' })}
+      />
     </div>
   );
 };

@@ -31,11 +31,11 @@ function AdminMenu() {
         .eq('UserID', user.id)
         .maybeSingle()
 
-      const ALLOWED = ['HR Admin', 'Inventory Admin', 'Sales Admin']
-
-      if (!data || !ALLOWED.includes(data.RoleName)) {
-        showNotification("Access Denied: You are not an Admin.", 'error')
-        setTimeout(() => navigate('/personal-view'), 2000)
+      // We removed the strict 'ALLOWED' array here!
+      // Now, as long as they have a valid user profile, they can stay on this page.
+      // Your Sidebar.jsx will handle locking the specific HR button.
+      if (!data) {
+        navigate('/login')
       } else {
         setLoading(false) 
       }

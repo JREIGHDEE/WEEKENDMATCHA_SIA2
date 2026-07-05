@@ -8,6 +8,7 @@ import SalesSystem from './pages/SalesSystem'
 import SalesReports from './pages/SalesReports' // <--- IMPORT THIS
 import Inventory from './pages/Inventory' 
 import POSSystem from './pages/POSSystem'
+import ProfileLogin from './pages/ProfileLogin' // (Adjust the path if you saved it elsewhere)
 
 function App() {
   return (
@@ -22,6 +23,7 @@ function App() {
         <Route path="/sales-reports" element={<SalesReports />} /> {/* <--- ADD THIS ROUTE */}
         <Route path="/inventory-system" element={<Inventory />} />
         <Route path="/pos" element={<POSSystem />} /> 
+        <Route path="/profile-login" element={<ProfileLogin />} /> {/* <--- ADD THIS ROUTE */}
       </Routes>
     </BrowserRouter>
   )

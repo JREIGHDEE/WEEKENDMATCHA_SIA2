@@ -12,7 +12,7 @@ export function useInventoryData() {
 
     const { data: items, error: itemError } = await supabase
       .from('Inventory')
-      .select('*')
+      .select('*, CreatedByEmployee:CreatedBy(User(FirstName, LastName))')
       .eq('IsArchived', false)
       .order('InventoryID', { ascending: false });
 
@@ -45,13 +45,17 @@ export function useInventoryData() {
 
       const nearestBatch = itemBatches[0];
 
+      const creatorUser = item.CreatedByEmployee?.User;
+      const createdByName = creatorUser?.FirstName || 'Unknown';
+
       return {
         ...item,
         Quantity: totalQuantity,
         UnitPrice: nearestBatch?.UnitPrice || item.UnitPrice || 0,
         StockIn: nearestBatch?.StockInDate || item.StockIn || null,
         Expiry: nearestBatch?.Expiry || item.Expiry || null,
-        Batches: itemBatches
+        Batches: itemBatches,
+        CreatedByName: createdByName
       };
     });
 

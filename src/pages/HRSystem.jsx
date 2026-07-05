@@ -16,7 +16,7 @@ import { useEmployeeForm } from '../hooks/useEmployeeForm'
 import { useModalState } from '../hooks/useModalState'
 import { useNotification } from '../hooks/useNotification'
 import * as employeeService from '../services/employeeService'
-import { ADMIN_ROLES, ALL_ROLES, PAGINATION } from '../constants/appConstants'
+import { ALL_ROLES, PAGINATION } from '../constants/appConstants'
 import { colors, btnStyle, inputStyle, type as typeScale } from '../constants/uiStyles.js'
 
 function HRSystem() {
@@ -47,7 +47,7 @@ function HRSystem() {
   // --- 1. INITIAL LOAD ---
   useEffect(() => { 
     const initializeApp = async () => {
-      const isAuthorized = await employeeService.checkUserSecurity(navigate, ADMIN_ROLES)
+      const isAuthorized = await employeeService.checkUserSecurity(navigate, ['HR Admin'])
       if (!isAuthorized) return
       fetchEmployees() 
     }

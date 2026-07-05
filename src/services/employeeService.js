@@ -211,3 +211,27 @@ export const signUpEmployee = async (email, password, firstName, lastName, role)
 
   return { authData, authError }
 }
+
+// Check if the entered PIN matches the database
+export const verifyPIN = async (userId, enteredPin) => {
+  const { data, error } = await supabase
+    .from('User')
+    .select('PIN')
+    .eq('UserID', userId)
+    .maybeSingle()
+
+  if (error) return { success: false, error }
+  
+  // If the PIN in the database matches what they typed, success!
+  return { success: data?.PIN === enteredPin }
+}
+
+// Save a newly created or changed PIN
+export const saveNewPIN = async (userId, newPin) => {
+  const { data, error } = await supabase
+    .from('User')
+    .update({ PIN: newPin })
+    .eq('UserID', userId)
+
+  return { error }
+}

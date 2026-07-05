@@ -19,6 +19,25 @@ function POSSystem() {
   const [pendingCloseAction, setPendingCloseAction] = useState(null)
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
 
+  // --- NEW: LONG PRESS TO DRAG LOGIC ---
+  const [longPressTimer, setLongPressTimer] = useState(null)
+  const [draggableItemId, setDraggableItemId] = useState(null)
+
+  const handlePointerDown = (item) => {
+    // Start a 500ms timer when they touch the item
+    const timer = setTimeout(() => {
+      setDraggableItemId(item.id)
+      // Small vibration if the tablet supports it so they feel it unlock
+      if (navigator.vibrate) navigator.vibrate(50) 
+    }, 500)
+    setLongPressTimer(timer)
+  }
+
+  const clearLongPress = () => {
+    if (longPressTimer) clearTimeout(longPressTimer)
+  }
+  // -------------------------------------
+
   const handleCancelClick = (action) => {
     setPendingCloseAction(() => action)
     setShowCancelConfirm(true)
@@ -156,9 +175,54 @@ function POSSystem() {
                     </div>
                     <div className="responsive-grid-tight" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(150px, 1fr))", gap: "18px", overflowY: "auto", paddingRight: "5px" }}>
                         {state.menu.filter(i => i.name.toLowerCase().includes(state.searchQuery.toLowerCase())).map(item => (
-                            <div key={item.id} className="card-hover" onClick={() => actions.handleItemClick(item)} style={{ border: "1px solid #e7e7e7", borderRadius: "14px", padding: "15px", textAlign: "center", cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", background: "white", boxShadow: "0 2px 8px rgba(0,0,0,0.06)" }}>
+                            <div 
+                                key={item.id} 
+                                className="card-hover" 
+                                
+                                // --- DRAG & DROP ATTRIBUTES START HERE ---
+                                draggable={draggableItemId === item.id}
+                                onPointerDown={() => handlePointerDown(item)}
+                                onPointerUp={clearLongPress}
+                                onPointerLeave={clearLongPress}
+                                onDragStart={(e) => actions.handleDragStart(e, item)}
+                                onDragOver={actions.handleDragOver}
+                                onDrop={(e) => {
+                                    actions.handleDrop(e, item)
+                                    setDraggableItemId(null)
+                                }}
+                                onDragEnd={() => setDraggableItemId(null)}
+                                onClick={() => {
+                                  // Prevents triggering a cart-add if they were just finishing a drag
+                                  if (draggableItemId !== item.id) {
+                                     actions.handleItemClick(item)
+                                  }
+                                  clearLongPress()
+                                }}
+                                // ------------------------------------------
+                                
+                                style={{ 
+                                  border: "1px solid #e7e7e7", 
+                                  borderRadius: "14px", 
+                                  padding: "15px", 
+                                  textAlign: "center", 
+                                  display: "flex", 
+                                  flexDirection: "column", 
+                                  alignItems: "center", 
+                                  background: "white", 
+                                  
+                                  // --- DYNAMIC STYLES FOR DRAG EFFECTS ---
+                                  opacity: state.draggedItem?.id === item.id ? 0.4 : 1,
+                                  transform: draggableItemId === item.id ? 'scale(1.05)' : 'scale(1)',
+                                  boxShadow: draggableItemId === item.id ? '0 10px 20px rgba(0,0,0,0.2)' : "0 2px 8px rgba(0,0,0,0.06)",
+                                  transition: "transform 0.2s, box-shadow 0.2s, opacity 0.2s",
+                                  cursor: draggableItemId === item.id ? "grab" : "pointer",
+                                  userSelect: "none", // Critical for mobile to prevent text highlighting
+                                  WebkitUserSelect: "none"
+                                  // ---------------------------------------
+                                }}
+                            >
                                 <div style={{ width: "100px", height: "100px", marginBottom: "15px", overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center", position: "relative" }}>
-                                    {item.img ? <img src={item.img} alt={item.name} style={{ width: "100%", height: "100%", objectFit: "contain" }} /> : <GiTeapotLeaves size={50} color="#8ba384" />}
+                                    {item.img ? <img src={item.img} alt={item.name} style={{ width: "100%", height: "100%", objectFit: "contain", pointerEvents: "none" }} /> : <GiTeapotLeaves size={50} color="#8ba384" style={{pointerEvents: "none"}} />}
                                     <div style={{position: "absolute", bottom: 0, right: 0, background: item.category === 'Powder' ? '#5a6955' : '#E5C546', color: 'white', fontSize: typeScale.micro, padding: "2px 5px", borderRadius: "5px"}}>{item.category}</div>
                                 </div>
                                 <div style={{ fontSize: typeScale.body, fontWeight: "bold", color: "#333", marginBottom: "5px", minHeight: "35px", display: "flex", alignItems: "center", justifyContent: "center" }}>{item.name}</div>
@@ -241,7 +305,6 @@ function POSSystem() {
       </div>{/* SWITCH PROFILE MODAL */}
       {state.showSwitchProfileModal && (
         <div style={uiStyles.modalOverlay}>
-            {/* Embedded CSS for smooth hover and click animations */}
             <style>
                 {`
                 .profile-switch-card {

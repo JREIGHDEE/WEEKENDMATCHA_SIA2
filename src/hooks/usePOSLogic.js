@@ -10,6 +10,7 @@ export function usePOSLogic() {
   const [menu, setMenu] = useState([])
   const [loadingMenu, setLoadingMenu] = useState(true)
   const [selectedIngAmount, setSelectedIngAmount] = useState('')
+  const [selectedRecipeUnit, setSelectedRecipeUnit] = useState('')
   const [inventory, setInventory] = useState([])
   const [cart, setCart] = useState([])
   const [searchQuery, setSearchQuery] = useState('')
@@ -72,6 +73,9 @@ export function usePOSLogic() {
   const [itemToDelete, setItemToDelete] = useState(null)
   const [showReceiptWarning, setShowReceiptWarning] = useState(false)
 
+  // --- NEW: DRAG AND DROP STATE ---
+  const [draggedItem, setDraggedItem] = useState(null)
+
   useEffect(() => {
     async function fetchData() {
       const { data: { user } } = await supabase.auth.getUser()
@@ -88,7 +92,6 @@ export function usePOSLogic() {
 
       setCurrentUser(userData)
 
-  // --- NEW: SYNC ATTENDANCE ON LOAD ---
       if (userData?.EmployeeID) {
         try {
           const { getEmployeeAttendanceStatus } = await import('../services/personalService')
@@ -99,7 +102,6 @@ export function usePOSLogic() {
           console.error("Failed to sync attendance:", err)
         }
       }
-      // ------------------------------------
 
       await fetchInventory()
       await fetchMenu()
@@ -177,9 +179,53 @@ export function usePOSLogic() {
       recipe: recipeMap[item.ProductID] || []
     }))
 
+    // --- NEW: LOAD CUSTOM DRAG & DROP ORDER FROM LOCAL STORAGE ---
+    const savedOrder = JSON.parse(localStorage.getItem('wm_menu_order') || '[]')
+    if (savedOrder.length > 0) {
+      formattedMenu.sort((a, b) => {
+        const indexA = savedOrder.indexOf(a.id)
+        const indexB = savedOrder.indexOf(b.id)
+        if (indexA === -1) return 1
+        if (indexB === -1) return -1
+        return indexA - indexB
+      })
+    }
+
     setMenu(formattedMenu)
     setLoadingMenu(false)
   }
+
+  // --- NEW: DRAG AND DROP HANDLERS ---
+  const handleDragStart = (e, item) => {
+    setDraggedItem(item)
+  }
+
+  const handleDragOver = (e) => {
+    e.preventDefault() // Required to allow dropping
+  }
+
+  const handleDrop = (e, targetItem) => {
+    e.preventDefault()
+    if (!draggedItem || draggedItem.id === targetItem.id) return
+
+    setMenu(prevMenu => {
+      const newMenu = [...prevMenu]
+      const draggedIdx = newMenu.findIndex(i => i.id === draggedItem.id)
+      const targetIdx = newMenu.findIndex(i => i.id === targetItem.id)
+
+      // Move the item in the array
+      newMenu.splice(draggedIdx, 1)
+      newMenu.splice(targetIdx, 0, draggedItem)
+
+      // Save the new custom order to local storage
+      const newOrderIds = newMenu.map(i => i.id)
+      localStorage.setItem('wm_menu_order', JSON.stringify(newOrderIds))
+
+      return newMenu
+    })
+    setDraggedItem(null)
+  }
+  // ------------------------------------
 
   async function fetchInventory() {
     const { data: items, error: itemError } = await supabase
@@ -737,27 +783,35 @@ export function usePOSLogic() {
   }
 
   const handleAddIngredientToRecipe = () => {
-    if (!selectedIngId) {
-      return setNotification({ message: 'Please select an ingredient.', type: 'error' })
-    }
-
-    if (!selectedIngAmount || parseFloat(selectedIngAmount) <= 0) {
-      return setNotification({ message: 'Please enter a valid quantity.', type: 'error' })
-    }
+    if (!selectedIngId) return setNotification({ message: 'Please select an ingredient.', type: 'error' })
+    if (!selectedIngAmount || parseFloat(selectedIngAmount) <= 0) return setNotification({ message: 'Please enter a valid quantity.', type: 'error' })
 
     const ing = inventory.find(i => i.InventoryID === parseInt(selectedIngId))
     if (ing) {
+      let finalAmount = parseFloat(selectedIngAmount);
+      const baseUnit = ing.UnitMeasurement;
+      const recipeUnit = selectedRecipeUnit || baseUnit;
+
+      // SMART CONVERSION:
+      if (baseUnit === 'L' && recipeUnit === 'ml') finalAmount = finalAmount / 1000;
+      else if (baseUnit === 'ml' && recipeUnit === 'L') finalAmount = finalAmount * 1000;
+      else if (baseUnit === 'kg' && recipeUnit === 'g') finalAmount = finalAmount / 1000;
+      else if (baseUnit === 'g' && recipeUnit === 'kg') finalAmount = finalAmount * 1000;
+
       setNewItemRecipe([
         ...newItemRecipe,
         {
           id: ing.InventoryID,
           name: ing.ItemName,
-          unit: ing.UnitMeasurement,
-          amount: parseFloat(selectedIngAmount)
+          unit: baseUnit, // Always store as the base unit to deduct properly in the database
+          displayAmount: parseFloat(selectedIngAmount),
+          displayUnit: recipeUnit,
+          amount: finalAmount // The true deducted amount
         }
       ])
       setSelectedIngId('')
       setSelectedIngAmount('')
+      setSelectedRecipeUnit('') // Reset the dropdown
     }
   }
 
@@ -912,7 +966,6 @@ export function usePOSLogic() {
   }
 
   const handleOpenSwitchProfile = async () => {
-    // Fetch all active employees so they can be selected
     const { data, error } = await supabase
       .from('Employee')
       .select('EmployeeID, EmployeeStatus, User(FirstName, LastName, RoleName)')
@@ -925,11 +978,9 @@ export function usePOSLogic() {
   }
 
   const handleSwitchProfile = async (employee) => {
-    // 1. Instantly swap the user details & close modal
     setCurrentUser(employee)
     setShowSwitchProfileModal(false)
 
-    // 2. Fetch the new employee's specific attendance status!
     try {
       const { getEmployeeAttendanceStatus } = await import('../services/personalService')
       const status = await getEmployeeAttendanceStatus(employee.EmployeeID)
@@ -1077,8 +1128,7 @@ export function usePOSLogic() {
       newItemName, newItemPrice, newItemCategory, newItemFile, previewUrl,
       fileInputRef, newItemRecipe, selectedIngId, notification, orderPage,
       recentPage, ordersPerPage, recentPerPage, discountId, showSwitchProfileModal, 
-      availableEmployees,
-
+      availableEmployees, selectedRecipeUnit,
       paymentMethod, referenceNumber, customPaymentMethod,
 
       showPOSPINModal, showPOSTimeInOutOptions, posPin, posPINLoading,
@@ -1086,7 +1136,9 @@ export function usePOSLogic() {
 
       showDeleteConfirm,
       itemToDelete,
-      showReceiptWarning
+      showReceiptWarning,
+
+      draggedItem // Exporting the newly added drag state
     },
     actions: {
       setActiveTab, handleItemClick, confirmAddToCart, increaseQty, decreaseQty,
@@ -1105,14 +1157,16 @@ export function usePOSLogic() {
 
       setPaymentMethod, setReferenceNumber, setCustomPaymentMethod, setShowSwitchProfileModal, 
       handleOpenSwitchProfile,   
-      handleSwitchProfile,
+      handleSwitchProfile, setSelectedRecipeUnit,
 
       handleOpenPOSTimeInOut, handleSelectTimeInOutMode, handleConfirmPOSPIN,
       closePOSPINModal, setPosPin,
 
       executeCloseReceipt,
       setShowDeleteConfirm,
-      setShowReceiptWarning
+      setShowReceiptWarning,
+
+      handleDragStart, handleDrop, handleDragOver // Exporting the drag handlers
     },
     ui: { colors, uiStyles, paginate },
     navigate

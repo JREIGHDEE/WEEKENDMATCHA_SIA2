@@ -37,8 +37,8 @@ export const usePersonal = () => {
       const shiftEnd = new Date()
       shiftEnd.setHours(parsed.endHour, parsed.endMinute, 0, 0)
       
-      // If shift ended more than 1 minute ago, mark as Incomplete
-      if (now > shiftEnd && (now - shiftEnd) > 60000) {
+      // If shift ended more than 1 hour ago, mark as Incomplete
+      if (now > shiftEnd && (now - shiftEnd) > 3600000) {
         await supabase
           .from('Attendance')
           .update({ status: 'Incomplete' })

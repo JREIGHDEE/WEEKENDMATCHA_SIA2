@@ -242,7 +242,7 @@ function POSSystem() {
                                     <div style={{ fontWeight: "bold", fontSize: typeScale.body, color: "#333" }}>{item.name}</div>
                                     <div style={{ fontSize: typeScale.small, color: colors.blueText, fontWeight: "bold" }}>{item.sweetness}</div>
                                     <div style={{ fontSize: typeScale.small, color: "#999" }}>{item.qty} x ₱{item.price}</div>
-                                    {item.category === 'Powder' && (
+                                    {(item.category === 'Powder' || item.category === 'Add-on') && (
                                         <label style={{ fontSize: typeScale.small, color: "#5a6955", fontWeight: "bold", display: "flex", alignItems: "center", gap: "4px", marginTop: "4px", cursor: "pointer" }}>
                                             <input type="checkbox" checked={!!item.isSeniorPwdDiscounted} onChange={() => actions.toggleItemDiscount(item.uniqueKey)} />
                                             SC/PWD Discount

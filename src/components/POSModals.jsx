@@ -69,7 +69,7 @@ export default function POSModals({ state, actions, ui, PaginationControls }) {
                         <span style={{ color: actions.hasDiscountedItems() ? "red" : "black", fontSize: "18px" }}>₱{actions.getFinalTotal().toFixed(2)}</span>
                     </div>
                     <div style={{ marginTop: "5px", fontSize: "12px", fontStyle: "italic", color: "#777" }}>
-                        Senior Citizen/PWD discount (20%) is applied per item — check the box next to each item in the cart.
+                        Senior Citizen/PWD discount (10%) is applied per item — check the box next to each item in the cart.
                     </div>
                     {actions.hasDiscountedItems() && (
                         <div style={{ marginTop: "10px", padding: "10px", background: "#f9f9f9", borderRadius: "8px", border: "1px dashed #ccc" }}>
@@ -187,7 +187,7 @@ export default function POSModals({ state, actions, ui, PaginationControls }) {
                   {actions.hasDiscountedItems() && (
                         <>
                             <div style={{display:"flex", justifyContent:"space-between", color: colors.discountRed, fontStyle:"italic", marginBottom:"2px", fontWeight: "bold"}}>
-                                <span>Discount Applied (20%)</span>
+                                <span>Discount Applied (10%)</span>
                                 <span>-₱{actions.getDiscountAmount().toFixed(2)}</span>
                             </div>
                             <div style={{display:"flex", justifyContent:"space-between", color: "#000000", fontSize: "12px", marginBottom:"5px", fontWeight: "bold"}}>

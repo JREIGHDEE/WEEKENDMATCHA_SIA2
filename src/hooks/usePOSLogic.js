@@ -404,7 +404,7 @@ export function usePOSLogic() {
     const cartItem = {
       ...item,
       sweetness: 'N/A',
-      uniqueKey: `${item.id}-Standard`
+      uniqueKey: `${item.id}-Standard-Regular`
     }
 
     if (!canAddToCart(cartItem)) return
@@ -417,7 +417,7 @@ export function usePOSLogic() {
     const cartItem = {
       ...selectedItemForOptions,
       sweetness: selectedSweetness,
-      uniqueKey: `${selectedItemForOptions.id}-${selectedSweetness}`
+      uniqueKey: `${selectedItemForOptions.id}-${selectedSweetness}-Regular`
     }
 
     if (!canAddToCart(cartItem)) return
@@ -442,13 +442,32 @@ export function usePOSLogic() {
   }
 
   const toggleItemDiscount = (uniqueKey) => {
-    setCart(prev =>
-      prev.map(i =>
+    setCart(prev => {
+      const item = prev.find(i => i.uniqueKey === uniqueKey)
+      if (!item) return prev
+
+      const newDiscounted = !item.isSeniorPwdDiscounted
+      const baseKey = uniqueKey.replace(/-(Regular|PWD)$/, '')
+      const newUniqueKey = `${baseKey}-${newDiscounted ? 'PWD' : 'Regular'}`
+
+      const targetIndex = prev.findIndex(i => i.uniqueKey === newUniqueKey)
+
+      if (targetIndex !== -1) {
+        // Merge into the existing line with the same discount status
+        return prev
+          .map((i, idx) =>
+            idx === targetIndex ? { ...i, qty: i.qty + item.qty } : i
+          )
+          .filter(i => i.uniqueKey !== uniqueKey)
+      }
+
+      // No matching line yet — just flip this line's key/flag in place
+      return prev.map(i =>
         i.uniqueKey === uniqueKey
-          ? { ...i, isSeniorPwdDiscounted: !i.isSeniorPwdDiscounted }
+          ? { ...i, uniqueKey: newUniqueKey, isSeniorPwdDiscounted: newDiscounted }
           : i
       )
-    )
+    })
   }
 
   const increaseQty = (uniqueKey) => {
@@ -479,7 +498,7 @@ export function usePOSLogic() {
 
   const getSubtotal = () => cart.reduce((total, item) => total + (item.price * item.qty), 0)
   const hasDiscountedItems = () => cart.some(item => item.isSeniorPwdDiscounted)
-  const getDiscountAmount = () => cart.reduce((total, item) => item.isSeniorPwdDiscounted ? total + (item.price * item.qty * 0.20) : total, 0)
+  const getDiscountAmount = () => cart.reduce((total, item) => item.isSeniorPwdDiscounted ? total + (item.price * item.qty * 0.10) : total, 0)
   const getFinalTotal = () => getSubtotal() - getDiscountAmount()
   const getChange = () => (parseFloat(cashReceived) || 0) - getFinalTotal()
 

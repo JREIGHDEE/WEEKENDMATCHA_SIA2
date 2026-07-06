@@ -391,7 +391,7 @@ export function usePOSLogic() {
   }
 
   const handleItemClick = (item) => {
-    if (item.category === 'Powder') {
+    if (item.category === 'Powder' || item.category === 'Add-on') {
       directAddToCart(item)
     } else {
       setSelectedItemForOptions(item)

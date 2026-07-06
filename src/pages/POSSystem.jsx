@@ -242,18 +242,29 @@ function POSSystem() {
                                     <div style={{ fontWeight: "bold", fontSize: typeScale.body, color: "#333" }}>{item.name}</div>
                                     <div style={{ fontSize: typeScale.small, color: colors.blueText, fontWeight: "bold" }}>{item.sweetness}</div>
                                     <div style={{ fontSize: typeScale.small, color: "#999" }}>{item.qty} x ₱{item.price}</div>
-                                    <label style={{ fontSize: typeScale.small, color: "#5a6955", fontWeight: "bold", display: "flex", alignItems: "center", gap: "4px", marginTop: "4px", cursor: "pointer" }}>
-                                        <input type="checkbox" checked={!!item.isSeniorPwdDiscounted} onChange={() => actions.toggleItemDiscount(item.uniqueKey)} />
-                                        SC/PWD Discount
-                                    </label>
+                                    {item.category === 'Powder' && (
+                                        <label style={{ fontSize: typeScale.small, color: "#5a6955", fontWeight: "bold", display: "flex", alignItems: "center", gap: "4px", marginTop: "4px", cursor: "pointer" }}>
+                                            <input type="checkbox" checked={!!item.isSeniorPwdDiscounted} onChange={() => actions.toggleItemDiscount(item.uniqueKey)} />
+                                            SC/PWD Discount
+                                        </label>
+                                    )}
                                 </div>
                                 <div style={{ display: "flex", alignItems: "center", gap: "10px" }}><button className="icon-btn" onClick={() => actions.decreaseQty(item.uniqueKey)} style={{ width: "26px", height: "26px", borderRadius: "50%", border: "1px solid #333", background: "white", fontWeight: "bold" }}>-</button><span style={{ fontWeight: "bold", fontSize: typeScale.body }}>{item.qty}</span><button className="icon-btn" onClick={() => actions.increaseQty(item.uniqueKey)} style={{ width: "26px", height: "26px", borderRadius: "50%", border: "1px solid #333", background: "white", fontWeight: "bold" }}>+</button></div>
-                                <div style={{ width: "25%", textAlign: "right", fontWeight: "bold", fontSize: typeScale.body }}>₱{(item.price * item.qty).toFixed(2)}</div>
+                                <div style={{ width: "25%", textAlign: "right", fontWeight: "bold", fontSize: typeScale.body }}>
+                                    {item.isSeniorPwdDiscounted ? (
+                                        <>
+                                            <div style={{ textDecoration: "line-through", color: "#ccc", fontSize: typeScale.small }}>₱{(item.price * item.qty).toFixed(2)}</div>
+                                            <div style={{ color: "red" }}>₱{(item.price * item.qty * 0.9).toFixed(2)}</div>
+                                        </>
+                                    ) : (
+                                        `₱${(item.price * item.qty).toFixed(2)}`
+                                    )}
+                                </div>
                             </div>
                         ))}
                     </div>
                     <div style={{ borderTop: "1px solid #eee", paddingTop: "20px" }}>
-                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "25px" }}><h3 style={{ margin: 0, color: "#888", fontSize: typeScale.h3 }}>TOTAL</h3><h2 style={{ margin: 0, color: "#888", fontSize: typeScale.stat }}>₱{actions.getSubtotal().toFixed(2)}</h2></div>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "25px" }}><h3 style={{ margin: 0, color: "#888", fontSize: typeScale.h3 }}>TOTAL</h3><h2 style={{ margin: 0, color: "#888", fontSize: typeScale.stat }}>₱{actions.getFinalTotal().toFixed(2)}</h2></div>
                         <button className="btn-animated" onClick={actions.handleOpenPayment} disabled={state.cart.length === 0 || state.loading} style={{ width: "100%", padding: "15px", background: state.cart.length === 0 || state.loading ? "#ccc" : colors.darkBtn, color: "white", border: "none", borderRadius: "10px", fontWeight: "bold", cursor: state.cart.length === 0 || state.loading ? "default" : "pointer", marginBottom: "10px", fontSize: typeScale.body, display: "flex", alignItems: "center", justifyContent: "center", gap: "8px" }}>
                           {state.loading ? <LoadingSpinner size={14} color="white" /> : null}
                           {state.loading ? 'Processing...' : 'Process Payment'}

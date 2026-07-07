@@ -1,5 +1,21 @@
 import { supabase } from '../supabaseClient'
 
+// All attendance date/time logic is pinned to Philippine time (Asia/Manila,
+// UTC+8) regardless of the device's local clock/timezone, so time in/out and
+// day-rollover behave consistently no matter where the app is opened from.
+const MANILA_TZ = 'Asia/Manila'
+
+export const getManilaDateStr = (date = new Date()) =>
+  date.toLocaleDateString('en-CA', { timeZone: MANILA_TZ })
+
+// Builds the absolute UTC instant for a given Manila-local calendar date
+// (YYYY-MM-DD) and hour/minute. Manila has a fixed UTC+8 offset (no DST),
+// so this is a simple, reliable conversion.
+export const buildManilaDateTime = (manilaDateStr, hour, minute) => {
+  const [year, month, day] = manilaDateStr.split('-').map(Number)
+  return new Date(Date.UTC(year, month - 1, day, hour - 8, minute))
+}
+
 export const fetchUserAndEmployee = async () => {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { user: null }
@@ -16,7 +32,7 @@ export const fetchAttendance = async (empId) => {
 }
 
 export const timeIn = async (employeeId) => {
-  const todayStr = new Date().toLocaleDateString('en-CA')
+  const todayStr = getManilaDateStr()
   
   // Check if already timed in today
   const { data: existingRecord } = await supabase
@@ -182,7 +198,7 @@ export const timeInWithPIN = async (employeeId, isActive = true) => {
       return { success: false, error: 'Inactive employees cannot time in', timeInCreated: false };
     }
     
-    const todayStr = new Date().toLocaleDateString('en-CA')
+    const todayStr = getManilaDateStr()
     
     // Check if already timed in today
     const { data: existingRecord, error: checkError } = await supabase
@@ -229,7 +245,7 @@ export const timeOutWithPIN = async (employeeId) => {
       return { success: false, error: 'Inactive employees cannot time out', timeOutCreated: false };
     }
     
-    const todayStr = new Date().toLocaleDateString('en-CA')
+    const todayStr = getManilaDateStr()
     
     // Find today's attendance record
     const { data: record, error: checkError } = await supabase
@@ -298,23 +314,45 @@ export const updateIncompleteAttendanceTimeOut = async (attendanceId, timeOut) =
  */
 export const getEmployeeAttendanceStatus = async (employeeId) => {
   try {
-    const todayStr = new Date().toLocaleDateString('en-CA')
+    const todayStr = getManilaDateStr()
     const { data: todayRecord, error } = await supabase
       .from('Attendance')
       .select('AttendanceID, TimeIn, TimeOut')
       .eq('EmployeeID', employeeId)
       .eq('Date', todayStr)
       .maybeSingle()
-    
+
     if (error) throw error;
-    
+
+    // If today has no active (still-timed-in) record, check yesterday too —
+    // handles overnight shifts (e.g. 5PM-1AM) where the shift is still active
+    // after the calendar date has already rolled over past midnight.
+    let activeRecord = todayRecord
+    if (!activeRecord?.TimeIn || activeRecord?.TimeOut) {
+      const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000)
+      const yesterdayStr = getManilaDateStr(yesterday)
+
+      const { data: yesterdayRecord, error: yError } = await supabase
+        .from('Attendance')
+        .select('AttendanceID, TimeIn, TimeOut')
+        .eq('EmployeeID', employeeId)
+        .eq('Date', yesterdayStr)
+        .maybeSingle()
+
+      if (yError) throw yError;
+
+      if (yesterdayRecord?.TimeIn && !yesterdayRecord?.TimeOut) {
+        activeRecord = yesterdayRecord
+      }
+    }
+
     // Employee is timed in if they have a record with TimeIn but no TimeOut
-    const isTimedIn = !!todayRecord?.TimeIn && !todayRecord?.TimeOut
-    
+    const isTimedIn = !!activeRecord?.TimeIn && !activeRecord?.TimeOut
+
     return {
       isTimedIn,
-      activeAttendanceId: isTimedIn ? todayRecord.AttendanceID : null,
-      lastTimeIn: todayRecord?.TimeIn || null,
+      activeAttendanceId: isTimedIn ? activeRecord.AttendanceID : null,
+      lastTimeIn: activeRecord?.TimeIn || null,
       todayDate: todayStr
     }
   } catch (err) {
@@ -322,7 +360,7 @@ export const getEmployeeAttendanceStatus = async (employeeId) => {
       isTimedIn: false,
       activeAttendanceId: null,
       lastTimeIn: null,
-      todayDate: new Date().toLocaleDateString('en-CA')
+      todayDate: getManilaDateStr()
     }
   }
 };
@@ -334,7 +372,7 @@ export const getEmployeeAttendanceStatus = async (employeeId) => {
  */
 export const markIncompleteAttendance = async (employeeId) => {
   try {
-    const todayStr = new Date().toLocaleDateString('en-CA')
+    const todayStr = getManilaDateStr()
     
     // Find records from previous days with TimeIn but no TimeOut
     const { data: incompleteRecords, error: fetchError } = await supabase

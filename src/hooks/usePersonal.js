@@ -32,11 +32,22 @@ export const usePersonal = () => {
       
       const parsed = personalService.parseShiftEndTime(empData.ShiftSchedule)
       if (!parsed) return
-      
+
       const now = new Date()
-      const shiftEnd = new Date()
-      shiftEnd.setHours(parsed.endHour, parsed.endMinute, 0, 0)
-      
+      // Base the shift-end date on the actual TimeIn date (in Manila time),
+      // not "today" — otherwise an overnight shift (e.g. 5PM-1AM) miscalculates
+      // once the calendar date has already rolled over past midnight.
+      const timeInDate = status.lastTimeIn ? new Date(status.lastTimeIn) : now
+      const timeInManilaDateStr = personalService.getManilaDateStr(timeInDate)
+      let shiftEnd = personalService.buildManilaDateTime(timeInManilaDateStr, parsed.endHour, parsed.endMinute)
+
+      // If the parsed end time is earlier in the day than the time-in, the
+      // shift crosses midnight, so the end time actually falls on the next day.
+      if (shiftEnd <= timeInDate) {
+        const nextDay = new Date(shiftEnd.getTime() + 24 * 60 * 60 * 1000)
+        shiftEnd = personalService.buildManilaDateTime(personalService.getManilaDateStr(nextDay), parsed.endHour, parsed.endMinute)
+      }
+
       // If shift ended more than 1 hour ago, mark as Incomplete
       if (now > shiftEnd && (now - shiftEnd) > 3600000) {
         await supabase
@@ -86,7 +97,7 @@ export const usePersonal = () => {
     
     const { data } = await personalService.fetchAttendance(empData.EmployeeID)
     setAttendanceLogs(data || [])
-    const todayStr = new Date().toLocaleDateString('en-CA')
+    const todayStr = personalService.getManilaDateStr()
     const todayLog = (data || []).find(l => l.Date === todayStr)
     setTodayRecord(todayLog || null)
     
@@ -99,7 +110,7 @@ export const usePersonal = () => {
   const refreshAttendance = useCallback(async (empId) => {
     const { data } = await personalService.fetchAttendance(empId)
     setAttendanceLogs(data || [])
-    const todayStr = new Date().toLocaleDateString('en-CA')
+    const todayStr = personalService.getManilaDateStr()
     const todayLog = (data || []).find(l => l.Date === todayStr)
     setTodayRecord(todayLog || null)
   }, [])

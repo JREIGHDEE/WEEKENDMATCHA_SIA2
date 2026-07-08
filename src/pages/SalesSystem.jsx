@@ -1,235 +1,284 @@
 import { useEffect, useState, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { supabase } from '../supabaseClient'
+import { supabase, supabaseSales } from '../supabaseClient' // <-- IMPORTED SECOND DB
 import { Notification } from '../components/Notification'
-import CancelConfirmationModal from '../components/CancelConfirmationModal'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
-import ArchiveModal from '../components/ArchiveModal'
 import Sidebar from '../components/Sidebar'
+import LoadingSpinner from '../components/LoadingSpinner'
 
-// --- IMPORTED SEPARATED FILES ---
-import { PaginationControls } from '../components/PaginationControls'
-import { paginate } from '../utils/helpers'
 import {
-    colors, btnStyle, cardStyle, inputStyle, formInput,
-    modalOverlay, modalContent, confirmOverlay, confirmContent, type
+    colors, btnStyle, cardStyle, inputStyle, formInput
 } from '../styles/SalesStyles'
 
 function SalesSystem() {
   const navigate = useNavigate()
 
-  // --- STATE ---
-  const [transactions, setTransactions] = useState([]) 
+  // --- STANDARD POS STATE (For Top Charts) ---
   const [orders, setOrders] = useState([]) 
-  const [filteredTransactions, setFilteredTransactions] = useState([])
-  const [selectedId, setSelectedId] = useState(null)
-  const [loading, setLoading] = useState(true)
-  
-  // Metrics 
+  const [financialRecords, setFinancialRecords] = useState([])
   const [metrics, setMetrics] = useState({ todaySales: 0, monthlySales: 0, totalProfit: 0, totalDiscounts: 0 })
   const [filteredMetrics, setFilteredMetrics] = useState({ totalSales: 0, totalProfit: 0, totalDiscounts: 0, totalOrders: 0 })
   const [chartData, setChartData] = useState([])
   const [paymentModeBreakdown, setPaymentModeBreakdown] = useState({})
 
-  // Date Filters 
+  // Date Filters (For Charts)
   const [dateFrom, setDateFrom] = useState(new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0]) 
   const [dateTo, setDateTo] = useState(new Date().toISOString().split('T')[0])
-  const [timeFrom, setTimeFrom] = useState('00:00') // NEW
-  const [timeTo, setTimeTo] = useState('23:59')     // NEW
-
-  // Search & Filter
-  const [searchTerm, setSearchTerm] = useState('')
-  const [filterCategory, setFilterCategory] = useState('All') 
-  const [showFilterMenu, setShowFilterMenu] = useState(false)
+  const [timeFrom, setTimeFrom] = useState('00:00')
+  const [timeTo, setTimeTo] = useState('23:59')
   const [filterButtonClicked, setFilterButtonClicked] = useState(false)
-  const searchContainerRef = useRef(null)
 
-  // Pagination
-  const [currentPage, setCurrentPage] = useState(1)
-  const itemsPerPage = 8
+  // --- NEW: TRACKING APP STATE (Employee View) ---
+  const [currentUserName, setCurrentUserName] = useState('Loading...')
+  const [currentUserEmail, setCurrentUserEmail] = useState('')
+  const [trackingLogs, setTrackingLogs] = useState([])
+  const [cashBalance, setCashBalance] = useState(0)
+  const [shiftIncome, setShiftIncome] = useState(0)
+  const [loyverseIncome, setLoyverseIncome] = useState(0)
+  const [shiftStats, setShiftStats] = useState({ Cash: 0, GCash: 0, Maya: 0, BPI: 0 })
+  const [loyverseStats, setLoyverseStats] = useState({ Cash: 0, GCash: 0, Maya: 0, BPI: 0 })
+  const [actionLoading, setActionLoading] = useState(false)
+  const [currentShiftLogs, setCurrentShiftLogs] = useState([])
 
-  // Notification
+  // Forms
+  const [tfForm, setTfForm] = useState({ from: 'Cash', to: 'GCash', amt: '' })
+  const [loyForm, setLoyForm] = useState({ amt: '', chan: 'Cash' })
+  const [revForm, setRevForm] = useState({ amt: '', chan: 'Cash', photos: [] })
+  const [expForm, setExpForm] = useState({ amt: '', desc: '', chan: 'Cash', photos: [] })
+
   const [notification, setNotification] = useState({ message: '', type: 'success' })
 
-  // Capital/Expenses management UI is hidden for now (kept in code, not removed)
-  const SHOW_CAPITAL_EXPENSES = false
+  const fileInputRefRev = useRef(null)
+  const fileInputRefExp = useRef(null)
+  const [activePhotoSlot, setActivePhotoSlot] = useState({ type: null, index: null })
 
-  // Modals
-  const [modals, setModals] = useState({ add: false, update: false, archive: false, confirmation: false, archiveLog: false })
-  const [showCancelConfirm, setShowCancelConfirm] = useState(false)
-  const [pendingCloseAction, setPendingCloseAction] = useState(null)
-  const [salesFormData, setSalesFormData] = useState({ type: 'Income', date: new Date().toISOString().split('T')[0], time: '12:00', amount: '', enteredBy: 'Current User', description: '', status: 'Completed' })
-  const [archiveReason, setArchiveReason] = useState('')
-  const [archiveLogs, setArchiveLogs] = useState([])
-  const [confirmationAction, setConfirmationAction] = useState(null)
-  const [confirmationMsg, setConfirmationMsg] = useState({ title: '', message: '' })
-
-  // --- 1. FETCH DATA (Transactions, Orders, AND Archive Logs) ---
-  async function fetchData() {
-    setLoading(true)
-    
-    // A. Fetch Financial Records
-    const { data: finData, error: finError } = await supabase
-      .from('FinancialRecord')
-      .select(`*, Employee (User (FirstName, LastName))`)
-      .order('TransactionDate', { ascending: false })
-
-    // B. Fetch Orders
-    const { data: orderData, error: orderError } = await supabase
-      .from('Order')
-      .select('*') 
-      .eq('Status', 'COMPLETED')
-
-    // C. Fetch Archive Logs (Updated to match FinancialArchiveLog)
-    const { data: logData, error: logError } = await supabase
-      .from('FinancialArchiveLog')
-      .select(`*, User(FirstName, LastName)`)
-      .order('ArchivedDate', { ascending: false })
-
-    if (finError || orderError) {
-        console.error("Error fetching data:", finError || orderError)
-    } else {
-      // Process Transactions
-      const formattedData = finData.map(item => ({
-        id: `F${String(item.RecordID).padStart(3, '0')}`,
-        // Original Transaction Date Format
-        date: new Date(item.TransactionDate).toLocaleString('en-US', { 
-            month: 'short', day: '2-digit', year: 'numeric', 
-            hour: '2-digit', minute: '2-digit', hour12: true 
-        }).toUpperCase(), 
-
-        // Logic for Date Updated: Show format if exists, else show "---"
-        dateUpdated: item.DateUpdated ? new Date(item.DateUpdated).toLocaleString('en-US', { 
-            month: 'short', day: '2-digit', year: 'numeric', 
-            hour: '2-digit', minute: '2-digit', hour12: true 
-        }).toUpperCase() : '---',
-
-        rawDate: item.TransactionDate,
-        desc: item.Description,
-        amount: item.Amount,
-        type: item.RecordType,
-        status: item.Status,
-        enteredBy: item.AdminHandled || item.Employee?.User?.FirstName || 'System' // Displays the handler
-      }))
-
-      // Format Orders to match transaction format
-      const formattedOrders = (orderData || []).map(order => ({
-        id: `ORD-${order.OrderID}`,
-        date: new Date(order.OrderDateTime).toLocaleString('en-US', { 
-            month: 'short', day: '2-digit', year: 'numeric', 
-            hour: '2-digit', minute: '2-digit', hour12: true 
-        }).toUpperCase(),
-        dateUpdated: '---',
-        rawDate: order.OrderDateTime,
-        desc: `POS Order - ${order.CustomerName}`,
-        amount: order.TotalAmount,
-        type: 'Income',
-        status: 'Completed',
-        enteredBy: order.EmployeeID || 'POS'
-      }))
-
-      // 1. Combine all transactions (manual + POS orders)
-      const allTransactions = [...formattedData, ...formattedOrders].sort((a, b) => new Date(b.rawDate) - new Date(a.rawDate))
-
-      // 2. Set the states using the combined list
-      // Filter out the POS Orders from the manual tracking table
-      const manualTransactions = formattedData.filter(t => !t.desc.includes('POS Order'))
-
-      setTransactions(manualTransactions)
-      setFilteredTransactions(manualTransactions)
-      
-      setOrders(orderData || [])
-
-      // Process Archive Logs
-      if (logData) {
-        const formattedLogs = logData.map(l => ({
-          logId: l.FLogID,
-          originalId: `F${String(l.RecordID).padStart(3, '0')}`,
-          reason: l.Reason,
-          archivedBy: l.User ? `${l.User.FirstName} ${l.User.LastName}` : `User: ${l.UserID}`,
-          dateArchived: new Date(l.ArchivedDate).toLocaleString()
-        }));
-        setArchiveLogs(formattedLogs);
-      }
-    }
-    setLoading(false)
-  }
-
-  useEffect(() => { fetchData() }, [])
-
-  // Handle outside clicks for search filter
+  // --- 1. INITIALIZE DATA ---
   useEffect(() => {
-    const handleClick = (e) => { if (searchContainerRef.current && !searchContainerRef.current.contains(e.target)) setShowFilterMenu(false); };
-    document.addEventListener("mousedown", handleClick);
-    return () => document.removeEventListener("mousedown", handleClick);
+    fetchPOSData()
+    fetchTrackingData()
+    setupRealtimeTracking()
+    fetchCurrentUser()
   }, [])
 
-  // --- 2. METRICS & GRAPHS ---
+  const fetchCurrentUser = async () => {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (user) {
+        setCurrentUserEmail(user.email)
+        const { data } = await supabase.from('Employee').select('User(FirstName)').eq('UserID', user.id).maybeSingle()
+        setCurrentUserName(data?.User?.FirstName || 'Employee')
+    }
+  }
+
+
+
+  
+  // --- 2. FETCH POS DATA FOR CHARTS (Original Logic) ---
+  const fetchPOSData = async () => {
+    const { data: finData } = await supabase.from('FinancialRecord').select('*').order('TransactionDate', { ascending: false })
+    const { data: orderData } = await supabase.from('Order').select('*').eq('Status', 'COMPLETED')
+    if (finData) setFinancialRecords(finData)
+    if (orderData) setOrders(orderData)
+  }
+
   useEffect(() => {
     calculateMetrics()
     calculateGraphAndSidebar()
-  }, [transactions, orders])
+  }, [financialRecords, orders])
 
+  // --- 3. FETCH & CALCULATE TRACKING DATA (New App Logic) ---
+  const fetchTrackingData = async () => {
+    const { data } = await supabaseSales.from('transactions').select('*').order('id', { ascending: false })
+    if (data) {
+        setTrackingLogs(data)
+        calculateTrackingStats(data)
+    }
+  }
+
+  const setupRealtimeTracking = () => {
+    supabaseSales.channel('public:transactions').on('postgres_changes', { event: '*', schema: 'public', table: 'transactions' }, () => {
+        fetchTrackingData()
+    }).subscribe()
+  }
+
+  const getPSTTime = () => {
+    const d = new Date()
+    const utc = d.getTime() + (d.getTimezoneOffset() * 60000)
+    return new Date(utc + (3600000 * 8))
+  }
+
+  const getShiftDate = (dateObj) => {
+    const hour = dateObj.getHours()
+    const date = new Date(dateObj)
+    if (hour < 8) date.setDate(date.getDate() - 1)
+    return date.toISOString().split('T')[0]
+  }
+
+  const getFixedDate = (dateObj) => {
+    return `${dateObj.getMonth() + 1}/${dateObj.getDate()}/${dateObj.getFullYear()}`
+  }
+
+  const calculateTrackingStats = (logs) => {
+    let cashBal = 0, sRev = 0, sPos = 0
+    let cT = { Cash: 0, GCash: 0, Maya: 0, BPI: 0 }
+    let cTLoy = { Cash: 0, GCash: 0, Maya: 0, BPI: 0 }
+
+    const pst = getPSTTime()
+    let sStart = new Date(pst), sEnd = new Date(pst)
+    if (pst.getHours() < 8) { 
+        sStart.setDate(sStart.getDate() - 1); sStart.setHours(8, 0, 0, 0)
+        sEnd.setHours(7, 59, 59, 999) 
+    } else { 
+        sStart.setHours(8, 0, 0, 0); sEnd.setDate(sEnd.getDate() + 1)
+        sEnd.setHours(7, 59, 59, 999) 
+    }
+
+  const shiftLogsArray = [] // <-- Add this array
+
+    logs.forEach(l => {
+        const v = parseFloat(l.amt || l.amount) || 0
+        const t = (l.type || "").toUpperCase()
+        const c = (l.chan || "").trim()
+
+        // Employee View: Only calculate Overall Cash
+        if (t === 'REVENUE' && c === 'Cash') cashBal += v
+        if (t === 'EXPENSE' && c === 'Cash') cashBal -= v
+        if (t === 'TRANSFER') {
+            const desc = l.desc || ""
+            if (desc.includes('from Cash')) cashBal -= v
+            if (desc.includes('to Cash')) cashBal += v
+        }
+
+        const d = new Date(l.date + " " + l.time)
+        if (d >= sStart && d <= sEnd) {
+            shiftLogsArray.push(l) // <-- Push shift transactions here
+            if (t === "REVENUE") { sRev += v; if (cT[c] !== undefined) cT[c] += v }
+            if (t === "POS_REF") { sPos += v; if (cTLoy[c] !== undefined) cTLoy[c] += v }
+        }
+    })
+
+    setCurrentShiftLogs(shiftLogsArray) // <-- Save it to the state here
+
+    setCashBalance(cashBal)
+    setShiftIncome(sRev)
+    setLoyverseIncome(sPos)
+    setShiftStats(cT)
+    setLoyverseStats(cTLoy)
+  }
+
+  // --- 4. FORM SUBMISSIONS ---
+  const uploadPhotos = async (photosArray) => {
+    const urls = []
+    for (let p of photosArray) {
+        if (!p) continue
+        const res = await fetch(p)
+        const blob = await res.blob()
+        const fileName = `receipt_${Date.now()}_${Math.random().toString(36).substring(7)}.jpg`
+        const { error } = await supabaseSales.storage.from('receipts').upload(`public/${fileName}`, blob, { contentType: 'image/jpeg' })
+        if (!error) urls.push(supabaseSales.storage.from('receipts').getPublicUrl(`public/${fileName}`).data.publicUrl)
+    }
+    return urls
+  }
+
+  const submitTransaction = async (entryData) => {
+    setActionLoading(true)
+    const { error } = await supabaseSales.from('transactions').insert([entryData])
+    setActionLoading(false)
+    if (!error) {
+        setNotification({ message: 'Saved successfully!', type: 'success' })
+        fetchTrackingData()
+        return true
+    }
+    setNotification({ message: 'Error saving!', type: 'error' })
+    return false
+  }
+
+  const handleLoyverseSubmit = async () => {
+    if (!loyForm.amt) return setNotification({ message: 'Enter amount', type: 'error' })
+    const pstNow = getPSTTime()
+    const entry = { type: 'POS_REF', amt: parseFloat(loyForm.amt), chan: loyForm.chan, desc: 'New (Shift Profit) Update', staff: currentUserName, auth_user: currentUserEmail, google_name: currentUserName, time: pstNow.toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'}), date: getFixedDate(pstNow), isoDate: getShiftDate(pstNow) }
+    if (await submitTransaction(entry)) setLoyForm({ ...loyForm, amt: '' })
+  }
+
+  const handleTransferSubmit = async () => {
+    if (!tfForm.amt || tfForm.from === tfForm.to) return setNotification({ message: 'Invalid transfer', type: 'error' })
+    const pstNow = getPSTTime()
+    const entry = { type: 'TRANSFER', amt: parseFloat(tfForm.amt), chan: tfForm.from, desc: `Transfer from ${tfForm.from} to ${tfForm.to}`, staff: currentUserName, auth_user: currentUserEmail, google_name: currentUserName, time: pstNow.toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'}), date: getFixedDate(pstNow), isoDate: getShiftDate(pstNow) }
+    if (await submitTransaction(entry)) setTfForm({ ...tfForm, amt: '' })
+  }
+
+  const handleRevExpSubmit = async (type) => {
+    const isRev = type === 'REVENUE'
+    const form = isRev ? revForm : expForm
+    if (!form.amt || (!isRev && !form.desc)) return setNotification({ message: 'Fill all required fields!', type: 'error' })
+    
+    setActionLoading(true)
+    const urls = await uploadPhotos(form.photos)
+    const pstNow = getPSTTime()
+    
+    const entry = { type, amt: parseFloat(form.amt), chan: form.chan, desc: isRev ? 'Daily Sales Inflow' : form.desc, staff: currentUserName, auth_user: currentUserEmail, google_name: currentUserName, photos: urls, time: pstNow.toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'}), date: getFixedDate(pstNow), isoDate: getShiftDate(pstNow) }
+    
+    if (await submitTransaction(entry)) {
+        if (isRev) setRevForm({ amt: '', chan: 'Cash', photos: [] })
+        else setExpForm({ amt: '', desc: '', chan: 'Cash', photos: [] })
+    }
+  }
+
+  // --- PHOTO HANDLING ---
+  const handlePhotoUpload = (e) => {
+    const file = e.target.files[0]
+    if (!file) return
+    const reader = new FileReader()
+    reader.onload = (ev) => {
+        if (activePhotoSlot.type === 'REV') {
+            const newPhotos = [...revForm.photos]
+            newPhotos[activePhotoSlot.index] = ev.target.result
+            setRevForm({ ...revForm, photos: newPhotos })
+        } else {
+            const newPhotos = [...expForm.photos]
+            newPhotos[activePhotoSlot.index] = ev.target.result
+            setExpForm({ ...expForm, photos: newPhotos })
+        }
+    }
+    reader.readAsDataURL(file)
+  }
+
+  // --- ORIGINAL CHART CALCULATIONS ---
   const calculateMetrics = () => {
     const todayStr = new Date().toLocaleDateString('en-US') 
     const currentMonth = new Date().getMonth()
     const currentYear = new Date().getFullYear()
-
-    let todaySalesSum = 0
-    let monthlySalesSum = 0
-    let yearlyIncome = 0
-    let yearlyExpense = 0
-    let yearlyDiscounts = 0
+    let todaySalesSum = 0, monthlySalesSum = 0, yearlyIncome = 0, yearlyExpense = 0, yearlyDiscounts = 0
 
     orders.forEach(order => {
         const oDate = new Date(order.OrderDateTime)
         const amount = parseFloat(order.TotalAmount) || 0
-        const discount = parseFloat(order.DiscountAmount) || 0
-
         if (oDate.getFullYear() === currentYear) {
             yearlyIncome += amount
-            yearlyDiscounts += discount
+            yearlyDiscounts += parseFloat(order.DiscountAmount) || 0
             if (oDate.toLocaleDateString('en-US') === todayStr) todaySalesSum += amount
             if (oDate.getMonth() === currentMonth) monthlySalesSum += amount
         }
     })
-
-    transactions.forEach(t => {
-        const tDate = new Date(t.rawDate || t.date)
-        if (tDate.getFullYear() === currentYear && t.status === 'Completed') {
-            if (t.type === 'Expense') {
-                yearlyExpense += (parseFloat(t.amount) || 0)
-            } else if (t.type === 'Capital') {
-                yearlyIncome += (parseFloat(t.amount) || 0)
-            }
+    financialRecords.forEach(t => {
+        const tDate = new Date(t.TransactionDate)
+        if (tDate.getFullYear() === currentYear && t.Status === 'Completed') {
+            if (t.RecordType === 'Expense') yearlyExpense += (parseFloat(t.Amount) || 0)
+            else if (t.RecordType === 'Capital') yearlyIncome += (parseFloat(t.Amount) || 0)
         }
     })
-
-    setMetrics({
-        todaySales: todaySalesSum,
-        monthlySales: monthlySalesSum,
-        totalProfit: yearlyIncome - yearlyExpense,
-        totalDiscounts: yearlyDiscounts
-    })
+    setMetrics({ todaySales: todaySalesSum, monthlySales: monthlySalesSum, totalProfit: yearlyIncome - yearlyExpense, totalDiscounts: yearlyDiscounts })
   }
 
   const calculateGraphAndSidebar = () => {
-      // 1. Combine Date and Time inputs for extreme precision
       const start = new Date(`${dateFrom}T${timeFrom}:00`)
       const end = new Date(`${dateTo}T${timeTo}:59`)
-
       const dateArray = []
-      
-      // 2. We still calculate midnight-to-midnight just for drawing the Bar Chart's X-Axis days
       let currentDate = new Date(start)
       currentDate.setHours(0,0,0,0)
       const endDay = new Date(end)
       endDay.setHours(23,59,59,999)
 
-      while (currentDate <= endDay) {
-          dateArray.push(new Date(currentDate))
-          currentDate.setDate(currentDate.getDate() + 1)
-      }
+      while (currentDate <= endDay) { dateArray.push(new Date(currentDate)); currentDate.setDate(currentDate.getDate() + 1) }
       
       let fSales = 0, fDiscounts = 0, fOrdersCount = 0, fExpenses = 0
       const dailyMap = {}
@@ -240,249 +289,58 @@ function SalesSystem() {
           const oDate = new Date(o.OrderDateTime)
           if (oDate >= start && oDate <= end) {
               const amount = parseFloat(o.TotalAmount) || 0
-              fSales += amount
-              fDiscounts += (parseFloat(o.DiscountAmount) || 0)
-              fOrdersCount += 1
+              fSales += amount; fDiscounts += (parseFloat(o.DiscountAmount) || 0); fOrdersCount += 1
               const key = oDate.toLocaleDateString('en-US')
               if (dailyMap[key] !== undefined) dailyMap[key] += amount
-
               const method = o.PaymentMethod || 'Cash'
               paymentCounts[method] = (paymentCounts[method] || 0) + amount
           }
       })
-
-      transactions.forEach(t => {
-          const tDate = new Date(t.rawDate)
-          if (tDate >= start && tDate <= end && t.status === 'Completed') {
-              if (t.type === 'Expense') {
-                  fExpenses += (parseFloat(t.amount) || 0)
-              } else if (t.type === 'Capital') {
-                  fSales += (parseFloat(t.amount) || 0)
-              }
+      financialRecords.forEach(t => {
+          const tDate = new Date(t.TransactionDate)
+          if (tDate >= start && tDate <= end && t.Status === 'Completed') {
+              if (t.RecordType === 'Expense') fExpenses += (parseFloat(t.Amount) || 0)
+              else if (t.RecordType === 'Capital') fSales += (parseFloat(t.Amount) || 0)
           }
       })
-
       setFilteredMetrics({ totalSales: fSales, totalProfit: fSales - fExpenses, totalDiscounts: fDiscounts, totalOrders: fOrdersCount })
       setChartData(dateArray.map(d => ({ date: d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }), sales: dailyMap[d.toLocaleDateString('en-US')] || 0 })))
       setPaymentModeBreakdown(paymentCounts)
   }
 
-  // --- SEARCH HANDLER ---
-  useEffect(() => {
-    let result = transactions
-    if (searchTerm) {
-      const lowerTerm = searchTerm.toLowerCase()
-      result = result.filter(t => {
-        const matchID = t.id?.toLowerCase().includes(lowerTerm) || false
-        const matchDate = t.date?.toLowerCase().includes(lowerTerm) || false
-        const matchDesc = t.desc?.toLowerCase().includes(lowerTerm) || false
-        const matchAmount = t.amount?.toString().toLowerCase().includes(lowerTerm) || false
-        const matchType = t.type?.toLowerCase().includes(lowerTerm) || false
-        const matchAdmin = t.enteredBy?.toLowerCase().includes(lowerTerm) || false
-
-        if (filterCategory === 'Desc') return matchDesc
-        else if (filterCategory === 'ID') return matchID
-        else if (filterCategory === 'Date') return matchDate
-        else if (filterCategory === 'Amount') return matchAmount
-        else if (filterCategory === 'Type') return matchType
-        else if (filterCategory === 'Admin') return matchAdmin
-        else if (filterCategory === 'All') return matchID || matchDate || matchDesc || matchAmount || matchType || matchAdmin
-        else return false
-      })
-    }
-    setFilteredTransactions(result)
-    setCurrentPage(1) 
-  }, [transactions, searchTerm, filterCategory])
-
-  // --- HELPER FUNCTIONS ---
-  const triggerConfirmation = (action, title, message) => { setConfirmationAction(() => action); setConfirmationMsg({ title, message }); setModals({ ...modals, confirmation: true }) }
-  const confirmAction = () => { if (confirmationAction) confirmationAction(); setModals({ ...modals, confirmation: false }) }
-  const closeModal = () => { setModals({ add: false, update: false, archive: false, confirmation: false, archiveLog: false }); setConfirmationAction(null); setSelectedId(null); setArchiveReason('') }
-  
-  const handleCancelClick = (action) => {
-    setPendingCloseAction(() => action)
-    setShowCancelConfirm(true)
-  }
-
-  const handleCancelConfirm = () => {
-    setShowCancelConfirm(false)
-    if (pendingCloseAction) {
-      pendingCloseAction()
-    }
-    setPendingCloseAction(null)
-  }
-
-  const handleCancelCancel = () => {
-    setShowCancelConfirm(false)
-    setPendingCloseAction(null)
-  }
-
-  const formLabelStyle = { fontSize: "13px", fontWeight: "bold", display: "inline-flex", alignItems: "center", gap: "4px" }
-  const requiredStyle = { color: "#D9534F" }
-
-  // --- CRUD ACTIONS ---
-  const prepareAddSale = async () => { 
-      const { data: { user } } = await supabase.auth.getUser()
-      const { data: empData } = await supabase.from('Employee').select('User(FirstName)').eq('UserID', user.id).maybeSingle()
-      
-      const now = new Date();
-      
-      setSalesFormData({ 
-          type: 'Capital', 
-          date: now.toISOString().split('T')[0], 
-          time: now.toTimeString().slice(0, 5), 
-          amount: '', 
-          enteredBy: empData?.User?.FirstName || 'Admin', 
-          description: '', 
-          status: 'Completed' 
-      })
-      setModals({ ...modals, add: true }) 
-  }
-  const handleAddConfirmation = (e) => { e.preventDefault(); triggerConfirmation(executeAddSale, "Add Record", "Confirm adding this record?") }
-  const executeAddSale = async () => {
-      const { data: { user } } = await supabase.auth.getUser()
-      const { data: empData } = await supabase.from('Employee').select('EmployeeID').eq('UserID', user.id).maybeSingle()
-      const transactionDateTime = new Date(`${salesFormData.date} ${salesFormData.time}`).toISOString()
-      
-      const { error } = await supabase.from('FinancialRecord').insert([{ EmployeeID: empData?.EmployeeID || 1, TransactionDate: transactionDateTime, RecordType: salesFormData.type, Amount: parseFloat(salesFormData.amount), Description: salesFormData.description, Status: salesFormData.status }])
-      if (error) setNotification({ message: "Error: " + error.message, type: 'error' });
-      else { setNotification({ message: "Added!", type: 'success' }); fetchData(); closeModal() }
-  }
-  
-  const prepareUpdateSale = (id) => { 
-      setSelectedId(id); 
-      const t = transactions.find(x => x.id === id); 
-      
-      setSalesFormData({
-          type: t.type, 
-          date: new Date(t.rawDate).toISOString().split('T')[0],
-          time: new Date(t.rawDate).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }),
-          amount: t.amount, 
-          enteredBy: t.enteredBy, 
-          description: t.desc, 
-          status: t.status
-      }); 
-      setModals({...modals, update:true}) 
-  }
-
-  const handleUpdateConfirmation = (e) => { e.preventDefault(); triggerConfirmation(executeUpdateSale, "Update Record", "Confirm update?") }
-  
-  const executeUpdateSale = async () => { 
-      const t = transactions.find(x => x.id === selectedId); 
-      const dbId = parseInt(t.id.replace('F','')); 
-      const newDateTime = new Date(`${salesFormData.date} ${salesFormData.time}`).toISOString();
-
-      const { error } = await supabase.from('FinancialRecord')
-          .update({ 
-              Amount: parseFloat(salesFormData.amount), 
-              Description: salesFormData.description, 
-              RecordType: salesFormData.type,
-              TransactionDate: newDateTime,
-              AdminHandled: salesFormData.enteredBy,
-              DateUpdated: new Date().toISOString()
-          })
-          .eq('RecordID', dbId); 
-      
-      if (error) {
-          setNotification({ message: "Error updating: " + error.message, type: 'error' });
-      } else { 
-          setNotification({ message: "Record Updated!", type: 'success' }); 
-          fetchData(); 
-          closeModal(); 
-      }
-  }
-
-  const prepareArchiveSale = (id) => {
-        const t = transactions.find(x => x.id === id); 
-        
-        // STRICT RULE: Cannot void transactions older than 24 hours
-        const transactionDate = new Date(t.rawDate);
-        const hoursOld = (new Date() - transactionDate) / (1000 * 60 * 60);
-        
-        if (hoursOld > 24) {
-            setNotification({ message: "Strict Policy: Cannot void transactions older than 24 hours.", type: 'error' });
-            return;
-        }
-
-        setSelectedId(id);
-        setModals({...modals, archive:true})
-    }
-
-  const handleArchiveConfirmation = () => triggerConfirmation(executeArchiveSale, "Void", "Confirm void?")
-  
-  const executeArchiveSale = async () => { 
-      const t = transactions.find(x => x.id === selectedId); 
-      const dbId = parseInt(t.id.replace('F','')); 
-
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        setNotification({ message: "User not found.", type: 'error' })
-        return
-      }
-
-      const { error: logError } = await supabase.from('FinancialArchiveLog').insert([{
-          RecordID: dbId,
-          UserID: user.id,
-          ArchivedDate: new Date().toISOString(), 
-          Reason: archiveReason
-      }]);
-
-      if (logError) {
-        setNotification({ message: "Error logging archive: " + logError.message, type: 'error' })
-        return
-      }
-
-      const { error: updateError } = await supabase
-          .from('FinancialRecord')
-          .update({ Status: 'Voided' })
-          .eq('RecordID', dbId); 
-      
-      if (updateError) {
-          setNotification({ message: "Update Error: " + updateError.message, type: 'error' });
-      } else { 
-          setNotification({ message: "Record Voided Successfully!", type: 'success' }); 
-          fetchData(); 
-          closeModal(); 
-      }
-  };
-
   return (
     <div style={{ display: "flex", height: "100vh", width: "100vw", overflow: "hidden", fontFamily: "sans-serif" }}>
-      
-      {/* SIDEBAR */}
       <Sidebar />
 
-      {/* MAIN CONTENT */}
       <div style={{ flex: 1, background: `linear-gradient(180deg, ${colors.beige} 0%, #f3ead9 100%)`, padding: "clamp(16px, 2vw, 30px)", display: "flex", flexDirection: "column", overflowY: "auto", height: "100vh" }}>
 
-        {/* HEADER */}
+        {/* HEADER & METRICS */}
         <div className="responsive-stack" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px", gap: "12px", flexWrap: "wrap" }}>
-          <h1 style={{ margin: 0, fontSize: type.h1, color: colors.darkGreen, fontWeight: 800, letterSpacing: "-0.3px" }}>Sales Management</h1>
+          <h1 style={{ margin: 0, fontSize: "28px", color: colors.darkGreen, fontWeight: 800 }}>Sales Management</h1>
           <button className="btn-animated" style={{...btnStyle, background: colors.purple, borderRadius: "10px", padding: "10px 20px"}} onClick={() => navigate('/sales-reports')}>VIEW REPORT</button>
         </div>
 
-        {/* METRICS PANEL */}
         <div className="responsive-stack" style={{ background: `linear-gradient(135deg, ${colors.green} 0%, ${colors.darkGreen} 100%)`, borderRadius: "18px", padding: "22px", display: "flex", justifyContent: "space-between", marginBottom: "22px", boxShadow: "0 6px 18px rgba(74,93,75,0.25)", gap: "16px", flexWrap: "wrap" }}>
-            <div className="card-hover" style={{...cardStyle, minWidth: "140px"}}><div style={{fontSize: type.small, opacity: 0.9}}>Today's Total Sales</div><div style={{fontSize: type.stat, fontWeight: "bold"}}>₱ {metrics.todaySales.toLocaleString(undefined, {minimumFractionDigits: 2})}</div></div>
-            <div className="card-hover" style={{...cardStyle, minWidth: "140px"}}><div style={{fontSize: type.small, opacity: 0.9}}>Monthly Sales</div><div style={{fontSize: type.stat, fontWeight: "bold"}}>₱ {metrics.monthlySales.toLocaleString(undefined, {minimumFractionDigits: 2})}</div></div>
-            <div className="card-hover" style={{...cardStyle, minWidth: "140px"}}><div style={{fontSize: type.small, opacity: 0.9}}>Total Discounts Given</div><div style={{fontSize: type.stat, fontWeight: "bold"}}>₱ {metrics.totalDiscounts.toLocaleString(undefined, {minimumFractionDigits: 2})}</div></div>
-            <div className="card-hover" style={{...cardStyle, minWidth: "140px"}}><div style={{fontSize: type.small, opacity: 0.9}}>Total Profit</div><div style={{fontSize: type.stat, fontWeight: "bold"}}>₱ {metrics.totalProfit.toLocaleString(undefined, {minimumFractionDigits: 2})}</div></div>
+            <div className="card-hover" style={{...cardStyle, minWidth: "140px"}}><div style={{fontSize: "12px", opacity: 0.9}}>Today's Total Sales</div><div style={{fontSize: "24px", fontWeight: "bold"}}>₱ {metrics.todaySales.toLocaleString(undefined, {minimumFractionDigits: 2})}</div></div>
+            <div className="card-hover" style={{...cardStyle, minWidth: "140px"}}><div style={{fontSize: "12px", opacity: 0.9}}>Monthly Sales</div><div style={{fontSize: "24px", fontWeight: "bold"}}>₱ {metrics.monthlySales.toLocaleString(undefined, {minimumFractionDigits: 2})}</div></div>
+            <div className="card-hover" style={{...cardStyle, minWidth: "140px"}}><div style={{fontSize: "12px", opacity: 0.9}}>Total Discounts Given</div><div style={{fontSize: "24px", fontWeight: "bold"}}>₱ {metrics.totalDiscounts.toLocaleString(undefined, {minimumFractionDigits: 2})}</div></div>
+            <div className="card-hover" style={{...cardStyle, minWidth: "140px"}}><div style={{fontSize: "12px", opacity: 0.9}}>Total Profit</div><div style={{fontSize: "24px", fontWeight: "bold"}}>₱ {metrics.totalProfit.toLocaleString(undefined, {minimumFractionDigits: 2})}</div></div>
         </div>
 
         {/* GRAPH SECTION */}
         <div className="fade-in-card" style={{ background: "white", borderRadius: "18px", padding: "20px", marginBottom: "22px", boxShadow: "0 4px 16px rgba(0,0,0,0.08)" }}>
             <div className="responsive-stack" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px", gap: "12px", flexWrap: "wrap" }}>
-                <h3 style={{ margin: 0, color: colors.darkGreen, fontSize: type.h2, whiteSpace: "nowrap" }}>Sales Per Day Overview</h3>
+                <h3 style={{ margin: 0, color: colors.darkGreen, fontSize: "18px", whiteSpace: "nowrap" }}>Sales Per Day Overview</h3>
                 <div style={{ display: "flex", alignItems: "center", background: "#f0f0f0", padding: "6px 10px", borderRadius: "10px", flexWrap: "wrap", gap: "6px" }}>
-                    <span style={{ fontSize: type.micro, marginRight: "2px", fontWeight: "bold" }}>From:</span>
-                    <input type="date" style={{...inputStyle, width: "auto", margin: 0, padding: "6px 8px", fontSize: type.micro}} value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} />
-                    <input type="time" style={{...inputStyle, width: "auto", margin: 0, padding: "6px 8px", fontSize: type.micro}} value={timeFrom} onChange={(e) => setTimeFrom(e.target.value)} />
+                    <span style={{ fontSize: "11px", marginRight: "2px", fontWeight: "bold" }}>From:</span>
+                    <input type="date" style={{...inputStyle, width: "auto", margin: 0, padding: "6px 8px", fontSize: "11px"}} value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} />
+                    <input type="time" style={{...inputStyle, width: "auto", margin: 0, padding: "6px 8px", fontSize: "11px"}} value={timeFrom} onChange={(e) => setTimeFrom(e.target.value)} />
 
-                    <span style={{ fontSize: type.micro, marginRight: "2px", fontWeight: "bold", marginLeft: "8px" }}>To:</span>
-                    <input type="date" style={{...inputStyle, width: "auto", margin: 0, padding: "6px 8px", fontSize: type.micro}} value={dateTo} onChange={(e) => setDateTo(e.target.value)} />
-                    <input type="time" style={{...inputStyle, width: "auto", margin: 0, padding: "6px 8px", fontSize: type.micro}} value={timeTo} onChange={(e) => setTimeTo(e.target.value)} />
+                    <span style={{ fontSize: "11px", marginRight: "2px", fontWeight: "bold", marginLeft: "8px" }}>To:</span>
+                    <input type="date" style={{...inputStyle, width: "auto", margin: 0, padding: "6px 8px", fontSize: "11px"}} value={dateTo} onChange={(e) => setDateTo(e.target.value)} />
+                    <input type="time" style={{...inputStyle, width: "auto", margin: 0, padding: "6px 8px", fontSize: "11px"}} value={timeTo} onChange={(e) => setTimeTo(e.target.value)} />
 
-                    <button className="btn-animated" onClick={() => { calculateGraphAndSidebar(); setFilterButtonClicked(true); }} style={{ padding: "7px 14px", marginLeft: "6px", background: filterButtonClicked ? "#aaa" : colors.green, color: "white", border: "none", borderRadius: "8px", cursor: "pointer", fontSize: type.micro, fontWeight: "bold" }}>Apply Filter</button>
+                    <button className="btn-animated" onClick={() => { calculateGraphAndSidebar(); setFilterButtonClicked(true); }} style={{ padding: "7px 14px", marginLeft: "6px", background: filterButtonClicked ? "#aaa" : colors.green, color: "white", border: "none", borderRadius: "8px", cursor: "pointer", fontSize: "11px", fontWeight: "bold" }}>Apply Filter</button>
                 </div>
             </div>
 
@@ -499,17 +357,17 @@ function SalesSystem() {
                     </ResponsiveContainer>
                 </div>
                 <div style={{ flex: 1, border: "1px solid #e5ded0", background: "#fbf8f2", padding: "15px", borderRadius: "12px", display: "flex", flexDirection: "column", justifyContent: "center" }}>
-                    <div style={{ marginBottom: "10px" }}><div style={{ fontSize: type.micro, fontWeight: "bold" }}>Filtered Total Sales</div><div style={{ fontWeight: "bold", fontSize: type.body }}>₱ {filteredMetrics.totalSales.toLocaleString()}</div></div>
-                    <div style={{ marginBottom: "10px" }}><div style={{ fontSize: type.micro, fontWeight: "bold" }}>Filtered Discounts</div><div style={{ fontWeight: "bold", fontSize: type.body }}>₱ {filteredMetrics.totalDiscounts}</div></div>
-                    <div style={{ marginBottom: "10px" }}><div style={{ fontSize: type.micro, fontWeight: "bold" }}>Filtered Profit</div><div style={{ fontWeight: "bold", fontSize: type.body }}>₱ {filteredMetrics.totalProfit.toLocaleString()}</div></div>
-                    <div style={{ marginBottom: "10px" }}><div style={{ fontSize: type.micro, fontWeight: "bold" }}>Total Orders</div><div style={{ fontWeight: "bold", fontSize: type.body }}>{filteredMetrics.totalOrders}</div></div>
+                    <div style={{ marginBottom: "10px" }}><div style={{ fontSize: "11px", fontWeight: "bold" }}>Filtered Total Sales</div><div style={{ fontWeight: "bold", fontSize: "14px" }}>₱ {filteredMetrics.totalSales.toLocaleString()}</div></div>
+                    <div style={{ marginBottom: "10px" }}><div style={{ fontSize: "11px", fontWeight: "bold" }}>Filtered Discounts</div><div style={{ fontWeight: "bold", fontSize: "14px" }}>₱ {filteredMetrics.totalDiscounts}</div></div>
+                    <div style={{ marginBottom: "10px" }}><div style={{ fontSize: "11px", fontWeight: "bold" }}>Filtered Profit</div><div style={{ fontWeight: "bold", fontSize: "14px" }}>₱ {filteredMetrics.totalProfit.toLocaleString()}</div></div>
+                    <div style={{ marginBottom: "10px" }}><div style={{ fontSize: "11px", fontWeight: "bold" }}>Total Orders</div><div style={{ fontWeight: "bold", fontSize: "14px" }}>{filteredMetrics.totalOrders}</div></div>
                     <div style={{ borderTop: "1px solid #eee", paddingTop: "10px" }}>
-                        <div style={{ fontSize: type.micro, fontWeight: "bold", marginBottom: "5px" }}>Sales by Payment Mode</div>
+                        <div style={{ fontSize: "11px", fontWeight: "bold", marginBottom: "5px" }}>Sales by Payment Mode</div>
                         {Object.keys(paymentModeBreakdown).length === 0 ? (
-                            <div style={{ fontSize: type.small, color: "#999", fontStyle: "italic" }}>No orders in range.</div>
+                            <div style={{ fontSize: "12px", color: "#999", fontStyle: "italic" }}>No orders in range.</div>
                         ) : (
                             Object.entries(paymentModeBreakdown).map(([method, amount]) => (
-                                <div key={method} style={{ display: "flex", justifyContent: "space-between", fontSize: type.small, marginBottom: "3px" }}>
+                                <div key={method} style={{ display: "flex", justifyContent: "space-between", fontSize: "12px", marginBottom: "3px" }}>
                                     <span>{method}</span><span style={{ fontWeight: "bold" }}>₱ {amount.toLocaleString(undefined, {minimumFractionDigits: 2})}</span>
                                 </div>
                             ))
@@ -519,163 +377,133 @@ function SalesSystem() {
             </div>
         </div>
 
-        {/* SEARCH & ACTIONS BAR (MOVED HERE) */}
-        {SHOW_CAPITAL_EXPENSES && (
-        <>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
-          {/* Search Input */}
-          <div style={{ position: "relative" }} ref={searchContainerRef}>
-            <input 
-              placeholder={`🔍 Search by ${filterCategory}...`} 
-              style={{ padding: "8px", borderRadius: "20px", border: "1px solid #ccc", width: "300px" }} 
-              value={searchTerm} 
-              onChange={(e) => setSearchTerm(e.target.value)} 
-              onFocus={() => setShowFilterMenu(true)}
-            />
-            {showFilterMenu && (
-              <div style={{ position: "absolute", bottom: "110%", left: 0, background: "white", padding: "15px", borderRadius: "15px", boxShadow: "0 4px 15px rgba(0,0,0,0.2)", zIndex: 50, border: "1px solid #ddd", width: "380px" }}>
-                <p style={{ margin: "0 0 10px 0", fontSize: "14px", fontWeight: "bold", color: "#555" }}>Filter by Category:</p>
-                <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
-                  {/* UPDATED FILTER CATEGORIES */}
-                  {['All', 'ID', 'Date', 'Desc', 'Amount', 'Type', 'Admin'].map(cat => (
-                    <button 
-                      key={cat} 
-                      style={{ padding: "5px 15px", borderRadius: "20px", border: "1px solid #666", background: filterCategory === cat ? colors.green : "white", color: filterCategory === cat ? "white" : "black", cursor: "pointer", fontSize: "12px", fontWeight: "bold" }} 
-                      onClick={() => { setFilterCategory(cat); setShowFilterMenu(false) }}
-                    >
-                      {cat.toUpperCase()}
-                    </button>
-                  ))}
+        {/* --- TRACKING APP INTEGRATION (EMPLOYEE VIEW) --- */}
+        <h2 style={{ color: colors.darkGreen, fontSize: "20px", marginBottom: "15px", marginTop: "10px", fontWeight: "bold" }}>Shift Tracking & Operations</h2>
+        
+        <div style={{ display: "grid", gridTemplateColumns: "300px 1fr", gap: "20px", paddingBottom: "30px" }}>
+            
+            {/* LEFT COLUMN: Overview & Transfer */}
+            <div style={{ display: "flex", flexDirection: "column", gap: "15px" }}>
+                <div style={{ background: colors.darkGreen, padding: "20px", borderRadius: "15px", color: "white" }}>
+                    <div style={{ fontSize: "12px", textTransform: "uppercase", letterSpacing: "1px", opacity: 0.8, marginBottom: "5px" }}>Overall Cash Balance</div>
+                    <div style={{ fontSize: "32px", fontWeight: "bold", color: "#4ade80" }}>₱ {cashBalance.toLocaleString()}</div>
                 </div>
-              </div>
-            )}
-          </div>
 
-          {/* Action Buttons */}
-          <div style={{ display: "flex", gap: "10px" }}>
-            <button style={{...btnStyle, background: colors.darkGreen}} onClick={prepareAddSale}>ADD</button>
-            <button style={{...btnStyle, background: colors.blue}} onClick={() => setModals({...modals, archiveLog: true})}>VOID LOGS</button>
-          </div>
-        </div>
-
-        {/* TABLE */}
-        <div style={{ background: "white", borderRadius: "15px", boxShadow: "0 4px 10px rgba(0,0,0,0.1)", display: "flex", flexDirection: "column", flex: "0 1 auto", maxHeight: "500px", minHeight: "500px", marginBottom: "40px", overflow: "hidden" }}>
-            <div style={{ flex: 1, overflowY: "auto" }}>
-                <table style={{ width: "100%", borderCollapse: "collapse" }}>
-                  <thead style={{ position: "sticky", top: 0, background: colors.green, color: "white", zIndex: 1 }}>
-                    <tr>
-                      <th style={{ width: "120px", padding: "15px" }}>Record ID</th>
-                      <th style={{ width: "200px" }}>Date Entered</th>
-                      <th style={{ width: "200px" }}>Date Updated</th>
-                      <th style={{ textAlign: "left", paddingLeft: "20px" }}>Description</th> 
-                      <th style={{ width: "150px" }}>Amount</th>
-                      <th style={{ width: "120px" }}>Type</th>
-                      <th style={{ width: "120px" }}>Admin</th> 
-                      <th style={{ width: "120px", paddingRight: "15px" }}>Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {paginate(filteredTransactions.filter(t => t.status !== 'Archived' && t.status !== 'Voided'), currentPage, itemsPerPage).map(t => (
-                      <tr key={t.id} style={{ borderBottom: "1px solid #eee", textAlign: "center", height: "50px", fontSize: "13px" }}>
-                        <td style={{ width: "120px" }}>{t.id}</td>
-                        <td style={{ width: "200px" }}>{t.date}</td>
-                        <td style={{ width: "200px", color: t.dateUpdated === '---' ? '#aaa' : 'inherit' }}>{t.dateUpdated}</td>
-                        <td style={{ textAlign: "left", paddingLeft: "20px", fontWeight: "bold" }}>{t.desc}</td>
-                        <td style={{ width: "150px", fontWeight: "bold" }}>₱{parseFloat(t.amount).toLocaleString(undefined, {minimumFractionDigits: 2})}</td>
-                        <td style={{ width: "120px", color: t.type === 'Capital' ? colors.green : colors.red, fontWeight: "bold" }}>{t.type}</td>
-                        <td style={{ width: "120px", fontWeight: "bold", color: colors.darkGreen }}>{t.enteredBy}</td>
-                        <td style={{ width: "120px", paddingRight: "15px" }}>
-                          <div style={{ display: "flex", gap: "8px", justifyContent: "center" }}>
-                            <button 
-                              onClick={() => prepareUpdateSale(t.id)} 
-                              style={{ padding: "6px 10px", background: colors.yellow, color: "white", border: "none", borderRadius: "5px", cursor: "pointer", fontSize: "12px" }}
-                              title="Update Record"
-                            >
-                              Update
-                            </button>
-                            <button 
-                                  onClick={() => prepareArchiveSale(t.id)} 
-                                  style={{ padding: "6px 10px", background: colors.red, color: "white", border: "none", borderRadius: "5px", cursor: "pointer", fontSize: "12px" }}
-                                  title="Void Invalid Record"
-                                >
-                                  Void
-                                </button>
-                          </div>
-                        </td>
-                      </tr>
+                <div style={{ background: "white", padding: "20px", borderRadius: "15px", border: "1px solid #eee" }}>
+                    <div style={{ fontSize: "12px", textTransform: "uppercase", letterSpacing: "1px", color: "#888", marginBottom: "5px", borderBottom: "1px solid #eee", paddingBottom: "5px" }}>Shift Income (8AM Reset)</div>
+                    <div style={{ fontSize: "28px", fontWeight: "bold", color: colors.darkGreen, marginBottom: "10px" }}>₱ {shiftIncome.toLocaleString()}</div>
+                    {['Cash', 'GCash', 'Maya', 'BPI'].map(k => shiftStats[k] > 0 && (
+                        <div key={k} style={{ display: "flex", justifyContent: "space-between", fontSize: "13px", padding: "3px 0", borderBottom: "1px solid #f9f9f9" }}>
+                            <span>{k}</span><span style={{ fontWeight: "bold" }}>₱{shiftStats[k].toLocaleString()}</span>
+                        </div>
                     ))}
-                  </tbody>
-                </table>
+                </div>
+
+                <div style={{ background: "white", padding: "20px", borderRadius: "15px", border: "1px solid #eee" }}>
+                    <div style={{ fontSize: "12px", textTransform: "uppercase", letterSpacing: "1px", color: "#888", marginBottom: "5px", borderBottom: "1px solid #eee", paddingBottom: "5px" }}>New POS Shift (8AM Reset)</div>
+                    <div style={{ fontSize: "28px", fontWeight: "bold", color: "#333", marginBottom: "10px" }}>₱ {loyverseIncome.toLocaleString()}</div>
+                    {['Cash', 'GCash', 'Maya', 'BPI'].map(k => loyverseStats[k] > 0 && (
+                        <div key={k} style={{ display: "flex", justifyContent: "space-between", fontSize: "13px", padding: "3px 0", borderBottom: "1px solid #f9f9f9" }}>
+                            <span>{k}</span><span style={{ fontWeight: "bold" }}>₱{loyverseStats[k].toLocaleString()}</span>
+                        </div>
+                    ))}
+                </div>
+
+                <div style={{ background: "white", padding: "20px", borderRadius: "15px", border: "1px solid #eee" }}>
+                    <div style={{ fontSize: "12px", textTransform: "uppercase", letterSpacing: "1px", color: "#888", marginBottom: "10px" }}>Transfer Funds</div>
+                    <div style={{ display: "flex", gap: "5px", marginBottom: "10px", alignItems: "center" }}>
+                        <select style={{...formInput, padding: "8px", flex: 1}} value={tfForm.from} onChange={e => setTfForm({...tfForm, from: e.target.value})}><option>Cash</option><option>GCash</option><option>Maya</option><option>BPI</option></select>
+                        <span style={{ fontSize: "12px", color: "#888" }}>to</span>
+                        <select style={{...formInput, padding: "8px", flex: 1}} value={tfForm.to} onChange={e => setTfForm({...tfForm, to: e.target.value})}><option>Cash</option><option>GCash</option><option>Maya</option><option>BPI</option></select>
+                    </div>
+                    <div style={{ display: "flex", gap: "5px" }}>
+                        <input type="number" placeholder="Amount (₱)" style={{...formInput, padding: "8px", flex: 1.5}} value={tfForm.amt} onChange={e => setTfForm({...tfForm, amt: e.target.value})} />
+                        <button onClick={handleTransferSubmit} disabled={actionLoading} style={{...btnStyle, padding: "8px", flex: 1, background: actionLoading ? "#ccc" : colors.green}}>{actionLoading ? '...' : 'Transfer'}</button>
+                    </div>
+                </div>
             </div>
-            <PaginationControls total={filteredTransactions.filter(t => t.status !== 'Archived' && t.status !== 'Voided').length} page={currentPage} setPage={setCurrentPage} perPage={itemsPerPage} />
+
+            {/* RIGHT COLUMN: Entry Forms & Logs */}
+            <div style={{ display: "flex", flexDirection: "column", gap: "15px" }}>
+                
+                {/* Loyverse Update */}
+                <div style={{ background: "white", padding: "20px", borderRadius: "15px", border: "1px solid #eee" }}>
+                    <div style={{ fontSize: "12px", textTransform: "uppercase", letterSpacing: "1px", color: "#888", marginBottom: "10px" }}>NEW POS (Shift Profit)</div>
+                    <div style={{ display: "flex", gap: "10px" }}>
+                        <input type="number" placeholder="Amount (₱)" style={{...formInput, padding: "10px", flex: 1.5}} value={loyForm.amt} onChange={e => setLoyForm({...loyForm, amt: e.target.value})} />
+                        <select style={{...formInput, padding: "10px", flex: 1}} value={loyForm.chan} onChange={e => setLoyForm({...loyForm, chan: e.target.value})}><option>Cash</option><option>GCash</option><option>Maya</option><option>BPI</option></select>
+                        <button onClick={handleLoyverseSubmit} disabled={actionLoading} style={{...btnStyle, flex: 1, background: actionLoading ? "#ccc" : colors.green}}>{actionLoading ? 'Saving...' : 'Confirm'}</button>
+                    </div>
+                </div>
+
+                {/* Rev / Exp Grid */}
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "15px" }}>
+                    {/* REVENUE */}
+                    <div style={{ background: "white", padding: "20px", borderRadius: "15px", border: "1px solid #eee" }}>
+                        <div style={{ fontSize: "12px", textTransform: "uppercase", letterSpacing: "1px", color: "#888", marginBottom: "10px" }}>Daily Post Sales (Shift)</div>
+                        <input type="number" placeholder="Amount (₱)" style={{...formInput, padding: "10px", marginBottom: "8px"}} value={revForm.amt} onChange={e => setRevForm({...revForm, amt: e.target.value})} />
+                        <input type="text" value={currentUserName} disabled style={{...formInput, padding: "10px", marginBottom: "8px", background: "#f5f5f5", color: "#666", cursor: "not-allowed"}} />
+                        <select style={{...formInput, padding: "10px", marginBottom: "15px"}} value={revForm.chan} onChange={e => setRevForm({...revForm, chan: e.target.value})}><option>Cash</option><option>GCash</option><option>Maya</option><option>BPI</option><option>Others</option></select>
+                        
+                        <div style={{ fontSize: "10px", color: "#aaa", marginBottom: "5px", fontWeight: "bold" }}>RECEIPT PHOTOS (MAX 4)</div>
+                        <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "5px", marginBottom: "15px" }}>
+                            {[0,1,2,3].map(i => (
+                                <div key={i} onClick={() => { setActivePhotoSlot({ type: 'REV', index: i }); fileInputRefRev.current.click(); }} style={{ aspectRatio: "1/1", border: "2px dashed #ddd", borderRadius: "8px", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", overflow: "hidden", color: "#ccc", fontSize: "20px" }}>
+                                    {revForm.photos[i] ? <img src={revForm.photos[i]} style={{width:"100%", height:"100%", objectFit:"cover"}} /> : '+'}
+                                </div>
+                            ))}
+                        </div>
+                        <input type="file" hidden ref={fileInputRefRev} accept="image/*" onChange={handlePhotoUpload} />
+                        <button onClick={() => handleRevExpSubmit('REVENUE')} disabled={actionLoading} style={{...btnStyle, width: "100%", background: actionLoading ? "#ccc" : "#80b07f"}}>{actionLoading ? 'Saving...' : 'Add Revenue'}</button>
+                    </div>
+
+                    {/* EXPENSE */}
+                    <div style={{ background: "white", padding: "20px", borderRadius: "15px", border: "1px solid #eee" }}>
+                        <div style={{ fontSize: "12px", textTransform: "uppercase", letterSpacing: "1px", color: "#888", marginBottom: "10px" }}>Daily Post Expense (Shift)</div>
+                        <input type="number" placeholder="Amount (₱)" style={{...formInput, padding: "10px", marginBottom: "8px"}} value={expForm.amt} onChange={e => setExpForm({...expForm, amt: e.target.value})} />
+                        <input type="text" placeholder="Details (e.g Grab, Oatmilk)" style={{...formInput, padding: "10px", marginBottom: "8px"}} value={expForm.desc} onChange={e => setExpForm({...expForm, desc: e.target.value})} />
+                        <input type="text" value={currentUserName} disabled style={{...formInput, padding: "10px", marginBottom: "8px", background: "#f5f5f5", color: "#666", cursor: "not-allowed"}} />
+                        <select style={{...formInput, padding: "10px", marginBottom: "15px"}} value={expForm.chan} onChange={e => setExpForm({...expForm, chan: e.target.value})}><option>Cash</option><option>GCash</option><option>Maya</option><option>BPI</option></select>
+                        
+                        <div style={{ fontSize: "10px", color: "#aaa", marginBottom: "5px", fontWeight: "bold" }}>RECEIPT PHOTOS (MAX 4)</div>
+                        <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "5px", marginBottom: "15px" }}>
+                            {[0,1,2,3].map(i => (
+                                <div key={i} onClick={() => { setActivePhotoSlot({ type: 'EXP', index: i }); fileInputRefExp.current.click(); }} style={{ aspectRatio: "1/1", border: "2px dashed #ddd", borderRadius: "8px", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", overflow: "hidden", color: "#ccc", fontSize: "20px" }}>
+                                    {expForm.photos[i] ? <img src={expForm.photos[i]} style={{width:"100%", height:"100%", objectFit:"cover"}} /> : '+'}
+                                </div>
+                            ))}
+                        </div>
+                        <input type="file" hidden ref={fileInputRefExp} accept="image/*" onChange={handlePhotoUpload} />
+                        <button onClick={() => handleRevExpSubmit('EXPENSE')} disabled={actionLoading} style={{...btnStyle, width: "100%", background: actionLoading ? "#ccc" : colors.green}}>{actionLoading ? 'Saving...' : 'Add Expense'}</button>
+                    </div>
+                </div>
+
+                {/* CURRENT TRANSACTION LOG */}
+                <div style={{ background: "white", padding: "20px", borderRadius: "15px", border: "1px solid #eee", flex: 1, display: "flex", flexDirection: "column" }}>
+                    <div style={{ fontSize: "12px", textTransform: "uppercase", letterSpacing: "1px", color: "#888", marginBottom: "10px" }}>Current Transactions</div>
+                    <div style={{ flex: 1, overflowY: "auto", maxHeight: "250px", border: "1px solid #f0f0f0", borderRadius: "8px", padding: "10px" }}>
+                        {currentShiftLogs.length === 0 ? <div style={{ textAlign: "center", color: "#aaa", marginTop: "20px", fontSize: "13px" }}>No transactions yet</div> : currentShiftLogs.map(l => (
+                            <div key={l.id} style={{ display: "flex", justifyContent: "space-between", borderBottom: "1px solid #f9f9f9", padding: "8px 0", fontSize: "13px" }}>
+                                <div>
+                                    <div style={{ fontWeight: "bold" }}>
+                                        {l.type === 'POS_REF' ? 'L' : l.type.charAt(0)} - {l.desc}
+                                    </div>
+                                    <div style={{ fontSize: "11px", color: "#888", marginTop: "3px" }}>
+                                        {l.date} | {l.time} {l.type !== 'TRANSFER' && `| ${l.chan}`} | {l.staff}
+                                    </div>
+                                </div>
+                                <div style={{ fontWeight: "bold", color: l.type === 'EXPENSE' ? colors.red : colors.darkGreen }}>
+                                    {l.type === 'EXPENSE' ? '-' : ''}₱{parseFloat(l.amount || l.amt).toLocaleString(undefined, {minimumFractionDigits: 2})}
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+
+            </div>
         </div>
-        </>
-        )}
+
       </div>
-
-      {/* --- MODALS --- */}
-      {SHOW_CAPITAL_EXPENSES && modals.confirmation && (
-        <div style={confirmOverlay}><div style={confirmContent}><h2 style={{color:colors.darkGreen}}>{confirmationMsg.title}</h2><p>{confirmationMsg.message}</p><div style={{display:"flex", justifyContent:"center", gap:"10px", marginTop:"20px"}}><button onClick={closeModal} style={{...btnStyle, background:"#ccc", color:"#333"}}>Cancel</button><button onClick={confirmAction} style={{...btnStyle, background:colors.green}}>Confirm</button></div></div></div>
-      )}
-      {SHOW_CAPITAL_EXPENSES && (modals.add || modals.update) && (
-        <div style={modalOverlay}><div style={modalContent}><h2 style={{color:colors.darkGreen, marginTop:0}}>{modals.add ? "Add Record" : "Update Record"}</h2>
-        <form onSubmit={modals.add ? handleAddConfirmation : handleUpdateConfirmation}>
-            <div style={{display:"flex", gap:"10px"}}>
-                <div style={{flex:1}}><label style={formLabelStyle}>Type<span style={requiredStyle}>*</span></label><select style={{...formInput, opacity: !modals.add ? 0.6 : 1, cursor: !modals.add ? 'not-allowed' : 'auto'}} disabled={!modals.add} value={salesFormData.type} onChange={e=>setSalesFormData({...salesFormData, type:e.target.value})}><option>Capital</option><option>Expense</option></select></div>
-                <div style={{flex:1}}>
-                  <label style={formLabelStyle}>Date<span style={requiredStyle}>*</span></label>
-                  <input 
-                      type="date" 
-                      style={{
-                          ...formInput, 
-                          opacity: 0.8, 
-                          cursor: 'not-allowed', 
-                          background: "#eee"
-                      }} 
-                      disabled={true} 
-                      value={salesFormData.date} 
-                      required
-                  />
-              </div>
-            </div>
-            <div style={{display:"flex", gap:"10px"}}>
-                <div style={{flex:1}}><label style={formLabelStyle}>Amount<span style={requiredStyle}>*</span></label><input type="number" step="0.01" style={formInput} value={salesFormData.amount} onChange={e=>setSalesFormData({...salesFormData, amount:e.target.value})} required/></div>
-                <div style={{flex:1}}><label style={formLabelStyle}>Entered By</label><input disabled style={{...formInput, background:"#eee"}} value={salesFormData.enteredBy} /></div>
-            </div>
-            <div><label style={formLabelStyle}>Description<span style={requiredStyle}>*</span></label><textarea style={{...formInput, height:"80px"}} value={salesFormData.description} onChange={e=>setSalesFormData({...salesFormData, description:e.target.value})} required/></div>
-            <div style={{display:"flex", justifyContent:"flex-end", gap:"10px"}}><button type="button" onClick={() => handleCancelClick(closeModal)} style={{...btnStyle, background:"#ccc", color:"#333"}}>Cancel</button><button type="submit" style={{...btnStyle, background:colors.green}}>{modals.add?"Add":"Update"}</button></div>
-        </form></div></div>
-      )}
-      {SHOW_CAPITAL_EXPENSES && modals.archive && (
-        <ArchiveModal
-          archiveTitle="Void Financial Record"
-          archiveReason={archiveReason}
-          setArchiveReason={setArchiveReason}
-          triggerConfirmation={() => handleArchiveConfirmation()} // We pass your custom sales confirmation handler here
-          executeArchive={executeArchiveSale}
-          setModals={setModals}
-          modals={modals}
-          colors={colors}
-          btnStyle={btnStyle}
-          inputStyle={formInput} // Mapping Sales formInput to the modal's inputStyle
-        />
-      )}
-      {SHOW_CAPITAL_EXPENSES && modals.archiveLog && (
-        <div style={modalOverlay}><div style={{...modalContent, width:"900px"}}><h2 style={{color:colors.blue}}>Void Log</h2><div style={{height:"400px", overflow:"auto"}}><table style={{width:"100%"}}><thead style={{background:colors.blue, color:"white"}}><tr><th>ID</th><th>Reason</th><th>By</th><th>Date Archived</th><th>Auto-Delete Date</th></tr></thead><tbody>{archiveLogs.map(l => {
-          const archivedDate = new Date(l.dateArchived)
-          const deleteDate = new Date(archivedDate.getTime() + 90 * 24 * 60 * 60 * 1000)
-          return (
-          <tr key={l.logId}><td style={{textAlign:"center", padding:"10px"}}>{l.originalId}</td><td style={{textAlign:"center"}}>{l.reason}</td><td style={{textAlign:"center"}}>{l.archivedBy}</td><td style={{textAlign:"center"}}>{l.dateArchived}</td><td style={{textAlign:"center", color: new Date() > deleteDate ? "#d32f2f" : "#f57c00", fontWeight:"bold"}}>{deleteDate.toISOString().split('T')[0]}</td></tr>
-        )})} </tbody></table></div><button onClick={closeModal} style={{...btnStyle, background:"#ccc", color:"#333", marginTop:"20px"}}>Close</button></div></div>
-      )}
-
-      <CancelConfirmationModal 
-        isOpen={showCancelConfirm} 
-        onConfirm={handleCancelConfirm} 
-        onCancel={handleCancelCancel}
-        colors={colors}
-        btnStyle={btnStyle}
-      />
 
       <Notification 
         message={notification.message} 

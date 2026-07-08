@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { supabase, supabaseSales } from '../supabaseClient' // <-- IMPORTED SECOND DB
+//import { supabase, supabaseSales } from '../supabaseClient' // <-- IMPORTED SECOND DB
 import { Notification } from '../components/Notification'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
 import Sidebar from '../components/Sidebar'

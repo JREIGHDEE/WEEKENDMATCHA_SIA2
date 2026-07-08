@@ -404,28 +404,81 @@ export const markIncompleteAttendance = async (employeeId) => {
   }
 };
 
+// Parses a single time string in either 24-hour ("17:00") or 12-hour
+// ("05:00 PM") format into { hour, minute } (24-hour hour). Returns null
+// if it can't be parsed.
+const parseTimePart = (timePart) => {
+  if (!timePart) return null
+
+  const ampmMatch = timePart.trim().match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i)
+  if (ampmMatch) {
+    let hour = parseInt(ampmMatch[1], 10)
+    const minute = parseInt(ampmMatch[2], 10)
+    const meridiem = ampmMatch[3].toUpperCase()
+    if (isNaN(hour) || isNaN(minute)) return null
+
+    if (meridiem === 'PM' && hour !== 12) hour += 12
+    if (meridiem === 'AM' && hour === 12) hour = 0
+
+    return { hour, minute }
+  }
+
+  const [hourStr, minuteStr] = timePart.trim().split(':')
+  const hour = parseInt(hourStr, 10)
+  const minute = parseInt(minuteStr, 10)
+  if (isNaN(hour) || isNaN(minute)) return null
+
+  return { hour, minute }
+}
+
 /**
  * Parse shift schedule string to get end time
- * Expects format like "09:00 - 17:00"
+ * Expects format like "09:00 - 17:00" or "08:00 AM - 05:00 PM"
  * @param {string} shiftSchedule - Shift schedule string
  * @returns {object|null} { endTime: string, endHour: number, endMinute: number } or null if invalid
  */
 export const parseShiftEndTime = (shiftSchedule) => {
   if (!shiftSchedule || typeof shiftSchedule !== 'string') return null
-  
+
   try {
-    const parts = shiftSchedule.split('-')
+    const parts = shiftSchedule.split(' - ')
     if (parts.length < 2) return null
-    
+
     const endTimePart = parts[1].trim()
-    const [hour, minute] = endTimePart.split(':').map(Number)
-    
-    if (isNaN(hour) || isNaN(minute)) return null
-    
+    const parsed = parseTimePart(endTimePart)
+    if (!parsed) return null
+
     return {
       endTime: endTimePart,
-      endHour: hour,
-      endMinute: minute
+      endHour: parsed.hour,
+      endMinute: parsed.minute
+    }
+  } catch (err) {
+    return null
+  }
+};
+
+/**
+ * Parse shift schedule string to get start time
+ * Expects format like "09:00 - 17:00" or "08:00 AM - 05:00 PM"
+ * @param {string} shiftSchedule - Shift schedule string
+ * @returns {object|null} { startTime: string, startHour: number, startMinute: number } or null if invalid
+ */
+export const parseShiftStartTime = (shiftSchedule) => {
+  if (!shiftSchedule || typeof shiftSchedule !== 'string') return null
+
+  try {
+    const parts = shiftSchedule.split(' - ')
+    if (parts.length < 2) return null
+
+    const startTimePart = parts[0].trim()
+    const parsed = parseTimePart(startTimePart)
+    if (!parsed) return null
+
+    return {
+      startTime: startTimePart,
+      startHour: parsed.hour,
+      startMinute: parsed.minute
     }
   } catch (err) {
     return null

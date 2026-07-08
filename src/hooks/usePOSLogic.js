@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef } from 'react'
 import { supabase } from '../supabaseClient'
 import { useNavigate } from 'react-router-dom'
+import { parseShiftStartTime, getManilaDateStr, buildManilaDateTime } from '../services/personalService'
 
 export function usePOSLogic() {
   const navigate = useNavigate()
@@ -86,7 +87,7 @@ export function usePOSLogic() {
 
       const { data: userData } = await supabase
         .from('Employee')
-        .select('EmployeeID, User(FirstName, LastName, RoleName)')
+        .select('EmployeeID, ShiftSchedule, NextShift, User(FirstName, LastName, RoleName)')
         .eq('UserID', user.id)
         .maybeSingle()
 
@@ -972,6 +973,24 @@ export function usePOSLogic() {
     }
   }
 
+  // Locks Time In until 1 hour before the employee's scheduled shift start.
+  // Time Out is never blocked by this check.
+  const canPosTimeIn = () => {
+    if (posEmployeeTimedIn) return true // already timed in, button will Time Out
+
+    const todayStr = getManilaDateStr()
+    const scheduledForToday = !currentUser?.NextShift || currentUser.NextShift === todayStr
+    if (!scheduledForToday) return false
+
+    const parsedStart = parseShiftStartTime(currentUser?.ShiftSchedule)
+    if (!parsedStart) return true // No parsable shift start, don't block
+
+    const shiftStart = buildManilaDateTime(todayStr, parsedStart.startHour, parsedStart.startMinute)
+    const allowedFrom = new Date(shiftStart.getTime() - 3600000)
+
+    return new Date() >= allowedFrom
+  }
+
   const handleOpenPOSTimeInOut = async () => {
     const { getEmployeeAttendanceStatus } = await import('../services/personalService')
     const status = await getEmployeeAttendanceStatus(currentUser?.EmployeeID)
@@ -987,7 +1006,7 @@ export function usePOSLogic() {
   const handleOpenSwitchProfile = async () => {
     const { data, error } = await supabase
       .from('Employee')
-      .select('EmployeeID, EmployeeStatus, User(FirstName, LastName, RoleName)')
+      .select('EmployeeID, EmployeeStatus, ShiftSchedule, NextShift, User(FirstName, LastName, RoleName)')
       .eq('EmployeeStatus', 'Active')
 
     if (!error && data) {
@@ -1178,7 +1197,7 @@ export function usePOSLogic() {
       handleOpenSwitchProfile,   
       handleSwitchProfile, setSelectedRecipeUnit,
 
-      handleOpenPOSTimeInOut, handleSelectTimeInOutMode, handleConfirmPOSPIN,
+      handleOpenPOSTimeInOut, handleSelectTimeInOutMode, handleConfirmPOSPIN, canPosTimeIn,
       closePOSPINModal, setPosPin,
 
       executeCloseReceipt,

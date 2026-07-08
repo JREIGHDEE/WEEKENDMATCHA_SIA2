@@ -4,6 +4,7 @@ import logo from '../assets/wm-logo.svg'
 import { Notification } from '../components/Notification'
 import { useNotification } from '../hooks/useNotification'
 import { usePersonal } from '../hooks/usePersonal'
+import { parseShiftStartTime, getManilaDateStr, buildManilaDateTime } from '../services/personalService'
 import ProfileCard from '../components/ProfileCard'
 import AttendanceTable from '../components/AttendanceTable'
 import { colors, type as typeScale } from '../constants/uiStyles'
@@ -122,17 +123,21 @@ function PersonalView() {
   // --- LOGIC: CAN USER TIME IN? ---
   const canTimeIn = () => {
     if (todayRecord) return false; // Already timed in today
-    
-    const todayStr = new Date().toLocaleDateString('en-CA');
-    
+
+    const todayStr = getManilaDateStr();
+
     // If no NextShift is set (New Employee), allow Time In
-    if (!employee?.NextShift) return true;
+    const scheduledForToday = !employee?.NextShift || employee.NextShift === todayStr
+    if (!scheduledForToday) return false; // Schedule is for a different day, block it
 
-    // If NextShift matches Today, allow Time In
-    if (employee.NextShift === todayStr) return true;
+    // Lock Time In until 1 hour before the scheduled shift start
+    const parsedStart = parseShiftStartTime(employee?.ShiftSchedule)
+    if (!parsedStart) return true; // No parsable shift start, don't block
 
-    // Otherwise (Schedule is for a different day), block it
-    return false;
+    const shiftStart = buildManilaDateTime(todayStr, parsedStart.startHour, parsedStart.startMinute)
+    const allowedFrom = new Date(shiftStart.getTime() - 3600000)
+
+    return new Date() >= allowedFrom;
   }
 
   const sidebarItem = (name) => ({

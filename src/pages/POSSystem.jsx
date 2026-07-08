@@ -111,29 +111,35 @@ function POSSystem() {
             <div style={{...uiStyles.sidebarItem(state.activeTab === 'CurrentOrders'), justifyContent: sidebarCollapsed ? "center" : "flex-start", display: "flex", alignItems: "center", gap: "12px"}} onClick={() => actions.setActiveTab('CurrentOrders')} title="Current Orders"><HiOutlineClipboardDocumentList size={19} />{!sidebarCollapsed && "Current Orders"}</div>
         </div>
         <div style={{ display: "flex", flexDirection: "column", gap: "8px", marginTop: "auto", marginBottom: "20px" }}>
-            <button
-              onClick={actions.handleOpenPOSTimeInOut}
-              disabled={state.posEmployeeTimedOutToday || state.loading}
-              title={state.posEmployeeTimedOutToday ? "Shift completed for today" : (state.posEmployeeTimedIn ? "Time Out" : "Time In")}
-              className="btn-animated"
-              style={{
-                padding: sidebarCollapsed ? "12px 0" : "12px 20px",
-                background: state.posEmployeeTimedOutToday ? "#888" : (state.posEmployeeTimedIn ? colors.discountRed : colors.blueText),
-                color: "white",
-                border: "none",
-                borderRadius: "10px",
-                fontWeight: "bold",
-                cursor: state.posEmployeeTimedOutToday || state.loading ? "not-allowed" : "pointer",
-                fontSize: typeScale.small,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                gap: "8px"
-              }}
-            >
-              {state.loading ? <LoadingSpinner size={12} color="white" /> : (sidebarCollapsed && <HiOutlineClock size={16} />)}
-              {!sidebarCollapsed && (state.posEmployeeTimedOutToday ? "TIMED OUT" : (state.posEmployeeTimedIn ? "TIME OUT" : "TIME IN"))}
-            </button>
+            {(() => {
+              const canTimeIn = actions.canPosTimeIn()
+              const isLocked = !state.posEmployeeTimedIn && !state.posEmployeeTimedOutToday && !canTimeIn
+              return (
+                <button
+                  onClick={actions.handleOpenPOSTimeInOut}
+                  disabled={state.posEmployeeTimedOutToday || state.loading || isLocked}
+                  title={state.posEmployeeTimedOutToday ? "Shift completed for today" : (isLocked ? "Not yet within 1 hour of your scheduled shift" : (state.posEmployeeTimedIn ? "Time Out" : "Time In"))}
+                  className="btn-animated"
+                  style={{
+                    padding: sidebarCollapsed ? "12px 0" : "12px 20px",
+                    background: state.posEmployeeTimedOutToday || isLocked ? "#888" : (state.posEmployeeTimedIn ? colors.discountRed : colors.blueText),
+                    color: "white",
+                    border: "none",
+                    borderRadius: "10px",
+                    fontWeight: "bold",
+                    cursor: state.posEmployeeTimedOutToday || state.loading || isLocked ? "not-allowed" : "pointer",
+                    fontSize: typeScale.small,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: "8px"
+                  }}
+                >
+                  {state.loading ? <LoadingSpinner size={12} color="white" /> : (sidebarCollapsed && <HiOutlineClock size={16} />)}
+                  {!sidebarCollapsed && (state.posEmployeeTimedOutToday ? "TIMED OUT" : (isLocked ? "SCHEDULED" : (state.posEmployeeTimedIn ? "TIME OUT" : "TIME IN")))}
+                </button>
+              )
+            })()}
         </div>
         <div style={{ padding: sidebarCollapsed ? "20px 0" : "16px 10px", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: sidebarCollapsed ? "center" : "flex-start", gap: "12px", fontSize: typeScale.body, fontWeight: 600, borderRadius: "12px", transition: "background 0.2s ease" }}
           onClick={() => { supabase.auth.signOut(); navigate('/') }}

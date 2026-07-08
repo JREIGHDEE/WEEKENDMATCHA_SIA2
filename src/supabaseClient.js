@@ -6,6 +6,6 @@ const supabaseKey = import.meta.env.VITE_SUPABASE_KEY
 export const supabase = createClient(supabaseUrl, supabaseKey)
 
 // 2. Your Sales Tracking Database
-const supabaseSalesUrl = import.meta.env.VITE_SUPABASE_SALES_URL
-const supabaseSalesKey = import.meta.env.VITE_SUPABASE_SALES_KEY
-export const supabaseSales = createClient(supabaseSalesUrl, supabaseSalesKey)
+//const supabaseSalesUrl = import.meta.env.VITE_SUPABASE_SALES_URL
+//const supabaseSalesKey = import.meta.env.VITE_SUPABASE_SALES_KEY
+//export const supabaseSales = createClient(supabaseSalesUrl, supabaseSalesKey)
